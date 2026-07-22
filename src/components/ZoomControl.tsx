@@ -5,6 +5,7 @@ import { usePrefs } from '../prefs/PrefsProvider';
 
 export const ZOOM_PRESETS: ContentZoomPreset[] = [
   'fit',
+  'full-width',
   '25',
   '33',
   '50',
@@ -17,8 +18,12 @@ export const ZOOM_PRESETS: ContentZoomPreset[] = [
   '400',
 ];
 
-export function zoomLabel(preset: ContentZoomPreset, fitText: string): string {
-  if (preset === 'fit') return fitText;
+export function zoomLabel(
+  preset: ContentZoomPreset,
+  labels: { fit: string; fullWidth: string },
+): string {
+  if (preset === 'fit') return labels.fit;
+  if (preset === 'full-width') return labels.fullWidth;
   return `${preset}%`;
 }
 
@@ -36,6 +41,7 @@ export function ZoomControl({
   const { tr } = usePrefs();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const labels = { fit: tr('zoomFit'), fullWidth: tr('zoomFullWidth') };
 
   useEffect(() => {
     if (!open) return;
@@ -55,12 +61,12 @@ export function ZoomControl({
         className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-[var(--line)] bg-[var(--stage)] px-2 py-1 text-[11px] font-semibold tabular-nums text-[var(--ink)] hover:bg-[var(--panel)]"
       >
         <ZoomIn className="h-3.5 w-3.5 opacity-80" />
-        <span>{zoomLabel(value, tr('zoomFit'))}</span>
+        <span>{zoomLabel(value, labels)}</span>
         <ChevronDown className="h-3 w-3 opacity-70" />
       </button>
       {open && (
         <div
-          className={`absolute right-0 z-40 max-h-56 min-w-[7.5rem] overflow-y-auto rounded-lg border border-[var(--line)] bg-[var(--stage)] py-1 text-[var(--ink)] shadow-lg ${
+          className={`absolute right-0 z-40 max-h-56 min-w-[8.5rem] overflow-y-auto rounded-lg border border-[var(--line)] bg-[var(--stage)] py-1 text-[var(--ink)] shadow-lg ${
             menuPlacement === 'up' ? 'bottom-full mb-1' : 'top-full mt-1'
           }`}
         >
@@ -78,7 +84,7 @@ export function ZoomControl({
                   : 'hover:bg-[var(--panel)]'
               }`}
             >
-              {zoomLabel(preset, tr('zoomFit'))}
+              {zoomLabel(preset, labels)}
             </button>
           ))}
         </div>
@@ -88,8 +94,10 @@ export function ZoomControl({
 }
 
 /**
- * Stage zoom via transform scale (more reliable than CSS `zoom` across rapid changes).
- * Fit = largest scale ≤ 100% that fits content into the viewport.
+ * Stage zoom via transform scale.
+ * - fit: largest uniform scale ≤ 100% that fits content
+ * - full-width: no scale; stretch lesson column to stage width
+ * Percentage presets use scale with a clipped viewport (no scrollbar flash).
  */
 export function StageZoomFrame({
   zoom,
@@ -102,10 +110,12 @@ export function StageZoomFrame({
   const scalerRef = useRef<HTMLDivElement>(null);
   const [fitScale, setFitScale] = useState(1);
 
-  const presetScale = zoom === 'fit' ? fitScale : Number(zoom) / 100;
+  const isFullWidth = zoom === 'full-width';
+  const isFit = zoom === 'fit';
+  const presetScale = isFit ? fitScale : isFullWidth ? 1 : Number(zoom) / 100;
 
   useLayoutEffect(() => {
-    if (zoom !== 'fit') return;
+    if (!isFit) return;
     const viewport = viewportRef.current;
     const scaler = scalerRef.current;
     if (!viewport || !scaler) return;
@@ -115,7 +125,6 @@ export function StageZoomFrame({
       const vh = viewport.clientHeight;
       if (vw < 32 || vh < 32) return;
 
-      // Prefer real lesson article height; otherwise fit a deck-like frame for full-bleed quizzes/labs.
       const article = scaler.querySelector('.lesson-stage') as HTMLElement | null;
       let next: number;
       if (article) {
@@ -133,22 +142,23 @@ export function StageZoomFrame({
     ro.observe(viewport);
     ro.observe(scaler);
     return () => ro.disconnect();
-  }, [zoom, children]);
+  }, [isFit, children]);
 
   const scale = Math.max(0.1, presetScale);
 
   return (
-    <div ref={viewportRef} className="h-full w-full overflow-auto">
+    <div
+      ref={viewportRef}
+      className={`stage-zoom-viewport h-full w-full overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable] ${
+        isFullWidth ? 'stage-zoom-full-width' : ''
+      }`}
+    >
       <div
         ref={scalerRef}
-        className="origin-top-left"
-        style={{
-          transform: `scale(${scale})`,
-          width: `${100 / scale}%`,
-          height: `${100 / scale}%`,
-        }}
+        className="h-full w-full"
+        style={isFullWidth ? undefined : { zoom: scale }}
       >
-        <div className="h-full w-full">{children}</div>
+        {children}
       </div>
     </div>
   );

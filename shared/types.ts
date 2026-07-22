@@ -336,6 +336,7 @@ export interface AppearancePrefs {
 
 export type ContentZoomPreset =
   | 'fit'
+  | 'full-width'
   | '25'
   | '33'
   | '50'

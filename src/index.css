@@ -149,6 +149,12 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb {
   animation: pulse-ring 1.8s ease-out infinite;
 }
 
+/* Zoom: Full width — stretch the lesson reading column to the stage */
+.stage-zoom-full-width .lesson-stage {
+  max-width: none;
+  width: 100%;
+}
+
 /* Lab section HTML — semantic tags (Tailwind preflight strips list/heading defaults) */
 .lab-html {
   color: var(--ink);
