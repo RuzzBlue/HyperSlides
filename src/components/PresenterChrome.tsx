@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, PanelLeft } from 'lucide-react';
-import type { PresenterMenuMode, SequenceItem } from '@shared/types';
+import type { ContentZoomPreset, PresenterMenuMode, SequenceItem } from '@shared/types';
 import { usePrefs } from '../prefs/PrefsProvider';
 import { ZoomControl } from './ZoomControl';
-import type { ContentZoomPreset } from '@shared/types';
 
 export function PresenterChrome({
   mode,
@@ -63,7 +62,7 @@ export function PresenterChrome({
 
   const bar = (
     <div
-      className={`flex h-11 w-full items-center gap-3 border-white/10 bg-[#161920]/90 px-3 text-white backdrop-blur-md ${
+      className={`flex h-11 w-full items-center gap-3 border-[var(--line)] bg-[var(--chrome-top)]/95 px-3 text-[var(--ink)] shadow-sm backdrop-blur-md ${
         isHeader ? 'border-b' : 'border-t'
       }`}
     >
@@ -72,30 +71,32 @@ export function PresenterChrome({
         onClick={onToggleSidebar}
         title={tr('toggleNavigator')}
         className={`cursor-pointer rounded-md p-1.5 ${
-          sidebarOpen ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
+          sidebarOpen
+            ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+            : 'text-[var(--ink-muted)] hover:bg-black/5 dark:hover:bg-white/10'
         }`}
       >
         <PanelLeft className="h-4 w-4" />
       </button>
 
       <div className="min-w-0 max-w-[28%] shrink">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/55">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
           {typeLabel}
         </div>
-        <div className="truncate text-[12px] font-medium text-white">{current?.title}</div>
+        <div className="truncate text-[12px] font-medium text-[var(--ink)]">{current?.title}</div>
       </div>
 
       <div className="flex flex-1 items-center justify-center">
-        <div className="flex items-center gap-1 rounded-lg border border-white/15 bg-white/5 p-0.5">
+        <div className="flex items-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--stage)] p-0.5 shadow-sm">
           <button
             type="button"
             onClick={onPrev}
             disabled={index <= 0}
-            className="cursor-pointer rounded-md p-1.5 text-white enabled:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+            className="cursor-pointer rounded-md p-1.5 text-[var(--ink)] enabled:hover:bg-[var(--panel)] disabled:cursor-not-allowed disabled:opacity-30"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <div className="flex min-w-[4.5rem] items-center justify-center gap-0.5 text-[12px] font-medium tabular-nums">
+          <div className="flex min-w-[4.5rem] items-center justify-center gap-0.5 text-[12px] font-medium tabular-nums text-[var(--ink)]">
             <input
               type="text"
               inputMode="numeric"
@@ -110,16 +111,16 @@ export function PresenterChrome({
                   e.currentTarget.blur();
                 }
               }}
-              className="w-[1.75rem] rounded border border-transparent bg-transparent px-0.5 text-center text-white outline-none hover:border-white/20 focus:border-white/40 focus:bg-white/10"
+              className="w-[1.75rem] rounded border border-transparent bg-transparent px-0.5 text-center outline-none hover:border-[var(--line)] focus:border-[var(--accent)] focus:bg-[var(--panel)]"
             />
-            <span className="text-white/50">/</span>
+            <span className="text-[var(--ink-muted)]">/</span>
             <span>{total}</span>
           </div>
           <button
             type="button"
             onClick={onNext}
             disabled={index >= total - 1}
-            className="cursor-pointer rounded-md p-1.5 text-white enabled:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+            className="cursor-pointer rounded-md p-1.5 text-[var(--ink)] enabled:hover:bg-[var(--panel)] disabled:cursor-not-allowed disabled:opacity-30"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -130,25 +131,22 @@ export function PresenterChrome({
         <ZoomControl
           value={zoom}
           onChange={onZoomChange}
-          tone="dark"
           compact
           menuPlacement={isHeader ? 'down' : 'up'}
         />
-        <div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/15">
+        <div className="h-1.5 w-28 overflow-hidden rounded-full bg-[var(--chrome-deep)]">
           <div
             className="h-full rounded-full bg-[var(--accent)] transition-all duration-300"
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className="w-8 text-[11px] tabular-nums text-white/70">{pct}%</span>
+        <span className="w-8 text-[11px] tabular-nums text-[var(--ink-muted)]">{pct}%</span>
       </div>
     </div>
   );
 
   if (!isFloating) {
-    return (
-      <div className={`shrink-0 ${isHeader ? 'order-first' : ''}`}>{bar}</div>
-    );
+    return <div className={`shrink-0 ${isHeader ? 'order-first' : ''}`}>{bar}</div>;
   }
 
   const hoverZoneClass = isHeader

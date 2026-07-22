@@ -46,16 +46,28 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('appearance');
   const [error, setError] = useState<string | null>(null);
+  const [contentZoom, setContentZoomState] = useState<ContentZoomPreset>(
+    settings.contentZoom ?? '100',
+  );
 
-  const contentZoom = settings.contentZoom ?? '100';
   const presenterMenu = settings.presenterMenu ?? 'fixed-footer';
+
+  useEffect(() => {
+    if (settings.contentZoom) setContentZoomState(settings.contentZoom);
+  }, [settings.contentZoom]);
 
   const setContentZoom = useCallback(
     (zoom: ContentZoomPreset) => {
-      void save({ settings: { ...settings, contentZoom: zoom } });
+      setContentZoomState(zoom);
+      void save({ settings: { contentZoom: zoom } });
     },
-    [save, settings],
+    [save],
   );
+
+  const exitPresent = useCallback(() => {
+    setFullscreenStage(false);
+    setSidebarOpen(true);
+  }, []);
 
   const openSettings = (tab: SettingsTab) => {
     setSettingsTab(tab);
@@ -229,12 +241,12 @@ export default function App() {
         e.preventDefault();
         goTo(index - 1);
       } else if (e.key === 'Escape' && fullscreenStage) {
-        setFullscreenStage(false);
+        exitPresent();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [view, course, index, goTo, fullscreenStage]);
+  }, [view, course, index, goTo, fullscreenStage, exitPresent]);
 
   const onQuizGraded = (result: QuizGradeResult) => {
     setQuizResult(result);
@@ -429,7 +441,7 @@ export default function App() {
                 <div className="group/exit absolute right-0 top-0 z-40 h-20 w-36">
                   <button
                     type="button"
-                    onClick={() => setFullscreenStage(false)}
+                    onClick={() => exitPresent()}
                     className="absolute right-4 top-4 rounded-md bg-black/50 px-3 py-1.5 text-sm text-white backdrop-blur opacity-0 transition-opacity hover:bg-black/70 group-hover/exit:opacity-100 focus-visible:opacity-100"
                   >
                     {tr('exitPresent')}
