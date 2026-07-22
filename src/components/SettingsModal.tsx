@@ -19,9 +19,17 @@ type TabId = 'profile' | 'appearance' | 'settings';
 
 const ACCENTS = ['#0e6e6a', '#2f5aa8', '#c45c26', '#6b4f9a', '#1f7a4c', '#b42318', '#0f766e', '#1d4ed8'];
 
-export function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function SettingsModal({
+  open,
+  onClose,
+  initialTab = 'profile',
+}: {
+  open: boolean;
+  onClose: () => void;
+  initialTab?: TabId;
+}) {
   const { profile, appearance, settings, tr, save } = usePrefs();
-  const [tab, setTab] = useState<TabId>('profile');
+  const [tab, setTab] = useState<TabId>(initialTab);
   const [draftProfile, setDraftProfile] = useState({
     firstName: '',
     lastName: '',
@@ -37,6 +45,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
 
   useEffect(() => {
     if (!open || !profile) return;
+    setTab(initialTab);
     setDraftProfile({
       firstName: profile.firstName,
       lastName: profile.lastName,
@@ -47,7 +56,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     setDraftSettings(settings);
     setStatus(null);
     setError(null);
-  }, [open, profile, appearance, settings]);
+  }, [open, profile, appearance, settings, initialTab]);
 
   useEffect(() => {
     if (open) return;

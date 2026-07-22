@@ -1,0 +1,12 @@
+<div class="candles-demo">
+  <strong>Mini candle chart · DEMO data</strong>
+  <p>Each candle summarizes open, high, low, and close for an interval. It is educational—not price data or trading advice.</p>
+  <canvas width="480" height="180" aria-label="Illustrative candlestick chart"></canvas>
+  <button type="button">Generate next demo candle</button>
+</div>
+<style>
+  .candles-demo{font:14px system-ui,sans-serif;padding:16px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;color:#172554}.candles-demo p{color:#475569}.candles-demo canvas{display:block;max-width:100%;background:#fff;border-radius:8px;margin:12px 0}.candles-demo button{border:0;border-radius:6px;background:#0f766e;color:#fff;padding:8px 12px;cursor:pointer}
+</style>
+<script>
+(() => { const root=document.currentScript.previousElementSibling.previousElementSibling; const canvas=root.querySelector("canvas"),ctx=canvas.getContext("2d"); let values=[92,104,97,112,106,120,115]; const draw=()=>{ctx.clearRect(0,0,480,180);ctx.strokeStyle="#e2e8f0";for(let y=25;y<180;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(480,y);ctx.stroke()} values.forEach((close,i)=>{const open=i?values[i-1]:96,high=Math.max(open,close)+6,low=Math.min(open,close)-6,x=35+i*58,scale=v=>165-(v-80)*3;ctx.strokeStyle=close>=open?"#16a34a":"#dc2626";ctx.beginPath();ctx.moveTo(x,scale(high));ctx.lineTo(x,scale(low));ctx.stroke();ctx.fillStyle=ctx.strokeStyle;ctx.fillRect(x-9,scale(Math.max(open,close)),18,Math.max(3,Math.abs(scale(open)-scale(close))))})};root.querySelector("button").onclick=()=>{values.push(values.at(-1)+Math.round(Math.random()*16-8));values=values.slice(-7);draw()};draw()})();
+</script>

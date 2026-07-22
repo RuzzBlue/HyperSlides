@@ -1,0 +1,72 @@
+<div class="space-y-8 text-left">
+  <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div>
+      <span class="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Module 01 · Unit 02</span>
+      <h2 class="mt-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">The Shared Ledger</h2>
+    </div>
+  </div>
+
+  <p class="max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+    A blockchain is a database replicated across many computers. It gives participants a shared history of transactions without asking one company to keep the only copy.
+  </p>
+
+  <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
+    <div class="relative overflow-hidden rounded-2xl border border-indigo-900 bg-indigo-950 p-8 text-white shadow-lg lg:col-span-2">
+      <div class="pointer-events-none absolute inset-0 bg-gradient-to-tr from-violet-900/40 to-transparent"></div>
+      <div class="relative z-10 space-y-4">
+        <div class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 font-mono text-xs">
+          <span class="h-2 w-2 animate-pulse rounded-full bg-emerald-400"></span>
+          Decentralized architecture
+        </div>
+        <h3 class="text-2xl font-bold tracking-tight">The peer-to-peer ledger</h3>
+        <p class="max-w-lg text-xs leading-relaxed text-slate-200">
+          Thousands of nodes keep synchronized copies. No single operator can quietly rewrite everyone’s history.
+        </p>
+      </div>
+    </div>
+    <div class="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Concept</span>
+        <span class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">Live sync</span>
+      </div>
+      <div class="mt-6">
+        <span class="block font-mono text-3xl font-black tracking-tight text-slate-900 dark:text-white">1 history</span>
+        <span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">Many peers, one agreed chain tip</span>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">Blockchain evolution timeline</span>
+    <div data-component="timeline" data-preset="blockchain"></div>
+  </div>
+
+  <div>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">Ledger consensus flow</span>
+    <div data-component="mermaid-graph"></div>
+  </div>
+
+  <div class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+    <h3 class="mb-4 text-lg font-bold text-slate-900 dark:text-white">Node roles at a glance</h3>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div class="rounded-xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
+        <h4 class="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
+          <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
+          Full nodes
+        </h4>
+        <p class="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+          Validate and relay transactions, enforce consensus rules, and store chain state independently.
+        </p>
+      </div>
+      <div class="rounded-xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
+        <h4 class="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
+          <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+          Light clients
+        </h4>
+        <p class="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+          Rely on headers and proofs for mobile-friendly verification without downloading the entire chain.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

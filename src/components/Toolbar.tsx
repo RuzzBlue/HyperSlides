@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -20,6 +20,7 @@ export function Toolbar({
   onToggleSidebar,
   onPrev,
   onNext,
+  onGoTo,
   onPresent,
 }: {
   index: number;
@@ -29,18 +30,34 @@ export function Toolbar({
   onToggleSidebar: () => void;
   onPrev: () => void;
   onNext: () => void;
+  onGoTo: (zeroBasedIndex: number) => void;
   onPresent: () => void;
 }) {
   const { tr } = usePrefs();
   const typeLabel =
     current?.type === 'quiz' ? 'Quiz' : current?.type === 'lab' ? 'Lab' : 'Lesson';
 
+  const [draft, setDraft] = useState(String(total ? index + 1 : 0));
+
+  useEffect(() => {
+    setDraft(String(total ? index + 1 : 0));
+  }, [index, total]);
+
+  const commitSlide = () => {
+    const n = Number.parseInt(draft, 10);
+    if (!Number.isFinite(n) || total < 1 || n < 1 || n > total) {
+      setDraft(String(total ? index + 1 : 0));
+      return;
+    }
+    onGoTo(n - 1);
+  };
+
   return (
     <div className="flex h-11 shrink-0 items-center gap-2 border-b border-[var(--line)] bg-[var(--panel)] px-3">
       <button
         type="button"
         onClick={onToggleSidebar}
-        className={`rounded-md p-1.5 ${sidebarOpen ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--ink-muted)] hover:bg-black/5'}`}
+        className={`cursor-pointer rounded-md p-1.5 ${sidebarOpen ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--ink-muted)] hover:bg-black/5'}`}
         title="Toggle navigator"
       >
         <PanelLeft className="h-4 w-4" />
@@ -53,18 +70,36 @@ export function Toolbar({
           type="button"
           onClick={onPrev}
           disabled={index <= 0}
-          className="rounded-md p-1.5 text-[var(--ink)] enabled:hover:bg-[var(--panel)] disabled:opacity-30"
+          className="cursor-pointer rounded-md p-1.5 text-[var(--ink)] enabled:hover:bg-[var(--panel)] disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <span className="min-w-[4.5rem] text-center text-[12px] font-medium tabular-nums text-[var(--ink)]">
-          {total ? index + 1 : 0} / {total}
-        </span>
+        <div className="flex min-w-[4.5rem] items-center justify-center gap-0.5 text-[12px] font-medium tabular-nums text-[var(--ink)]">
+          <input
+            type="text"
+            inputMode="numeric"
+            aria-label="Go to slide"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value.replace(/[^\d]/g, ''))}
+            onBlur={commitSlide}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.currentTarget.blur();
+              } else if (e.key === 'Escape') {
+                setDraft(String(total ? index + 1 : 0));
+                e.currentTarget.blur();
+              }
+            }}
+            className="w-[1.75rem] rounded border border-transparent bg-transparent px-0.5 text-center outline-none hover:border-[var(--line)] focus:border-[var(--accent)] focus:bg-[var(--panel)]"
+          />
+          <span className="text-[var(--ink-muted)]">/</span>
+          <span>{total}</span>
+        </div>
         <button
           type="button"
           onClick={onNext}
           disabled={index >= total - 1}
-          className="rounded-md p-1.5 text-[var(--ink)] enabled:hover:bg-[var(--panel)] disabled:opacity-30"
+          className="cursor-pointer rounded-md p-1.5 text-[var(--ink)] enabled:hover:bg-[var(--panel)] disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -95,7 +130,7 @@ export function Toolbar({
         <button
           type="button"
           onClick={onPresent}
-          className="pulse-accent inline-flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:brightness-110"
+          className="pulse-accent inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:brightness-110"
         >
           <Play className="h-3.5 w-3.5 fill-current" />
           {tr('present')}
@@ -103,7 +138,7 @@ export function Toolbar({
         <button
           type="button"
           onClick={onPresent}
-          className="rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5"
+          className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5"
           title="Fullscreen stage"
         >
           <Maximize2 className="h-4 w-4" />
@@ -126,7 +161,7 @@ function ToolGhost({
     <button
       type="button"
       title={label}
-      className={`rounded-md p-1.5 ${
+      className={`cursor-pointer rounded-md p-1.5 ${
         active
           ? 'bg-[var(--stage)] text-[var(--ink)] shadow-sm ring-1 ring-[var(--line)]'
           : 'text-[var(--ink-muted)] hover:bg-black/5'

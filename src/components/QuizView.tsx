@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, CircleHelp, XCircle } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import type {
@@ -29,8 +29,28 @@ export function QuizView({
   const [result, setResult] = useState<QuizGradeResult | null>(priorResult);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    setAnswers((prev) => {
+      const next = { ...prev };
+      for (const q of payload.questions) {
+        if (q.type === 'ordering' && q.options?.length && next[q.id] === undefined) {
+          next[q.id] = q.options.map((o) => o.id);
+        }
+      }
+      return next;
+    });
+  }, [payload.questions]);
+
   const answeredCount = useMemo(
-    () => payload.questions.filter((q) => answers[q.id] !== undefined && answers[q.id] !== '').length,
+    () =>
+      payload.questions.filter((q) => {
+        const v = answers[q.id];
+        if (v === undefined || v === '') return false;
+        if (q.type === 'matching' && typeof v === 'object' && !Array.isArray(v)) {
+          return Object.keys(v).length > 0;
+        }
+        return true;
+      }).length,
     [answers, payload.questions],
   );
 
@@ -224,6 +244,88 @@ function QuestionInput({
             </button>
           );
         })}
+      </div>
+    );
+  }
+
+  if (question.type === 'ordering') {
+    // Ensure a default order exists
+    const currentOrder =
+      Array.isArray(value) && value.length
+        ? (value as string[])
+        : (question.options?.map((o) => o.id) ?? []);
+    const labelFor = (id: string) => question.options?.find((o) => o.id === id)?.label ?? id;
+    const move = (from: number, dir: -1 | 1) => {
+      if (disabled) return;
+      const to = from + dir;
+      if (to < 0 || to >= currentOrder.length) return;
+      const next = [...currentOrder];
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
+      onChange(next);
+    };
+    return (
+      <div className="space-y-2">
+        <p className="text-[11px] text-[var(--ink-muted)]">Use arrows to set the correct sequence.</p>
+        {currentOrder.map((id, i) => (
+          <div
+            key={id}
+            className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2"
+          >
+            <span className="w-5 text-[11px] font-bold text-[var(--quiz)]">{i + 1}</span>
+            <span className="min-w-0 flex-1 text-sm text-[var(--ink)]">{labelFor(id)}</span>
+            <button
+              type="button"
+              disabled={disabled || i === 0}
+              onClick={() => move(i, -1)}
+              className="rounded border border-[var(--line)] px-2 py-0.5 text-xs disabled:opacity-30"
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              disabled={disabled || i === currentOrder.length - 1}
+              onClick={() => move(i, 1)}
+              className="rounded border border-[var(--line)] px-2 py-0.5 text-xs disabled:opacity-30"
+            >
+              ↓
+            </button>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (question.type === 'matching') {
+    const map =
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? (value as Record<string, string>)
+        : {};
+    return (
+      <div className="space-y-2">
+        {question.options?.map((left) => (
+          <div
+            key={left.id}
+            className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2"
+          >
+            <span className="min-w-[8rem] flex-1 text-sm font-medium text-[var(--ink)]">
+              {left.label}
+            </span>
+            <select
+              disabled={disabled}
+              value={map[left.id] ?? ''}
+              onChange={(e) => onChange({ ...map, [left.id]: e.target.value })}
+              className="rounded-lg border border-[var(--line)] bg-[#fafbfd] px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[var(--quiz)]"
+            >
+              <option value="">Select…</option>
+              {question.matchTargets?.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
       </div>
     );
   }

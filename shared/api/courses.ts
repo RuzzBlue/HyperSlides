@@ -2,10 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type {
   CourseManifest,
+  CoursePackageManifest,
   CourseSummary,
   LabActivity,
   LabPayload,
   LabRubric,
+  LabSectionPayload,
   LessonPayload,
   LoadedCourse,
   ProgressState,
@@ -16,6 +18,18 @@ import type {
   QuizQuestion,
   SequenceItem,
 } from '../types.ts';
+/** Convert package widgets + strip full-document wrappers for in-app React staging. */
+function prepareLessonFragment(raw: string): string {
+  let html = raw.trim();
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  if (bodyMatch) html = bodyMatch[1].trim();
+  html = html.replace(
+    /<widget\s+id=["']([^"']+)["']\s*\/?>/gi,
+    '<div data-component="course-widget" data-widget-id="$1" class="my-2 min-h-[280px]"></div>',
+  );
+  html = html.replace(/<\/widget>/gi, '');
+  return html;
+}
 
 function readJson<T>(filePath: string): T {
   const raw = fs.readFileSync(filePath, 'utf-8');
@@ -51,6 +65,7 @@ export function listCourses(appRoot: string): CourseSummary[] {
       const quizCount = sequence.filter((s) => s.type === 'quiz').length;
       const labCount = sequence.filter((s) => s.type === 'lab').length;
       const lessonCount = sequence.filter((s) => s.type === 'lesson').length;
+      const modifiedAt = fs.statSync(manifestPath).mtime.toISOString();
       summaries.push({
         id: manifest.id,
         title: manifest.title,
@@ -64,6 +79,7 @@ export function listCourses(appRoot: string): CourseSummary[] {
         lessonCount,
         quizCount,
         labCount,
+        modifiedAt,
       });
     } catch {
       // skip invalid course folders
@@ -151,9 +167,14 @@ export function loadCourse(appRoot: string, courseId: string): LoadedCourse | nu
   if (!summary) return null;
   const rootPath = path.join(getCoursesRoot(appRoot), summary.folder);
   const manifest = readJson<CourseManifest>(path.join(rootPath, 'course.json'));
+  const packagePath = path.join(rootPath, 'manifest.json');
+  const packageManifest = fs.existsSync(packagePath)
+    ? readJson<CoursePackageManifest>(packagePath)
+    : null;
   return {
     summary,
     manifest,
+    packageManifest,
     sequence: buildSequence(manifest),
     rootPath,
   };
@@ -168,9 +189,15 @@ export function loadLesson(
   if (!course) return null;
   const abs = path.join(course.rootPath, file);
   if (!abs.startsWith(course.rootPath) || !fs.existsSync(abs)) return null;
-  const html = fs.readFileSync(abs, 'utf-8');
+  const raw = fs.readFileSync(abs, 'utf-8');
   const item = course.sequence.find((s) => s.file === file);
-  return { html, title: item?.title ?? path.basename(file), file };
+  const extensions = course.packageManifest?.extensions ?? ['mermaid', 'chartjs', 'prism'];
+  return {
+    html: prepareLessonFragment(raw),
+    title: item?.title ?? path.basename(file),
+    file,
+    extensions,
+  };
 }
 
 export function loadQuiz(appRoot: string, courseId: string, quizId: string): QuizPayload | null {
@@ -205,7 +232,16 @@ export function loadLab(appRoot: string, courseId: string, labId: string): LabPa
   const rubric = fs.existsSync(rubricPath)
     ? readJson<LabRubric>(rubricPath)
     : ({ id: labId, labId, title: activity.title, steps: [] } satisfies LabRubric);
-  return { activity, instructionsHtml, rubric };
+
+  const sections: LabSectionPayload[] = (activity.sections ?? []).map((sec) => {
+    const secPath = path.join(labDir, sec.file);
+    const html = fs.existsSync(secPath)
+      ? fs.readFileSync(secPath, 'utf-8')
+      : `<p>Missing section file: ${sec.file}</p>`;
+    return { id: sec.id, title: sec.title, html };
+  });
+
+  return { activity, instructionsHtml, sections, rubric };
 }
 
 function normalizeAnswer(value: unknown): string {
@@ -251,7 +287,13 @@ export function gradeQuiz(
     const expected = q.correct;
     let correct = false;
 
-    if (q.type === 'multiple_select' || q.type === 'ordering') {
+    if (q.type === 'ordering') {
+      const givenArr = Array.isArray(given) ? given.map(String) : [];
+      const expectedArr = Array.isArray(expected) ? expected.map(String) : [];
+      correct =
+        givenArr.length === expectedArr.length &&
+        givenArr.every((v, i) => v === expectedArr[i]);
+    } else if (q.type === 'multiple_select') {
       correct = normalizeAnswer(given) === normalizeAnswer(expected);
     } else if (q.type === 'matching') {
       correct = normalizeAnswer(given) === normalizeAnswer(expected);
@@ -293,10 +335,18 @@ export function readProgress(appRoot: string, courseId: string): ProgressState {
       completedKeys: [],
       quizScores: {},
       labChecked: {},
+      labPassed: {},
       updatedAt: new Date().toISOString(),
     };
   }
-  return readJson<ProgressState>(file);
+  const raw = readJson<ProgressState>(file);
+  return {
+    ...raw,
+    labPassed: raw.labPassed ?? {},
+    labChecked: raw.labChecked ?? {},
+    quizScores: raw.quizScores ?? {},
+    completedKeys: raw.completedKeys ?? [],
+  };
 }
 
 export function writeProgress(

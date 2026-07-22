@@ -1,8 +1,8 @@
 {
-  "name": "hyperslide",
+  "name": "hyperclass",
   "private": true,
   "version": "0.1.0",
-  "description": "HyperSlide — WebDeck Presenter for interactive HTML courses",
+  "description": "HyperClass — WebDeck Presenter for interactive HTML courses",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -17,9 +17,11 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "chart.js": "^4.5.1",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "lucide-react": "^0.546.0",
+    "mermaid": "^11.16.0",
     "motion": "^12.23.24",
     "react": "^19.0.1",
     "react-dom": "^19.0.1"
@@ -42,8 +44,8 @@
     "wait-on": "^8.0.3"
   },
   "build": {
-    "appId": "com.hyperslide.app",
-    "productName": "HyperSlide",
+    "appId": "com.hyperclass.app",
+    "productName": "HyperClass",
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -64,7 +66,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "portable"

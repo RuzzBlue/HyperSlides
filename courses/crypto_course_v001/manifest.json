@@ -1,0 +1,15 @@
+{
+  "id": "crypto_course_v001",
+  "name": "Crypto Fundamentals",
+  "version": "1.1.0",
+  "formatVersion": "1.0",
+  "hyperclassMinVersion": "0.1.0",
+  "author": "RuzzBlue",
+  "description": "A hands-on introduction to cryptocurrency, blockchains, wallet security, and careful first transactions.",
+  "extensions": ["mermaid", "chartjs", "prism"],
+  "widgets": ["crypto-candles", "seed-phrase-demo"],
+  "permissions": ["local-progress"],
+  "integrity": { "algorithm": "sha256", "hash": null },
+  "updates": { "channel": "stable" },
+  "passwordLock": { "enabled": false }
+}

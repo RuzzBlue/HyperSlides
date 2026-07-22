@@ -1,8 +1,16 @@
 {
   "id": "lab-01",
   "title": "Create your first hot wallet",
-  "description": "Install a wallet app, create a wallet with a secure backup, and verify you can receive funds. Self-check against the rubric — labs are not auto-graded.",
-  "instructionsFile": "instructions.html",
+  "description": "Install a wallet app from a verified source, create a protected backup, and verify a receive address without exposing secrets.",
+  "learningObjective": "Install a wallet, create a seed backup, and verify a receive address.",
   "rubricFile": "lab-01.json",
-  "estimatedMinutes": 25
+  "estimatedMinutes": 25,
+  "resources": ["Official wallet app/store link", "Paper for seed backup"],
+  "sections": [
+    {"id":"overview","title":"Overview","file":"sections/01-overview.html"},
+    {"id":"install","title":"Install","file":"sections/02-install.html"},
+    {"id":"create","title":"Create & backup","file":"sections/03-create.html"},
+    {"id":"receive","title":"Receive address","file":"sections/04-receive.html"}
+  ],
+  "submission": {"methods":["screenshot","url","written","confirmation"],"allowEvidence":true}
 }

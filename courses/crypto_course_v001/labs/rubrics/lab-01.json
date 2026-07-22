@@ -5,27 +5,27 @@
   "steps": [
     {
       "id": "step-1",
-      "title": "Install the wallet app",
-      "instructions": "Install from the official website or trusted app store. Open the app and reach the create/import screen.",
-      "expectedResult": "The wallet application is installed and launches successfully on your device."
+      "title": "Review safety boundaries",
+      "instructions": "Identify an official source and decide what evidence can be shared safely.",
+      "expectedResult": "No seed phrase or private key is exposed."
     },
     {
       "id": "step-2",
-      "title": "Create the wallet & secure the seed",
-      "instructions": "Create a new wallet. Write the recovery phrase on paper (or another offline method). Confirm the phrase in the app if prompted.",
-      "expectedResult": "Wallet created; seed phrase stored securely offline — not in screenshots, email, or cloud notes."
+      "title": "Install from a verified source",
+      "instructions": "Install from the official website or trusted app store.",
+      "expectedResult": "The wallet opens at its create/import screen."
     },
     {
       "id": "step-3",
-      "title": "Receive address ready",
-      "instructions": "Open Receive / Deposit and copy your public address. Optionally verify the address format looks correct for the network.",
-      "expectedResult": "You can display and copy your public receive address without exposing the seed phrase."
+      "title": "Create and back up",
+      "instructions": "Create a wallet and complete an offline recovery phrase backup.",
+      "expectedResult": "Wallet created with a phrase stored offline, not in screenshots, email, or cloud notes."
     },
     {
       "id": "step-4",
-      "title": "Fund with a test amount (optional)",
-      "instructions": "Send a small amount of crypto to your new address from an exchange or another wallet. Wait for confirmation.",
-      "expectedResult": "Balance shows the incoming funds (or pending confirmation). Keep a screenshot of the balance or tx as your proof."
+      "title": "Verify a receive address",
+      "instructions": "Open Receive and confirm the asset and network before copying the public address.",
+      "expectedResult": "A public receive address is visible without exposing recovery material."
     }
   ]
 }

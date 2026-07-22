@@ -21,7 +21,7 @@ async function bootApi() {
   // Static course file server (lessons + assets) — same Express adapter as browser mode
   await startServer(8765, { appRoot, serveDist: false });
 
-  ipcMain.handle('hyperslide:api', async (_event, req) => {
+  ipcMain.handle('hyperclass:api', async (_event, req) => {
     return handleApiRequest(req, { appRoot });
   });
 }
@@ -33,7 +33,7 @@ function createMainWindow() {
     minWidth: 1100,
     minHeight: 700,
     backgroundColor: '#e8eaed',
-    title: 'HyperSlide',
+    title: 'HyperClass',
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),

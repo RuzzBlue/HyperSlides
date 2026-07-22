@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { apiFetch, courseStaticUrl } from './api/client';
+import { apiFetch } from './api/client';
 import type {
   CourseSummary,
   LabPayload,
@@ -40,7 +40,13 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [fullscreenStage, setFullscreenStage] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'appearance' | 'settings'>('appearance');
   const [error, setError] = useState<string | null>(null);
+
+  const openSettings = (tab: 'profile' | 'appearance' | 'settings') => {
+    setSettingsTab(tab);
+    setSettingsOpen(true);
+  };
 
   const current: SequenceItem | null = course?.sequence[index] ?? null;
 
@@ -165,11 +171,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [view, course, index, goTo, fullscreenStage]);
 
-  const lessonSrc = useMemo(() => {
-    if (!course || !current?.file || current.type !== 'lesson') return null;
-    return courseStaticUrl(course.summary.folder, current.file);
-  }, [course, current]);
-
   const onQuizGraded = (result: QuizGradeResult) => {
     setQuizResult(result);
     if (course && current?.activityId) {
@@ -200,13 +201,30 @@ export default function App() {
     if (res.ok && res.data) setProgress(res.data);
   };
 
+  const onLabPass = async () => {
+    if (!course || !current?.activityId) return;
+    const res = await apiFetch<ProgressState>({
+      method: 'PUT',
+      path: `/api/courses/${course.summary.id}/progress`,
+      body: {
+        labPassed: {
+          ...(progress?.labPassed ?? {}),
+          [current.activityId]: true,
+        },
+        completedKeys: [...new Set([...(progress?.completedKeys ?? []), current.key])],
+      },
+    });
+    if (res.ok && res.data) setProgress(res.data);
+  };
+
   if (view === 'home') {
     return (
       <AppShell>
         <TitleBar
           onHome={() => setView('home')}
-          showHome={false}
-          onOpenSettings={() => setSettingsOpen(true)}
+          mode="library"
+          onOpenSettings={() => openSettings('appearance')}
+          onOpenProfile={() => openSettings('profile')}
         />
         <HomeView
           courses={courses}
@@ -215,7 +233,11 @@ export default function App() {
           onOpen={openCourse}
           onRefresh={loadCourses}
         />
-        <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        <SettingsModal
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          initialTab={settingsTab}
+        />
       </AppShell>
     );
   }
@@ -229,8 +251,9 @@ export default function App() {
             setView('home');
             setCourse(null);
           }}
-          showHome
-          onOpenSettings={() => setSettingsOpen(true)}
+          mode="course"
+          onOpenSettings={() => openSettings('appearance')}
+          onOpenProfile={() => openSettings('profile')}
         />
       )}
       {!fullscreenStage && (
@@ -242,6 +265,7 @@ export default function App() {
           onToggleSidebar={() => setSidebarOpen((v) => !v)}
           onPrev={() => goTo(index - 1)}
           onNext={() => goTo(index + 1)}
+          onGoTo={goTo}
           onPresent={() => setFullscreenStage(true)}
         />
       )}
@@ -288,8 +312,12 @@ export default function App() {
                       Loading…
                     </div>
                   )}
-                  {!loading && current?.type === 'lesson' && lessonSrc && (
-                    <LessonView src={lessonSrc} title={lesson?.title ?? current.title} />
+                  {!loading && current?.type === 'lesson' && lesson && course && (
+                    <LessonView
+                      html={lesson.html}
+                      title={lesson.title || current.title}
+                      courseFolder={course.summary.folder}
+                    />
                   )}
                   {!loading && current?.type === 'quiz' && quiz && course && (
                     <QuizView
@@ -306,7 +334,9 @@ export default function App() {
                     <LabView
                       payload={lab}
                       checked={progress?.labChecked?.[current.activityId!] ?? []}
+                      passed={progress?.labPassed?.[current.activityId!]}
                       onCheck={onLabCheck}
+                      onPass={() => void onLabPass()}
                       onContinue={() => goTo(index + 1)}
                     />
                   )}
@@ -336,7 +366,11 @@ export default function App() {
           )}
         </main>
       </div>
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        initialTab={settingsTab}
+      />
     </AppShell>
   );
 }

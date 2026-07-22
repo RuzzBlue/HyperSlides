@@ -45,29 +45,10 @@
   },
   {
     "id": "q5",
-    "type": "multiple_choice",
-    "prompt": "A hot wallet is best described as:",
-    "options": [
-      { "id": "a", "label": "A wallet whose keys stay fully offline on a hardware device" },
-      { "id": "b", "label": "Software connected to the internet for everyday use" },
-      { "id": "c", "label": "A bank account that pays crypto interest" },
-      { "id": "d", "label": "A mining machine that creates new addresses" }
-    ],
-    "correct": "b",
-    "explanation": "Hot wallets are online software wallets — convenient, but more exposed than cold storage.",
+    "type": "fill_blank",
+    "prompt": "Complete the phrase: Never share your recovery ________.",
+    "correct": ["phrase", "seed phrase"],
+    "explanation": "A recovery phrase is secret material that can restore and control your wallet.",
     "points": 1
-  },
-  {
-    "id": "q6",
-    "type": "poll",
-    "prompt": "Which topic do you want more of next?",
-    "options": [
-      { "id": "a", "label": "Hardware wallets & cold storage" },
-      { "id": "b", "label": "On-chain transactions & fees" },
-      { "id": "c", "label": "NFTs and on-chain identity" },
-      { "id": "d", "label": "DeFi basics" }
-    ],
-    "explanation": "Polls have no correct answer — thanks for the feedback!",
-    "points": 0
   }
 ]

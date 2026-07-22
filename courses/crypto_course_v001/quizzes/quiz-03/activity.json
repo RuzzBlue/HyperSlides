@@ -1,0 +1,7 @@
+{
+  "id": "quiz-03",
+  "title": "Wallet journey reflection",
+  "description": "A short, ungraded poll to reflect on your first wallet practice.",
+  "passingScore": 0,
+  "questionsFile": "questions.json"
+}

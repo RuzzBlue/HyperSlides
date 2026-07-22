@@ -36,6 +36,8 @@ export interface QuizQuestion {
   type: QuestionType;
   prompt: string;
   options?: QuizOption[];
+  /** Right-side options for matching questions */
+  matchTargets?: QuizOption[];
   /** Correct answer(s) — omitted for polls */
   correct?: string | string[] | boolean | Record<string, string>;
   explanation?: string;
@@ -64,13 +66,44 @@ export interface LabRubric {
   steps: LabStep[];
 }
 
+export interface LabSection {
+  id: string;
+  title: string;
+  file: string;
+}
+
+export interface LabSubmissionConfig {
+  methods: Array<'screenshot' | 'url' | 'written' | 'confirmation' | 'file'>;
+  allowEvidence?: boolean;
+}
+
 export interface LabActivity {
   id: string;
   title: string;
   description?: string;
-  instructionsFile: string;
+  learningObjective?: string;
+  instructionsFile?: string;
   rubricFile: string;
   estimatedMinutes?: number;
+  resources?: string[];
+  sections?: LabSection[];
+  submission?: LabSubmissionConfig;
+}
+
+export interface CoursePackageManifest {
+  id: string;
+  name: string;
+  version: string;
+  formatVersion: string;
+  hyperclassMinVersion?: string;
+  author?: string;
+  description?: string;
+  extensions: string[];
+  widgets?: string[];
+  permissions?: string[];
+  integrity?: { algorithm: string; hash?: string | null };
+  updates?: { channel: string; feedUrl?: string };
+  passwordLock?: { enabled: boolean; hint?: string };
 }
 
 export interface CourseLessonRef {
@@ -139,11 +172,14 @@ export interface CourseSummary {
   lessonCount: number;
   quizCount: number;
   labCount: number;
+  /** ISO timestamp from course.json mtime */
+  modifiedAt: string;
 }
 
 export interface LoadedCourse {
   summary: CourseSummary;
   manifest: CourseManifest;
+  packageManifest: CoursePackageManifest | null;
   sequence: SequenceItem[];
   rootPath: string;
 }
@@ -153,9 +189,17 @@ export interface QuizPayload {
   questions: QuizQuestion[];
 }
 
+export interface LabSectionPayload {
+  id: string;
+  title: string;
+  html: string;
+}
+
 export interface LabPayload {
   activity: LabActivity;
+  /** Fallback single-page instructions when no sections */
   instructionsHtml: string;
+  sections: LabSectionPayload[];
   rubric: LabRubric;
 }
 
@@ -163,6 +207,7 @@ export interface LessonPayload {
   html: string;
   title: string;
   file: string;
+  extensions: string[];
 }
 
 export interface QuizAnswerMap {
@@ -189,6 +234,7 @@ export interface ProgressState {
   completedKeys: string[];
   quizScores: Record<string, { percent: number; passed: boolean; at: string }>;
   labChecked: Record<string, string[]>;
+  labPassed: Record<string, boolean>;
   updatedAt: string;
 }
 
@@ -227,7 +273,7 @@ export interface UserState {
 
 declare global {
   interface Window {
-    hyperslide?: {
+    hyperclass?: {
       fetch: (req: ApiRequest) => Promise<ApiResponse>;
       platform: string;
       isElectron: true;

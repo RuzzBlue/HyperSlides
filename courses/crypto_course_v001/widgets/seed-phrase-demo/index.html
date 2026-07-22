@@ -1,0 +1,12 @@
+<div class="seed-demo">
+  <strong>DEMO ONLY — fake recovery words</strong>
+  <p>These words do not control a wallet. A real recovery phrase must stay private and offline.</p>
+  <div class="words" hidden></div>
+  <button type="button">Reveal fake demo words</button>
+</div>
+<style>
+  .seed-demo{font:14px system-ui,sans-serif;padding:16px;border:2px solid #f59e0b;border-radius:12px;background:#fffbeb;color:#78350f}.seed-demo p{line-height:1.45}.seed-demo .words{grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0}.seed-demo .words span{background:#fff;padding:7px;border-radius:5px}.seed-demo button{border:0;border-radius:6px;background:#92400e;color:#fff;padding:8px 12px;cursor:pointer}
+</style>
+<script>
+(() => { const root=document.currentScript.previousElementSibling.previousElementSibling, words=["maple","tulip","comet","harbor","violet","pebble","copper","meadow","raven","sunset","willow","lantern"], box=root.querySelector(".words"), button=root.querySelector("button"); box.innerHTML=words.map((word,i)=>`<span>${i+1}. ${word}</span>`).join(""); button.onclick=()=>{const hidden=box.hasAttribute("hidden");box.toggleAttribute("hidden",!hidden);button.textContent=hidden?"Hide fake demo words":"Reveal fake demo words"}})();
+</script>

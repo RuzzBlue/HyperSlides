@@ -1,5 +1,11 @@
 @import 'tailwindcss';
 
+/* Scan course lesson HTML so utility classes in fragments are generated */
+@source "../courses/**/*.html";
+
+/* Match app theme attribute instead of prefers-color-scheme */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 :root,
 html[data-theme='light'] {
   --chrome: #e8eaed;
@@ -41,6 +47,8 @@ html[data-theme='dark'] {
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #b8bec8 transparent;
 }
 
 html,
@@ -62,18 +70,48 @@ button {
   font-family: inherit;
 }
 
+button,
+a,
+summary,
+label,
+select,
+[role='button'],
+[role='tab'],
+[role='menuitem'],
+input[type='checkbox'],
+input[type='radio'],
+input[type='color'],
+input[type='file'],
+input[type='submit'],
+input[type='button'],
+.cursor-pointer {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--chrome-deep);
+  background: #b8bec8;
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+html[data-theme='dark'] * {
+  scrollbar-color: #4a5160 transparent;
+}
+html[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: #4a5160;
 }
 
 @keyframes slide-in {

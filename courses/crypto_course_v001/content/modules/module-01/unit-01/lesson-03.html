@@ -1,107 +1,38 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hot Wallets vs Cold Storage</title>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet" />
-  <style>
-    :root {
-      --ink: #1c1f26;
-      --muted: #5c6570;
-      --hot: #c45c26;
-      --cold: #2f5aa8;
-      --line: #d7dbe3;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: Outfit, system-ui, sans-serif;
-      color: var(--ink);
-      background: linear-gradient(135deg, #f8f6f3 0%, #eef1f6 55%, #e8edf4 100%);
-      padding: 2.25rem;
-    }
-    .slide { max-width: 980px; margin: 0 auto; animation: rise .55s ease-out; }
-    @keyframes rise { from { opacity: 0; transform: translateY(12px);} to { opacity: 1; transform: none; } }
-    .eyebrow { font-size: .75rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--hot); margin-bottom: .75rem; }
-    h1 { font-family: "Source Serif 4", Georgia, serif; font-size: clamp(2rem, 4vw, 2.75rem); margin: 0 0 .75rem; }
-    .lead { color: var(--muted); max-width: 40rem; line-height: 1.55; margin-bottom: 1.5rem; }
-    .split {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-    }
-    @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
-    .panel {
-      border-radius: 1.1rem;
-      padding: 1.35rem;
-      border: 1px solid var(--line);
-      background: white;
-      box-shadow: 0 12px 32px rgba(28,31,38,0.07);
-      min-height: 240px;
-    }
-    .panel.hot { border-top: 4px solid var(--hot); }
-    .panel.cold { border-top: 4px solid var(--cold); }
-    .panel h2 { margin: 0 0 .35rem; font-size: 1.2rem; }
-    .panel.hot h2 { color: var(--hot); }
-    .panel.cold h2 { color: var(--cold); }
-    .panel p { margin: 0 0 1rem; color: var(--muted); line-height: 1.5; font-size: .95rem; }
-    ul { margin: 0; padding-left: 1.1rem; color: var(--muted); line-height: 1.55; font-size: .92rem; }
-    .timeline {
-      margin-top: 1.25rem;
-      display: flex;
-      gap: .5rem;
-      align-items: stretch;
-    }
-    .step {
-      flex: 1;
-      background: rgba(255,255,255,0.85);
-      border: 1px solid var(--line);
-      border-radius: .85rem;
-      padding: .85rem;
-      text-align: center;
-    }
-    .step b { display: block; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--hot); margin-bottom: .35rem; }
-    .step span { font-size: .85rem; color: var(--muted); }
-  </style>
-</head>
-<body>
-  <div class="slide">
-    <div class="eyebrow">Module 1 · Lesson 3</div>
-    <h1>Hot Wallets vs Cold Storage</h1>
-    <p class="lead">
-      Choose the right tool for the job: everyday spending vs long-term savings.
-      This course’s lab focuses on a <strong>hot wallet</strong> — convenient, connected, and great for learning.
+<div class="space-y-8 text-left">
+  <div>
+    <span class="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Module 01 · Unit 01</span>
+    <h2 class="mt-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Hot Wallets vs Cold Storage</h2>
+    <p class="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+      Wallets manage keys; they do not hold coins the way a physical wallet holds cash. Choose storage based on risk, amount, and how often you move funds.
     </p>
+  </div>
 
-    <div class="split">
-      <div class="panel hot">
-        <h2>Hot wallet</h2>
-        <p>Software on phone/desktop, connected to the internet (e.g. browser extension or mobile app).</p>
-        <ul>
-          <li>Fast for daily use &amp; dApps</li>
-          <li>Higher exposure to phishing/malware</li>
-          <li>Ideal for small “working” balances</li>
-        </ul>
-      </div>
-      <div class="panel cold">
-        <h2>Cold storage</h2>
-        <p>Keys kept offline — hardware devices or air-gapped setups.</p>
-        <ul>
-          <li>Stronger protection for large holdings</li>
-          <li>Slightly more friction to transact</li>
-          <li>Still requires careful seed backup</li>
-        </ul>
-      </div>
+  <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+    <div class="relative overflow-hidden rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-white p-6 dark:border-orange-500/20 dark:from-orange-950/30 dark:to-slate-900">
+      <span class="text-[10px] font-black uppercase tracking-[0.16em] text-orange-600 dark:text-orange-400">Connected</span>
+      <h3 class="mt-2 text-xl font-black text-slate-900 dark:text-white">Hot wallet</h3>
+      <p class="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+        Internet-connected software. Convenient for learning and everyday amounts — but exposed to phishing and malware.
+      </p>
     </div>
-
-    <div class="timeline">
-      <div class="step"><b>01</b><span>Install wallet</span></div>
-      <div class="step"><b>02</b><span>Create &amp; back up</span></div>
-      <div class="step"><b>03</b><span>Receive funds</span></div>
-      <div class="step"><b>04</b><span>Verify &amp; send</span></div>
+    <div class="relative overflow-hidden rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-6 dark:border-sky-500/20 dark:from-sky-950/30 dark:to-slate-900">
+      <span class="text-[10px] font-black uppercase tracking-[0.16em] text-sky-600 dark:text-sky-400">Offline keys</span>
+      <h3 class="mt-2 text-xl font-black text-slate-900 dark:text-white">Cold storage</h3>
+      <p class="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+        Keys remain offline, usually on dedicated hardware. Stronger isolation — still dependent on a safe backup.
+      </p>
     </div>
   </div>
-</body>
-</html>
+
+  <div>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">Safe setup sequence</span>
+    <div data-component="timeline" data-preset="wallet-setup"></div>
+  </div>
+
+  <div class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+    <h3 class="text-lg font-bold text-slate-900 dark:text-white">Does cold storage remove all risk?</h3>
+    <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+      No. It reduces online exposure, but phishing, lost backups, and mistaken transaction approvals remain real risks.
+    </p>
+  </div>
+</div>

@@ -1,4 +1,4 @@
-# HyperSlide
+# HyperClass
 
 **WebDeck Presenter** — interactive HTML course runtime (Keynote polish, PowerPoint workflow).
 
@@ -8,7 +8,7 @@ Courses live as folders under `courses/`. The app reads `course.json`, presents 
 
 | Mode | Command | How API works |
 |------|---------|----------------|
-| Desktop (Electron) | `npm run dev` | Preload `window.hyperslide.fetch` → IPC → `handleApiRequest` |
+| Desktop (Electron) | `npm run dev` | Preload `window.hyperclass.fetch` → IPC → `handleApiRequest` |
 | Browser | `npm run serve:full` / `npm run dev:web` | Express serves UI + `/api/*` → **same** `handleApiRequest` |
 
 Privileged work (courses, quizzes, progress, user profile) lives only in `shared/api/handleApiRequest.ts`.
@@ -24,7 +24,7 @@ npm run serve:full  # built UI + API on :8765
 
 ## Settings
 
-Gear icon in the header (library + presenter views) opens Profile / Appearance / App settings. Profile gets a permanent UUID on first launch (`data/user.json`). Appearance supports accent color, light/dark/system theme, and EN/ES.
+Gear icon opens Appearance; profile button opens Profile. Prefs save to `data/user.json`.
 
 ## Course package layout
 
@@ -37,3 +37,5 @@ courses/
     labs/...
     assets/
 ```
+
+Created by RuzzBlue - 2026

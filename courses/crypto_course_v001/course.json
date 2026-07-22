@@ -1,16 +1,16 @@
 {
   "id": "crypto_course_v001",
   "title": "Crypto Fundamentals",
-  "subtitle": "Wallets, keys & your first transactions",
-  "version": "1.0.0",
-  "author": "CryptoHub",
-  "description": "A short interactive course introducing cryptocurrency, hot wallets, and safe self-custody — with a graded quiz and a hands-on lab.",
+  "subtitle": "From blockchain basics to your first safe transaction",
+  "version": "1.1.0",
+  "author": "RuzzBlue",
+  "description": "An interactive, practice-first introduction to cryptocurrency: learn how blockchains record value, protect keys and seed phrases, recognize common threats, and complete a careful first-wallet journey.",
   "coverAccent": "#0e6e6a",
   "modules": [
     {
       "id": "module-01",
       "title": "Module 1 · Foundations",
-      "description": "What crypto is, how wallets work, and how to stay safe.",
+      "description": "Understand crypto ownership, transactions, and the network that records them.",
       "path": "content/modules/module-01",
       "units": [
         {
@@ -38,10 +38,80 @@
           ],
           "quizAfter": "quiz-01",
           "labAfter": null
+        },
+        {
+          "id": "unit-02",
+          "title": "How Blockchains Work",
+          "lessons": [
+            {
+              "id": "lesson-01",
+              "title": "The Shared Ledger",
+              "file": "lesson-01.html",
+              "durationMinutes": 5
+            },
+            {
+              "id": "lesson-02",
+              "title": "Transactions, Blocks & Confirmation",
+              "file": "lesson-02.html",
+              "durationMinutes": 5
+            }
+          ],
+          "quizAfter": null,
+          "labAfter": null
         }
       ],
       "quizAfter": null,
       "labAfter": "lab-01"
+    },
+    {
+      "id": "module-02",
+      "title": "Module 2 · Keys, Wallets & Practice",
+      "description": "Build safe habits, prepare a wallet, and practice a low-risk transaction.",
+      "path": "content/modules/module-02",
+      "units": [
+        {
+          "id": "unit-01",
+          "title": "Threats & Hygiene",
+          "lessons": [
+            {
+              "id": "lesson-01",
+              "title": "Spotting Crypto Scams",
+              "file": "lesson-01.html",
+              "durationMinutes": 5
+            },
+            {
+              "id": "lesson-02",
+              "title": "Your Personal Security Routine",
+              "file": "lesson-02.html",
+              "durationMinutes": 4
+            }
+          ],
+          "quizAfter": "quiz-02",
+          "labAfter": null
+        },
+        {
+          "id": "unit-02",
+          "title": "Your First Wallet Journey",
+          "lessons": [
+            {
+              "id": "lesson-01",
+              "title": "Prepare a Wallet Safely",
+              "file": "lesson-01.html",
+              "durationMinutes": 5
+            },
+            {
+              "id": "lesson-02",
+              "title": "Make a Test Transaction",
+              "file": "lesson-02.html",
+              "durationMinutes": 5
+            }
+          ],
+          "quizAfter": "quiz-03",
+          "labAfter": null
+        }
+      ],
+      "quizAfter": null,
+      "labAfter": "lab-02"
     }
   ]
 }

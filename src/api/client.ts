@@ -9,12 +9,12 @@ const API_ORIGIN =
 
 /**
  * Dual-runtime client:
- * - Electron → window.hyperslide.fetch (IPC → handleApiRequest)
+ * - Electron → window.hyperclass.fetch (IPC → handleApiRequest)
  * - Browser  → HTTP /api/* (Express → same handleApiRequest)
  */
 export async function apiFetch<T = unknown>(req: ApiRequest): Promise<ApiResponse<T>> {
-  if (window.hyperslide?.fetch) {
-    return window.hyperslide.fetch(req) as Promise<ApiResponse<T>>;
+  if (window.hyperclass?.fetch) {
+    return window.hyperclass.fetch(req) as Promise<ApiResponse<T>>;
   }
 
   const url = new URL(req.path.startsWith('/api') ? req.path : `/api${req.path}`, API_ORIGIN);
@@ -40,5 +40,5 @@ export function courseStaticUrl(folder: string, relativePath: string): string {
 }
 
 export function isElectronRuntime(): boolean {
-  return Boolean(window.hyperslide?.isElectron);
+  return Boolean(window.hyperclass?.isElectron);
 }

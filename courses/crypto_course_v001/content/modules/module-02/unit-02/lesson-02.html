@@ -1,0 +1,38 @@
+<div class="space-y-8 text-left">
+  <div>
+    <span class="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Module 02 · Unit 02</span>
+    <h2 class="mt-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Make a Test Transaction</h2>
+    <p class="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+      Your first transfer should be deliberately boring: a small amount, a verified destination, and a pause to inspect every field before approval.
+    </p>
+  </div>
+
+  <div>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">Market context widget</span>
+    <widget id="crypto-candles"></widget>
+  </div>
+
+  <div>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">Send checklist flow</span>
+    <div data-component="timeline" data-preset="send-flow"></div>
+  </div>
+
+  <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
+    <div class="flex items-center justify-between border-b border-white/10 px-4 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-400">
+      <span>checklist.ts</span>
+      <span class="text-emerald-400">pre-sign</span>
+    </div>
+    <pre class="overflow-x-auto p-5 font-mono text-xs leading-relaxed text-slate-300">const transactionChecklist = [
+  <span class="text-emerald-400">"recipient matches"</span>,
+  <span class="text-emerald-400">"network matches"</span>,
+  <span class="text-emerald-400">"amount is a test amount"</span>,
+  <span class="text-emerald-400">"fee is understood"</span>
+];</pre>
+  </div>
+
+  <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 dark:border-rose-500/20 dark:bg-rose-950/20">
+    <p class="text-sm leading-relaxed text-rose-950 dark:text-rose-100">
+      <span class="font-bold">Irreversible by design.</span> The safest correction is catching an error before you sign.
+    </p>
+  </div>
+</div>

@@ -3,11 +3,11 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { handleApiRequest } from '../shared/api/handleApiRequest.ts';
-import { getCoursesRoot } from '../shared/api/courses.ts';
+import { getCoursesRoot, loadCourse } from '../shared/api/courses.ts';
+import { renderLessonDocument } from '../shared/api/lessonRuntime.ts';
 import type { ApiMethod } from '../shared/types.ts';
 
 export function resolveAppRoot(): string {
-  // When packaged, courses live in resources; in dev, project root
   const candidates = [
     process.env.CRYPTOHUB_ROOT,
     path.resolve(process.cwd()),
@@ -27,12 +27,39 @@ export function createServer(options?: { appRoot?: string; serveDist?: boolean }
   app.use(cors());
   app.use(express.json({ limit: '4mb' }));
 
-  // Static course packages (lessons, assets)
-  app.use('/courses', express.static(getCoursesRoot(appRoot)));
+  const coursesRoot = getCoursesRoot(appRoot);
+  const runtimeDir = path.join(appRoot, 'public', 'runtime');
 
-  // Unified API adapter → handleApiRequest
+  if (fs.existsSync(runtimeDir)) {
+    app.use('/runtime', express.static(runtimeDir));
+  }
+
+  app.get(/^\/courses\/.+\.html$/i, (req, res, next) => {
+    const rel = req.path.replace(/^\/courses\/?/, '');
+    if (rel.includes('/widgets/')) return next();
+
+    const abs = path.resolve(coursesRoot, rel);
+    if (!abs.startsWith(coursesRoot) || !fs.existsSync(abs)) return next();
+
+    const folder = rel.split(/[/\\]/)[0];
+    const fileInCourse = rel.slice(folder.length + 1).replace(/\\/g, '/');
+    const course = loadCourse(appRoot, folder);
+    const extensions = course?.packageManifest?.extensions ?? ['mermaid', 'chartjs', 'prism'];
+    const rawHtml = fs.readFileSync(abs, 'utf-8');
+    const html = renderLessonDocument({
+      rawHtml,
+      courseFolder: folder,
+      lessonRelPath: fileInCourse,
+      extensions,
+      appOrigin: `http://127.0.0.1:${Number(process.env.PORT || 8765)}`,
+    });
+    res.type('html').send(html);
+  });
+
+  app.use('/courses', express.static(coursesRoot));
+
   app.all('/api/*', async (req, res) => {
-    const apiPath = req.path; // /api/...
+    const apiPath = req.path;
     const params: Record<string, string> = {};
     for (const [k, v] of Object.entries(req.query)) {
       if (typeof v === 'string') params[k] = v;
@@ -72,7 +99,6 @@ export async function startServer(port = 8765, options?: { appRoot?: string; ser
     });
     server.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EADDRINUSE') {
-        // Another HyperSlide server already serving courses/API — OK for Electron
         console.warn(`Port ${port} in use — reusing existing local server`);
         resolve({ port, appRoot });
         return;

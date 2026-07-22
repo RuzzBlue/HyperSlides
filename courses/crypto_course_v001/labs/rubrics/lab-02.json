@@ -1,0 +1,10 @@
+{
+  "id":"rubric-lab-02",
+  "labId":"lab-02",
+  "title":"Test transaction lab rubric",
+  "steps":[
+    {"id":"step-1","title":"Prepare a controlled destination","instructions":"Choose a small test amount and verify the recipient and network.","expectedResult":"A destination under the learner's control is selected and reviewed."},
+    {"id":"step-2","title":"Review and send","instructions":"Check asset, amount, recipient, network, and fee before approving.","expectedResult":"A small test transaction is submitted without revealing secrets."},
+    {"id":"step-3","title":"Confirm and reflect","instructions":"Observe the transaction status and record safe evidence or reflection.","expectedResult":"A confirmation status or public transaction URL is available."}
+  ]
+}
