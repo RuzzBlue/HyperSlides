@@ -60,6 +60,29 @@ export default function App() {
     void loadCourses();
   }, [loadCourses]);
 
+  /** Apply course theme accent / quiz / lab colors while a course is open. */
+  useEffect(() => {
+    const root = document.documentElement;
+    const theme = course?.theme;
+    if (!theme) return;
+    const prev = {
+      accent: root.style.getPropertyValue('--accent'),
+      quiz: root.style.getPropertyValue('--quiz'),
+      lab: root.style.getPropertyValue('--lab'),
+    };
+    if (theme.accent) root.style.setProperty('--accent', theme.accent);
+    if (theme.quiz) root.style.setProperty('--quiz', theme.quiz);
+    if (theme.lab) root.style.setProperty('--lab', theme.lab);
+    return () => {
+      if (prev.accent) root.style.setProperty('--accent', prev.accent);
+      else root.style.removeProperty('--accent');
+      if (prev.quiz) root.style.setProperty('--quiz', prev.quiz);
+      else root.style.removeProperty('--quiz');
+      if (prev.lab) root.style.setProperty('--lab', prev.lab);
+      else root.style.removeProperty('--lab');
+    };
+  }, [course?.theme]);
+
   const openCourse = async (id: string) => {
     setLoading(true);
     setError(null);
@@ -321,9 +344,10 @@ export default function App() {
                       onContinue={() => goTo(index + 1)}
                     />
                   )}
-                  {!loading && current?.type === 'lab' && lab && (
+                  {!loading && current?.type === 'lab' && lab && course && (
                     <LabView
                       payload={lab}
+                      courseFolder={course.summary.folder}
                       checked={progress?.labChecked?.[current.activityId!] ?? []}
                       passed={progress?.labPassed?.[current.activityId!]}
                       onCheck={onLabCheck}

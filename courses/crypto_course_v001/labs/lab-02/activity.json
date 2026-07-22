@@ -1,15 +1,29 @@
 {
-  "id":"lab-02",
-  "title":"Send a test transaction",
-  "description":"Practice preparing and monitoring a tiny transfer while checking the recipient, network, amount, and fee.",
-  "learningObjective":"Send a small test transaction and verify its status without exposing wallet secrets.",
-  "estimatedMinutes":20,
-  "resources":["A funded learning wallet", "Public block explorer"],
-  "sections":[
+  "id": "lab-02",
+  "title": "Send a test transaction",
+  "description": "Practice preparing and monitoring a tiny transfer while checking the recipient, network, amount, and fee.",
+  "learningObjective": "Send a small test transaction and verify its status without exposing wallet secrets.",
+  "estimatedMinutes": 20,
+  "resources": [
+    {
+      "label": "Solana Explorer",
+      "url": "https://explorer.solana.com/"
+    },
+    {
+      "label": "Sample transfer diagram (course image)",
+      "asset": "assets/images/transferencia 1 junio.svg"
+    },
+    {
+      "label": "Risk profile notes (download)",
+      "asset": "assets/others/Perfil_Riesgo_Branko_Pereira.txt"
+    },
+    "A funded learning wallet on a network you control"
+  ],
+  "sections": [
     {"id":"prepare","title":"Prepare the transfer","file":"sections/01-prepare.html"},
     {"id":"send","title":"Review & send","file":"sections/02-send.html"},
     {"id":"confirm","title":"Confirm & reflect","file":"sections/03-confirm.html"}
   ],
-  "rubricFile":"lab-02.json",
-  "submission":{"methods":["screenshot","url","written","confirmation"],"allowEvidence":true}
+  "rubricFile": "lab-02.json",
+  "submission": {"methods":["screenshot","url","written","confirmation"],"allowEvidence":true}
 }

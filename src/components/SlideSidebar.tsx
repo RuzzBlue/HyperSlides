@@ -1,4 +1,4 @@
-import { Beaker, BookOpen, CheckCircle2, HelpCircle } from 'lucide-react';
+import { BookOpen, CheckCircle2, FlaskConical, HelpCircle } from 'lucide-react';
 import type { ProgressState, SequenceItem } from '@shared/types';
 
 export function SlideSidebar({
@@ -85,6 +85,6 @@ export function SlideSidebar({
 
 function ThumbIcon({ type }: { type: SequenceItem['type'] }) {
   if (type === 'quiz') return <HelpCircle className="h-7 w-7 text-[var(--quiz)] opacity-80" />;
-  if (type === 'lab') return <Beaker className="h-7 w-7 text-[var(--lab)] opacity-80" />;
+  if (type === 'lab') return <FlaskConical className="h-7 w-7 text-[var(--lab)] opacity-80" />;
   return <BookOpen className="h-7 w-7 text-[var(--accent)] opacity-70" />;
 }

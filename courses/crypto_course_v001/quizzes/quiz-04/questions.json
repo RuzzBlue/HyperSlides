@@ -1,0 +1,17 @@
+[
+  {
+    "id": "q1",
+    "type": "poll",
+    "multiSelect": true,
+    "prompt": "Which safety habits do you want to practice this week? (Select all that apply)",
+    "options": [
+      { "id": "a", "label": "Verify downloads only from official sites or stores" },
+      { "id": "b", "label": "Keep seed phrases offline and never typed into random sites" },
+      { "id": "c", "label": "Double-check network + address before every send" },
+      { "id": "d", "label": "Send a tiny test transfer before a larger one" },
+      { "id": "e", "label": "Bookmark explorers and wallet URLs instead of searching each time" }
+    ],
+    "explanation": "Thanks for sharing — this poll is ungraded and helps you prioritize practice.",
+    "points": 0
+  }
+]

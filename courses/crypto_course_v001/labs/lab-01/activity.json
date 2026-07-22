@@ -5,7 +5,21 @@
   "learningObjective": "Install a wallet, create a seed backup, and verify a receive address.",
   "rubricFile": "lab-01.json",
   "estimatedMinutes": 25,
-  "resources": ["Official wallet app/store link", "Paper for seed backup"],
+  "resources": [
+    {
+      "label": "Phantom — official site",
+      "url": "https://phantom.app/"
+    },
+    {
+      "label": "Sample transfer diagram (course image)",
+      "asset": "assets/images/transferencia 1 junio.svg"
+    },
+    {
+      "label": "Risk profile notes (download)",
+      "asset": "assets/others/Perfil_Riesgo_Branko_Pereira.txt"
+    },
+    "Quiet workspace with paper for an offline backup"
+  ],
   "sections": [
     {"id":"overview","title":"Overview","file":"sections/01-overview.html"},
     {"id":"install","title":"Install","file":"sections/02-install.html"},

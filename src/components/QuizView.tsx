@@ -15,6 +15,10 @@ type PriorScore = {
   attempts?: number;
 };
 
+function isMultiSelectQuestion(q: QuizQuestion) {
+  return q.type === 'multiple_select' || (q.type === 'poll' && Boolean(q.multiSelect));
+}
+
 export function QuizView({
   courseId,
   quizId,
@@ -64,6 +68,7 @@ export function QuizView({
       payload.questions.filter((q) => {
         const v = answers[q.id];
         if (v === undefined || v === '') return false;
+        if (Array.isArray(v)) return v.length > 0;
         if (q.type === 'matching' && typeof v === 'object' && !Array.isArray(v)) {
           return Object.keys(v).length > 0;
         }
@@ -128,15 +133,13 @@ export function QuizView({
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-[linear-gradient(180deg,#f7f9fc_0%,#eef2f8_100%)] dark:bg-[linear-gradient(180deg,#1a1d24_0%,#12151b_100%)]">
-      <header className="border-b border-[#d5deec] bg-white/80 px-8 py-5 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#e8eef8] text-[var(--quiz)] dark:bg-slate-800">
-            <CircleHelp className="h-5 w-5" />
+      <header className="border-b border-[color-mix(in_srgb,var(--quiz)_28%,transparent)] bg-[var(--quiz-soft)] px-8 py-4">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--quiz)] text-white shadow-sm">
+            <CircleHelp className="h-6 w-6" />
           </div>
+
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--quiz)]">
-              Knowledge check
-            </div>
             <h2
               className="text-2xl font-semibold text-[var(--ink)]"
               style={{ fontFamily: 'var(--font-display)' }}
@@ -144,41 +147,46 @@ export function QuizView({
               {payload.activity.title}
             </h2>
             {payload.activity.description && (
-              <p className="mt-1 text-sm text-[var(--ink-muted)]">{payload.activity.description}</p>
+              <p className="mt-1 max-w-2xl text-sm text-[var(--ink-muted)]">
+                {payload.activity.description}
+              </p>
             )}
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-950/50 dark:text-indigo-300">
+          </div>
+
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
+              <span className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--quiz)_35%,transparent)] bg-white/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[var(--quiz)] dark:bg-slate-900/50 dark:text-sky-200">
                 Pass ≥ {passingScore}%
               </span>
-              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+              <span className="inline-flex items-center rounded-full border border-slate-200/80 bg-white/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
                 {allowedRetries === 0
                   ? 'Unlimited retries'
                   : `${Math.min(attemptsUsed, allowedRetries)} / ${allowedRetries} attempts`}
               </span>
             </div>
-          </div>
 
-          {showGrade ? (
-            <div
-              className={`rounded-xl px-4 py-2 text-right shadow-sm ring-2 ${
-                displayPassed
-                  ? 'bg-emerald-100 text-emerald-900 ring-emerald-400/60 dark:bg-emerald-950 dark:text-emerald-200 dark:ring-emerald-500/40'
-                  : 'bg-rose-100 text-rose-900 ring-rose-400/60 dark:bg-rose-950 dark:text-rose-200 dark:ring-rose-500/40'
-              }`}
-            >
-              <div className="text-2xl font-semibold tabular-nums">{displayPercent}%</div>
-              <div className="text-[11px] font-medium uppercase tracking-wide">
-                {displayPassed ? 'Passed' : 'Not passed'}
+            {showGrade ? (
+              <div
+                className={`rounded-xl px-4 py-2 text-right shadow-sm ring-2 ${
+                  displayPassed
+                    ? 'bg-emerald-100 text-emerald-900 ring-emerald-400/60 dark:bg-emerald-950 dark:text-emerald-200 dark:ring-emerald-500/40'
+                    : 'bg-rose-100 text-rose-900 ring-rose-400/60 dark:bg-rose-950 dark:text-rose-200 dark:ring-rose-500/40'
+                }`}
+              >
+                <div className="text-2xl font-semibold tabular-nums">{displayPercent}%</div>
+                <div className="text-[11px] font-medium uppercase tracking-wide">
+                  {displayPassed ? 'Passed' : 'Not passed'}
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-2 text-right dark:border-slate-600 dark:bg-slate-800/60">
-              <div className="text-2xl font-semibold tabular-nums text-slate-400">—</div>
-              <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                Not graded
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-300/80 bg-white/50 px-4 py-2 text-right dark:border-slate-600 dark:bg-slate-900/40">
+                <div className="text-2xl font-semibold tabular-nums text-slate-400">—</div>
+                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                  Not graded
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </header>
 
@@ -192,7 +200,8 @@ export function QuizView({
               ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-400/70 dark:border-emerald-400 dark:bg-emerald-950/40 dark:ring-emerald-500/50'
               : 'border-rose-500 bg-rose-50 ring-2 ring-rose-400/70 dark:border-rose-400 dark:bg-rose-950/40 dark:ring-rose-500/50';
           } else if (graded && isPoll) {
-            cardClass = 'border-indigo-300 bg-indigo-50/50 ring-1 ring-indigo-200 dark:border-indigo-600 dark:bg-indigo-950/30';
+            cardClass =
+              'border-indigo-300 bg-indigo-50/50 ring-1 ring-indigo-200 dark:border-indigo-600 dark:bg-indigo-950/30';
           }
 
           return (
@@ -215,6 +224,7 @@ export function QuizView({
                   </div>
                   <div className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
                     {q.type.replace(/_/g, ' ')}
+                    {isPoll && q.multiSelect ? ' · multi select' : ''}
                     {isPoll ? ' · no correct answer' : ''}
                   </div>
                 </div>
@@ -263,7 +273,7 @@ export function QuizView({
         })}
       </div>
 
-      <footer className="flex flex-wrap items-center gap-3 border-t border-[#d5deec] bg-white/90 px-8 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/90">
+      <footer className="flex flex-wrap items-center gap-3 border-t border-[color-mix(in_srgb,var(--quiz)_22%,transparent)] bg-[var(--quiz-soft)] px-8 py-2">
         <span className="text-[12px] text-[var(--ink-muted)]">
           {answeredCount} / {payload.questions.length} answered
           {allowedRetries === 0
@@ -442,7 +452,7 @@ function QuestionInput({
     );
   }
 
-  if (question.type === 'multiple_select') {
+  if (isMultiSelectQuestion(question)) {
     const selected = Array.isArray(value) ? value : [];
     return (
       <div className="space-y-2">

@@ -42,6 +42,8 @@ export interface QuizQuestion {
   correct?: string | string[] | boolean | Record<string, string>;
   explanation?: string;
   points?: number;
+  /** When type is `poll`, allow selecting multiple options (checkbox UI). */
+  multiSelect?: boolean;
 }
 
 export interface QuizActivity {
@@ -85,6 +87,17 @@ export interface LabSubmissionConfig {
   allowEvidence?: boolean;
 }
 
+/** Lab resource: plain label, external link, or course asset download. */
+export type LabResource =
+  | string
+  | {
+      label: string;
+      /** External URL (opens in new tab) */
+      url?: string;
+      /** Course-relative path under the course folder (download / open) */
+      asset?: string;
+    };
+
 export interface LabActivity {
   id: string;
   title: string;
@@ -93,7 +106,7 @@ export interface LabActivity {
   instructionsFile?: string;
   rubricFile: string;
   estimatedMinutes?: number;
-  resources?: string[];
+  resources?: LabResource[];
   sections?: LabSection[];
   submission?: LabSubmissionConfig;
 }
@@ -208,6 +221,10 @@ export interface CourseTheme {
   };
   fontSizeBase?: string;
   accent?: string;
+  /** Quiz chrome accent (navigator thumbs, quiz header tint, buttons) */
+  quiz?: string;
+  /** Lab chrome accent (navigator thumbs, lab header tint, buttons) */
+  lab?: string;
   background?: {
     light?: { type: 'color' | 'gradient' | 'image'; value: string };
     dark?: { type: 'color' | 'gradient' | 'image'; value: string };

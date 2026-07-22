@@ -8,6 +8,8 @@
   },
   "fontSizeBase": "16px",
   "accent": "#0e6e6a",
+  "quiz": "#2f5aa8",
+  "lab": "#6b4f9a",
   "background": {
     "light": {
       "type": "gradient",

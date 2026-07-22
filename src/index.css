@@ -20,7 +20,9 @@ html[data-theme='light'] {
   --accent-soft: #d7f0ee;
   --accent-hot: #c45c26;
   --quiz: #2f5aa8;
+  --quiz-soft: color-mix(in srgb, var(--quiz) 14%, #ffffff);
   --lab: #6b4f9a;
+  --lab-soft: color-mix(in srgb, var(--lab) 14%, #ffffff);
   --success: #1f7a4c;
   --danger: #b42318;
   --shadow: 0 12px 40px rgba(28, 31, 38, 0.12);
@@ -40,6 +42,8 @@ html[data-theme='dark'] {
   --ink-muted: #9aa3b2;
   --line: #343b49;
   --accent-soft: rgba(62, 207, 191, 0.16);
+  --quiz-soft: color-mix(in srgb, var(--quiz) 22%, #161920);
+  --lab-soft: color-mix(in srgb, var(--lab) 22%, #161920);
   --shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   --home-grad-top: #1a1d24;
   --home-grad-bottom: #12151b;

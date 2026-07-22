@@ -36,7 +36,8 @@ export async function apiFetch<T = unknown>(req: ApiRequest): Promise<ApiRespons
 
 export function courseStaticUrl(folder: string, relativePath: string): string {
   const clean = relativePath.replace(/^\/+/, '');
-  return `http://127.0.0.1:8765/courses/${folder}/${clean}`;
+  const parts = clean.split('/').map(encodeURIComponent).join('/');
+  return `http://127.0.0.1:8765/courses/${encodeURIComponent(folder)}/${parts}`;
 }
 
 export function isElectronRuntime(): boolean {

@@ -56,7 +56,7 @@
               "durationMinutes": 5
             }
           ],
-          "quizAfter": null,
+          "quizAfter": "quiz-04",
           "labAfter": null
         }
       ],

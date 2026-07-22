@@ -1,0 +1,8 @@
+{
+  "id": "quiz-04",
+  "title": "Practice priorities poll",
+  "description": "One ungraded multi-select poll — pick every habit you want to reinforce.",
+  "passingScore": 0,
+  "allowedRetries": 0,
+  "questionsFile": "questions.json"
+}

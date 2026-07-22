@@ -1,16 +1,64 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Beaker,
   CheckSquare,
   ClipboardCheck,
+  Download,
+  ExternalLink,
+  FlaskConical,
   Square,
   Upload,
   X,
 } from 'lucide-react';
-import type { LabPayload } from '@shared/types';
+import { courseStaticUrl } from '../api/client';
+import type { LabPayload, LabResource } from '@shared/types';
+
+const BRIEF_ID = '__lab_brief';
+
+type NormalizedResource = {
+  key: string;
+  label: string;
+  href?: string;
+  kind: 'link' | 'download' | 'note';
+};
+
+function normalizeResources(
+  resources: LabResource[] | undefined,
+  courseFolder: string,
+): NormalizedResource[] {
+  if (!resources?.length) return [];
+  return resources.map((r, i) => {
+    if (typeof r === 'string') {
+      const looksLikeUrl = /^https?:\/\//i.test(r);
+      return {
+        key: `r-${i}`,
+        label: r,
+        href: looksLikeUrl ? r : undefined,
+        kind: looksLikeUrl ? 'link' : 'note',
+      };
+    }
+    if (r.asset) {
+      return {
+        key: `r-${i}`,
+        label: r.label,
+        href: courseStaticUrl(courseFolder, r.asset),
+        kind: 'download',
+      };
+    }
+    if (r.url) {
+      return {
+        key: `r-${i}`,
+        label: r.label,
+        href: r.url,
+        kind: 'link',
+      };
+    }
+    return { key: `r-${i}`, label: r.label, kind: 'note' };
+  });
+}
 
 export function LabView({
   payload,
+  courseFolder,
   checked,
   passed,
   onCheck,
@@ -18,24 +66,35 @@ export function LabView({
   onContinue,
 }: {
   payload: LabPayload;
+  courseFolder: string;
   checked: string[];
   passed?: boolean;
   onCheck: (stepIds: string[]) => void;
   onPass: () => void;
   onContinue: () => void;
 }) {
-  const sections =
+  const contentSections =
     payload.sections.length > 0
       ? payload.sections
       : [{ id: 'instructions', title: 'Instructions', html: payload.instructionsHtml }];
 
-  const [activeSection, setActiveSection] = useState(sections[0]?.id ?? '');
+  const navSections = useMemo(
+    () => [{ id: BRIEF_ID, title: 'Lab brief' }, ...contentSections.map((s) => ({ id: s.id, title: s.title }))],
+    [contentSections],
+  );
+
+  const [activeSection, setActiveSection] = useState(BRIEF_ID);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [localChecked, setLocalChecked] = useState<string[]>(checked);
   const [evidenceNote, setEvidenceNote] = useState('');
   const [evidenceUrl, setEvidenceUrl] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [labDone, setLabDone] = useState(Boolean(passed));
+
+  const resources = useMemo(
+    () => normalizeResources(payload.activity.resources, courseFolder),
+    [payload.activity.resources, courseFolder],
+  );
 
   useEffect(() => {
     setLocalChecked(checked);
@@ -45,8 +104,20 @@ export function LabView({
     setLabDone(Boolean(passed));
   }, [passed]);
 
+  useEffect(() => {
+    setActiveSection(BRIEF_ID);
+    setDrawerOpen(false);
+    setEvidenceNote('');
+    setEvidenceUrl('');
+    setConfirmed(false);
+  }, [payload.activity.id]);
+
   const activeHtml =
-    sections.find((s) => s.id === activeSection)?.html ?? sections[0]?.html ?? '';
+    activeSection === BRIEF_ID
+      ? ''
+      : (contentSections.find((s) => s.id === activeSection)?.html ??
+        contentSections[0]?.html ??
+        '');
 
   const toggle = (stepId: string) => {
     if (labDone) return;
@@ -65,76 +136,63 @@ export function LabView({
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-[linear-gradient(180deg,#faf8fc_0%,#f3eef8_100%)] dark:bg-[linear-gradient(180deg,#1a1624_0%,#12151b_100%)]">
-      <header className="border-b border-[#e0d5ec] bg-white/80 px-6 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#f0eaf7] text-[var(--lab)] dark:bg-violet-950">
-            <Beaker className="h-5 w-5" />
+      <header className="border-b border-[color-mix(in_srgb,var(--lab)_28%,transparent)] bg-[var(--lab-soft)] px-6 py-4">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--lab)] text-white shadow-sm">
+            <FlaskConical className="h-6 w-6" />
           </div>
+
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--lab)]">
-              Hands-on lab
-              {payload.activity.estimatedMinutes
-                ? ` · ~${payload.activity.estimatedMinutes} min`
-                : ''}
+            <div className="flex flex-wrap items-center gap-2">
+              <h2
+                className="text-2xl font-semibold text-[var(--ink)]"
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                {payload.activity.title}
+              </h2>
+              {payload.activity.estimatedMinutes != null && (
+                <span className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--lab)_35%,transparent)] bg-white/70 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[var(--lab)] dark:bg-slate-900/50 dark:text-violet-200">
+                  ~{payload.activity.estimatedMinutes} min
+                </span>
+              )}
             </div>
-            <h2
-              className="text-2xl font-semibold text-[var(--ink)]"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              {payload.activity.title}
-            </h2>
-            {payload.activity.learningObjective && (
-              <p className="mt-1 text-sm text-[var(--ink-muted)]">
-                <span className="font-semibold text-[var(--lab)]">Objective: </span>
-                {payload.activity.learningObjective}
+            {payload.activity.description && (
+              <p className="mt-1 max-w-3xl text-sm text-[var(--ink-muted)]">
+                {payload.activity.description}
               </p>
             )}
-            {payload.activity.description && (
-              <p className="mt-1 text-sm text-[var(--ink-muted)]">{payload.activity.description}</p>
-            )}
           </div>
+
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--lab)] px-3 py-2 text-[12px] font-semibold text-white shadow-sm hover:brightness-110"
+            className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--lab)] px-3 py-2 text-[12px] font-semibold text-white shadow-sm hover:brightness-110"
           >
             <ClipboardCheck className="h-3.5 w-3.5" />
             {labDone ? 'Review submission' : 'Submit'}
           </button>
         </div>
-        {payload.activity.resources && payload.activity.resources.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2 pl-[52px]">
-            {payload.activity.resources.map((r) => (
-              <span
-                key={r}
-                className="rounded-full border border-[#e0d5ec] bg-white px-2.5 py-0.5 text-[11px] text-[var(--ink-muted)] dark:border-slate-600 dark:bg-slate-800"
-              >
-                {r}
-              </span>
-            ))}
-          </div>
-        )}
       </header>
 
       <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[220px_1fr]">
-        <aside className="min-h-0 overflow-y-auto border-r border-[#e0d5ec] bg-white/60 p-3 dark:border-slate-700 dark:bg-slate-900/50">
+        <aside className="min-h-0 overflow-y-auto border-r border-[color-mix(in_srgb,var(--lab)_22%,transparent)] bg-white/60 p-3 dark:bg-slate-900/50">
           <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
             Sections
           </div>
           <div className="space-y-1">
-            {sections.map((sec, i) => (
+            {navSections.map((sec, i) => (
               <button
                 key={sec.id}
                 type="button"
                 onClick={() => setActiveSection(sec.id)}
                 className={`flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] ${
                   activeSection === sec.id
-                    ? 'bg-[#f0eaf7] font-semibold text-[var(--lab)] dark:bg-violet-950 dark:text-violet-200'
+                    ? 'bg-[color-mix(in_srgb,var(--lab)_16%,transparent)] font-semibold text-[var(--lab)] dark:text-violet-200'
                     : 'text-[var(--ink)] hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
               >
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-bold text-[var(--lab)] ring-1 ring-[#e0d5ec] dark:bg-slate-800 dark:ring-slate-600">
-                  {i + 1}
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-bold text-[var(--lab)] ring-1 ring-[color-mix(in_srgb,var(--lab)_28%,transparent)] dark:bg-slate-800">
+                  {i === 0 ? 'ℹ' : i}
                 </span>
                 {sec.title}
               </button>
@@ -143,14 +201,21 @@ export function LabView({
         </aside>
 
         <section className="min-h-0 overflow-y-auto p-6 dark:bg-slate-950/40">
-          <div
-            className="lab-html prose max-w-none text-[14px] leading-relaxed text-[var(--ink)] dark:prose-invert"
-            dangerouslySetInnerHTML={{ __html: activeHtml }}
-          />
+          {activeSection === BRIEF_ID ? (
+            <LabBrief
+              objective={payload.activity.learningObjective}
+              resources={resources}
+            />
+          ) : (
+            <div
+              className="lab-html prose max-w-none text-[14px] leading-relaxed text-[var(--ink)] dark:prose-invert"
+              dangerouslySetInnerHTML={{ __html: activeHtml }}
+            />
+          )}
         </section>
       </div>
 
-      <footer className="flex items-center gap-3 border-t border-[#e0d5ec] bg-white/90 px-6 py-3 backdrop-blur dark:border-slate-700 dark:bg-slate-900/90">
+      <footer className="flex items-center gap-3 border-t border-[color-mix(in_srgb,var(--lab)_22%,transparent)] bg-[var(--lab-soft)] px-6 py-2">
         <span className="text-[12px] text-[var(--ink-muted)]">
           {labDone
             ? 'Lab marked complete'
@@ -174,8 +239,8 @@ export function LabView({
             aria-label="Close drawer"
             onClick={() => setDrawerOpen(false)}
           />
-          <aside className="relative flex h-full w-full max-w-md flex-col border-l border-[#e0d5ec] bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-            <div className="flex items-center justify-between border-b border-[#e0d5ec] px-4 py-3 dark:border-slate-700">
+          <aside className="relative flex h-full w-full max-w-md flex-col border-l border-[color-mix(in_srgb,var(--lab)_28%,transparent)] bg-white shadow-2xl dark:bg-slate-900">
+            <div className="flex items-center justify-between border-b border-[color-mix(in_srgb,var(--lab)_22%,transparent)] px-4 py-3">
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--lab)]">
                   Rubric & evidence
@@ -220,7 +285,7 @@ export function LabView({
                             {i + 1}. {step.title}
                           </div>
                           <p className="mt-1 text-[11px] text-[var(--ink-muted)]">{step.instructions}</p>
-                          <div className="mt-2 rounded-lg bg-[#f6f2fb] px-2.5 py-1.5 text-[11px] text-[var(--ink)] dark:bg-violet-950/60 dark:text-slate-200">
+                          <div className="mt-2 rounded-lg bg-[color-mix(in_srgb,var(--lab)_10%,transparent)] px-2.5 py-1.5 text-[11px] text-[var(--ink)]">
                             <span className="font-semibold text-[var(--lab)]">Expected: </span>
                             {step.expectedResult}
                           </div>
@@ -268,7 +333,7 @@ export function LabView({
               </div>
             </div>
 
-            <div className="border-t border-[#e0d5ec] p-4 dark:border-slate-700">
+            <div className="border-t border-[color-mix(in_srgb,var(--lab)_22%,transparent)] p-4">
               {!labDone ? (
                 <button
                   type="button"
@@ -287,6 +352,79 @@ export function LabView({
           </aside>
         </div>
       )}
+    </div>
+  );
+}
+
+function LabBrief({
+  objective,
+  resources,
+}: {
+  objective?: string;
+  resources: NormalizedResource[];
+}) {
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div>
+        <h2
+          className="text-xl font-semibold text-[var(--ink)]"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          Lab brief
+        </h2>
+        <p className="mt-1 text-sm text-[var(--ink-muted)]">
+          Learning objective and materials for this lab. Open links in a new tab, or download
+          course files before you start the sections.
+        </p>
+      </div>
+
+      {objective && (
+        <div className="rounded-xl border border-[color-mix(in_srgb,var(--lab)_28%,transparent)] bg-white/80 p-4 dark:bg-slate-900/70">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--lab)]">
+            Learning objective
+          </div>
+          <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink)]">{objective}</p>
+        </div>
+      )}
+
+      <div>
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          Resources
+        </div>
+        {resources.length === 0 ? (
+          <p className="text-sm text-[var(--ink-muted)]">No resources attached to this lab.</p>
+        ) : (
+          <ul className="space-y-2">
+            {resources.map((r) => (
+              <li key={r.key}>
+                {r.href ? (
+                  <a
+                    href={r.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    download={r.kind === 'download' ? true : undefined}
+                    className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2.5 text-sm font-medium text-[var(--lab)] hover:bg-[color-mix(in_srgb,var(--lab)_8%,transparent)] dark:bg-slate-900"
+                  >
+                    {r.kind === 'download' ? (
+                      <Download className="h-4 w-4 shrink-0" />
+                    ) : (
+                      <ExternalLink className="h-4 w-4 shrink-0" />
+                    )}
+                    <span className="min-w-0 flex-1">{r.label}</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
+                      {r.kind === 'download' ? 'Download' : 'Open'}
+                    </span>
+                  </a>
+                ) : (
+                  <div className="rounded-lg border border-[var(--line)] bg-white px-3 py-2.5 text-sm text-[var(--ink)] dark:bg-slate-900">
+                    {r.label}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
