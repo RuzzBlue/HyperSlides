@@ -45,17 +45,17 @@ export function SlideSidebar({
                 onClick={() => onSelect(item.index)}
                 className={`group w-full rounded-lg p-1.5 text-left transition ${
                   active
-                    ? 'bg-white shadow-md ring-2 ring-[var(--accent)]'
-                    : 'hover:bg-white/70'
+                    ? 'bg-white shadow-md ring-2 ring-[var(--accent)] dark:bg-slate-800'
+                    : 'hover:bg-white/70 dark:hover:bg-white/10'
                 }`}
               >
                 <div
                   className={`relative mb-1.5 flex aspect-[16/10] items-center justify-center overflow-hidden rounded-md border ${
                     item.type === 'quiz'
-                      ? 'border-[#c9d7ef] bg-[linear-gradient(145deg,#eef3fb,#d9e4f6)]'
+                      ? 'border-[#c9d7ef] bg-[linear-gradient(145deg,#eef3fb,#d9e4f6)] dark:border-sky-800 dark:bg-[linear-gradient(145deg,#0f1a2e,#152238)]'
                       : item.type === 'lab'
-                        ? 'border-[#ddd0ef] bg-[linear-gradient(145deg,#f6f1fb,#e8ddf4)]'
-                        : 'border-[var(--line)] bg-[linear-gradient(160deg,#ffffff,#f3f5f8)]'
+                        ? 'border-[#ddd0ef] bg-[linear-gradient(145deg,#f6f1fb,#e8ddf4)] dark:border-violet-800 dark:bg-[linear-gradient(145deg,#1a1428,#221833)]'
+                        : 'border-[var(--line)] bg-[linear-gradient(160deg,#ffffff,#f3f5f8)] dark:bg-[linear-gradient(160deg,#1e2430,#161b24)]'
                   }`}
                 >
                   <ThumbIcon type={item.type} />

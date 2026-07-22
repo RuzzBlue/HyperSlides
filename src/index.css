@@ -144,3 +144,37 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb {
 .pulse-accent {
   animation: pulse-ring 1.8s ease-out infinite;
 }
+
+/* —— Dark mode readability safety nets —— */
+html[data-theme='dark'] input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']),
+html[data-theme='dark'] select,
+html[data-theme='dark'] textarea {
+  color: var(--ink);
+  background-color: var(--panel);
+  border-color: var(--line);
+}
+
+html[data-theme='dark'] option {
+  color: var(--ink);
+  background-color: var(--panel);
+}
+
+html[data-theme='dark'] .lesson-stage {
+  color: #e2e8f0;
+}
+
+html[data-theme='dark'] .lesson-stage .border-slate-200,
+html[data-theme='dark'] .lesson-stage .border-slate-100 {
+  border-color: #475569;
+}
+
+/* Untinted white cards that lack dark:bg-* become readable panels */
+html[data-theme='dark'] .lesson-stage .bg-white {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+html[data-theme='dark'] button:disabled {
+  opacity: 0.45;
+}
+

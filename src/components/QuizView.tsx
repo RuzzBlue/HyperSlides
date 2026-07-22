@@ -336,8 +336,8 @@ function QuestionInput({
               onClick={() => onChange(v)}
               className={`rounded-lg border px-4 py-2 text-sm font-medium ${
                 selected
-                  ? 'border-[var(--quiz)] bg-[#e8eef8] text-[var(--quiz)]'
-                  : 'border-[var(--line)] bg-white text-[var(--ink)] dark:bg-slate-950'
+                  ? 'border-[var(--quiz)] bg-[#e8eef8] text-[var(--quiz)] dark:border-sky-400 dark:bg-sky-950 dark:text-sky-100'
+                  : 'border-[var(--line)] bg-white text-[var(--ink)] dark:bg-slate-950 dark:text-slate-100'
               }`}
             >
               {v ? 'True' : 'False'}
@@ -369,7 +369,7 @@ function QuestionInput({
         {currentOrder.map((id, i) => (
           <div
             key={id}
-            className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2 dark:bg-slate-950"
+            className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2 dark:bg-slate-950 dark:text-slate-100"
           >
             <span className="w-5 text-[11px] font-bold text-[var(--quiz)]">{i + 1}</span>
             <span className="min-w-0 flex-1 text-sm text-[var(--ink)]">{labelFor(id)}</span>
@@ -377,7 +377,7 @@ function QuestionInput({
               type="button"
               disabled={disabled || i === 0}
               onClick={() => move(i, -1)}
-              className="rounded border border-[var(--line)] px-2 py-0.5 text-xs disabled:opacity-30"
+              className="rounded border border-[var(--line)] px-2 py-0.5 text-xs text-[var(--ink)] disabled:opacity-30 dark:bg-slate-900"
             >
               ↑
             </button>
@@ -385,7 +385,7 @@ function QuestionInput({
               type="button"
               disabled={disabled || i === currentOrder.length - 1}
               onClick={() => move(i, 1)}
-              className="rounded border border-[var(--line)] px-2 py-0.5 text-xs disabled:opacity-30"
+              className="rounded border border-[var(--line)] px-2 py-0.5 text-xs text-[var(--ink)] disabled:opacity-30 dark:bg-slate-900"
             >
               ↓
             </button>
@@ -414,7 +414,7 @@ function QuestionInput({
               disabled={disabled}
               value={map[left.id] ?? ''}
               onChange={(e) => onChange({ ...map, [left.id]: e.target.value })}
-              className="rounded-lg border border-[var(--line)] bg-[#fafbfd] px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[var(--quiz)] dark:bg-slate-900"
+              className="rounded-lg border border-[var(--line)] bg-[#fafbfd] px-2 py-1.5 text-sm text-[var(--ink)] outline-none focus:ring-2 focus:ring-[var(--quiz)] dark:bg-slate-900 dark:text-slate-100"
             >
               <option value="">Select…</option>
               {question.matchTargets?.map((t) => (
@@ -437,7 +437,7 @@ function QuestionInput({
         value={typeof value === 'string' ? value : ''}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Type your answer…"
-        className="w-full rounded-lg border border-[var(--line)] bg-[#fafbfd] px-3 py-2 text-sm outline-none ring-[var(--quiz)] focus:ring-2 dark:bg-slate-950"
+        className="w-full rounded-lg border border-[var(--line)] bg-[#fafbfd] px-3 py-2 text-sm text-[var(--ink)] outline-none ring-[var(--quiz)] focus:ring-2 dark:bg-slate-950 dark:text-slate-100"
       />
     );
   }
@@ -456,8 +456,8 @@ function QuestionInput({
               onClick={() => onToggle(opt.id)}
               className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm ${
                 on
-                  ? 'border-[var(--quiz)] bg-[#e8eef8] text-[var(--ink)]'
-                  : 'border-[var(--line)] bg-white dark:bg-slate-950'
+                  ? 'border-[var(--quiz)] bg-[#e8eef8] text-slate-900 dark:border-sky-400 dark:bg-sky-950 dark:text-sky-100'
+                  : 'border-[var(--line)] bg-white text-[var(--ink)] dark:bg-slate-950 dark:text-slate-100'
               }`}
             >
               <span
@@ -487,8 +487,8 @@ function QuestionInput({
             onClick={() => onChange(opt.id)}
             className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm ${
               selected
-                ? 'border-[var(--quiz)] bg-[#e8eef8] text-[var(--ink)]'
-                : 'border-[var(--line)] bg-white dark:bg-slate-950'
+                ? 'border-[var(--quiz)] bg-[#e8eef8] text-slate-900 dark:border-sky-400 dark:bg-sky-950 dark:text-sky-100'
+                : 'border-[var(--line)] bg-white text-[var(--ink)] dark:bg-slate-950 dark:text-slate-100'
             }`}
           >
             <span

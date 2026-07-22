@@ -76,7 +76,7 @@ export function ExpandableShell({
         className={
           expanded
             ? 'fixed inset-3 z-[300] flex max-h-[calc(100vh-1.5rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl md:inset-8 dark:border-slate-700 dark:bg-slate-950'
-            : `overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md dark:border-slate-800 dark:bg-slate-900 ${className}`
+            : `overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md dark:border-slate-600 dark:bg-slate-900 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] ${className}`
         }
       >
         {header}
@@ -116,31 +116,22 @@ export function PanZoomSurface({
     setPos({ x: 0, y: 0 });
   };
 
+  const ctrl =
+    'cursor-pointer rounded bg-black/75 px-2 py-1 text-xs font-bold text-white hover:bg-black';
+
   return (
     <div className={`relative ${className}`}>
       <div
         className="absolute right-2 top-2 z-20 flex gap-1"
         onPointerDown={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
-          onClick={() => setScale((s) => Math.min(3, s + 0.15))}
-          className="cursor-pointer rounded bg-slate-900/80 px-2 py-1 text-xs font-bold text-white hover:bg-slate-900"
-        >
+        <button type="button" onClick={() => setScale((s) => Math.min(3, s + 0.15))} className={ctrl}>
           +
         </button>
-        <button
-          type="button"
-          onClick={() => setScale((s) => Math.max(0.4, s - 0.15))}
-          className="cursor-pointer rounded bg-slate-900/80 px-2 py-1 text-xs font-bold text-white hover:bg-slate-900"
-        >
+        <button type="button" onClick={() => setScale((s) => Math.max(0.4, s - 0.15))} className={ctrl}>
           −
         </button>
-        <button
-          type="button"
-          onClick={reset}
-          className="cursor-pointer rounded bg-slate-900/80 px-2 py-1 text-xs font-bold text-white hover:bg-slate-900"
-        >
+        <button type="button" onClick={reset} className={ctrl}>
           Reset
         </button>
       </div>

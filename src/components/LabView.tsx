@@ -64,10 +64,10 @@ export function LabView({
   };
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-[linear-gradient(180deg,#faf8fc_0%,#f3eef8_100%)]">
-      <header className="border-b border-[#e0d5ec] bg-white/80 px-6 py-4 backdrop-blur">
+    <div className="relative flex h-full flex-col overflow-hidden bg-[linear-gradient(180deg,#faf8fc_0%,#f3eef8_100%)] dark:bg-[linear-gradient(180deg,#1a1624_0%,#12151b_100%)]">
+      <header className="border-b border-[#e0d5ec] bg-white/80 px-6 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80">
         <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#f0eaf7] text-[var(--lab)]">
+          <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#f0eaf7] text-[var(--lab)] dark:bg-violet-950">
             <Beaker className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
@@ -107,7 +107,7 @@ export function LabView({
             {payload.activity.resources.map((r) => (
               <span
                 key={r}
-                className="rounded-full border border-[#e0d5ec] bg-white px-2.5 py-0.5 text-[11px] text-[var(--ink-muted)]"
+                className="rounded-full border border-[#e0d5ec] bg-white px-2.5 py-0.5 text-[11px] text-[var(--ink-muted)] dark:border-slate-600 dark:bg-slate-800"
               >
                 {r}
               </span>
@@ -117,7 +117,7 @@ export function LabView({
       </header>
 
       <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[220px_1fr]">
-        <aside className="min-h-0 overflow-y-auto border-r border-[#e0d5ec] bg-white/60 p-3">
+        <aside className="min-h-0 overflow-y-auto border-r border-[#e0d5ec] bg-white/60 p-3 dark:border-slate-700 dark:bg-slate-900/50">
           <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
             Sections
           </div>
@@ -129,11 +129,11 @@ export function LabView({
                 onClick={() => setActiveSection(sec.id)}
                 className={`flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] ${
                   activeSection === sec.id
-                    ? 'bg-[#f0eaf7] font-semibold text-[var(--lab)]'
-                    : 'text-[var(--ink)] hover:bg-black/5'
+                    ? 'bg-[#f0eaf7] font-semibold text-[var(--lab)] dark:bg-violet-950 dark:text-violet-200'
+                    : 'text-[var(--ink)] hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
               >
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-bold text-[var(--lab)] ring-1 ring-[#e0d5ec]">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-bold text-[var(--lab)] ring-1 ring-[#e0d5ec] dark:bg-slate-800 dark:ring-slate-600">
                   {i + 1}
                 </span>
                 {sec.title}
@@ -142,15 +142,15 @@ export function LabView({
           </div>
         </aside>
 
-        <section className="min-h-0 overflow-y-auto p-6">
+        <section className="min-h-0 overflow-y-auto p-6 dark:bg-slate-950/40">
           <div
-            className="lab-html prose max-w-none text-[14px] leading-relaxed text-[var(--ink)]"
+            className="lab-html prose max-w-none text-[14px] leading-relaxed text-[var(--ink)] dark:prose-invert"
             dangerouslySetInnerHTML={{ __html: activeHtml }}
           />
         </section>
       </div>
 
-      <footer className="flex items-center gap-3 border-t border-[#e0d5ec] bg-white/90 px-6 py-3 backdrop-blur">
+      <footer className="flex items-center gap-3 border-t border-[#e0d5ec] bg-white/90 px-6 py-3 backdrop-blur dark:border-slate-700 dark:bg-slate-900/90">
         <span className="text-[12px] text-[var(--ink-muted)]">
           {labDone
             ? 'Lab marked complete'
@@ -167,15 +167,15 @@ export function LabView({
       </footer>
 
       {drawerOpen && (
-        <div className="absolute inset-0 z-20 flex justify-end bg-black/25 backdrop-blur-[1px]">
+        <div className="absolute inset-0 z-20 flex justify-end bg-black/40 backdrop-blur-[1px]">
           <button
             type="button"
             className="absolute inset-0 cursor-pointer"
             aria-label="Close drawer"
             onClick={() => setDrawerOpen(false)}
           />
-          <aside className="relative flex h-full w-full max-w-md flex-col border-l border-[#e0d5ec] bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#e0d5ec] px-4 py-3">
+          <aside className="relative flex h-full w-full max-w-md flex-col border-l border-[#e0d5ec] bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-center justify-between border-b border-[#e0d5ec] px-4 py-3 dark:border-slate-700">
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--lab)]">
                   Rubric & evidence
@@ -187,7 +187,7 @@ export function LabView({
               <button
                 type="button"
                 onClick={() => setDrawerOpen(false)}
-                className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5"
+                className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5 dark:hover:bg-white/10"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -204,12 +204,14 @@ export function LabView({
                       disabled={labDone}
                       onClick={() => toggle(step.id)}
                       className={`w-full rounded-xl border p-3 text-left ${
-                        on ? 'border-emerald-300 bg-emerald-50/80' : 'border-[var(--line)] bg-[var(--panel)]'
+                        on
+                          ? 'border-emerald-400 bg-emerald-50/80 dark:border-emerald-500 dark:bg-emerald-950/50'
+                          : 'border-[var(--line)] bg-[var(--panel)]'
                       }`}
                     >
                       <div className="flex items-start gap-2">
                         {on ? (
-                          <CheckSquare className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                          <CheckSquare className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" />
                         ) : (
                           <Square className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ink-muted)]" />
                         )}
@@ -218,7 +220,7 @@ export function LabView({
                             {i + 1}. {step.title}
                           </div>
                           <p className="mt-1 text-[11px] text-[var(--ink-muted)]">{step.instructions}</p>
-                          <div className="mt-2 rounded-lg bg-[#f6f2fb] px-2.5 py-1.5 text-[11px]">
+                          <div className="mt-2 rounded-lg bg-[#f6f2fb] px-2.5 py-1.5 text-[11px] text-[var(--ink)] dark:bg-violet-950/60 dark:text-slate-200">
                             <span className="font-semibold text-[var(--lab)]">Expected: </span>
                             {step.expectedResult}
                           </div>
@@ -244,7 +246,7 @@ export function LabView({
                   value={evidenceUrl}
                   onChange={(e) => setEvidenceUrl(e.target.value)}
                   disabled={labDone}
-                  className="mb-2 w-full rounded-lg border border-[var(--line)] px-3 py-2 text-[12px]"
+                  className="mb-2 w-full rounded-lg border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-[12px] text-[var(--ink)]"
                 />
                 <textarea
                   placeholder="Written notes / confirmation"
@@ -252,7 +254,7 @@ export function LabView({
                   onChange={(e) => setEvidenceNote(e.target.value)}
                   disabled={labDone}
                   rows={3}
-                  className="mb-2 w-full rounded-lg border border-[var(--line)] px-3 py-2 text-[12px]"
+                  className="mb-2 w-full rounded-lg border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-[12px] text-[var(--ink)]"
                 />
                 <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[var(--ink)]">
                   <input
@@ -266,7 +268,7 @@ export function LabView({
               </div>
             </div>
 
-            <div className="border-t border-[#e0d5ec] p-4">
+            <div className="border-t border-[#e0d5ec] p-4 dark:border-slate-700">
               {!labDone ? (
                 <button
                   type="button"
@@ -277,7 +279,7 @@ export function LabView({
                   Submit lab & mark complete
                 </button>
               ) : (
-                <div className="rounded-lg bg-emerald-50 px-3 py-2 text-center text-[13px] font-semibold text-emerald-800">
+                <div className="rounded-lg bg-emerald-50 px-3 py-2 text-center text-[13px] font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
                   Lab passed — you can continue
                 </div>
               )}
