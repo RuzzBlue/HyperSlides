@@ -14,6 +14,17 @@ import type { LabPayload, LabResource } from '@shared/types';
 
 const BRIEF_ID = '__lab_brief';
 
+/** Resolve course-relative image/file srcs so lab HTML assets load from /courses/... */
+function rewriteLabHtml(html: string, courseFolder: string): string {
+  return html.replace(
+    /\bsrc=(["'])(?!https?:|data:|blob:|\/\/)([^"']+)\1/gi,
+    (_m, quote: string, src: string) => {
+      const cleaned = src.trim().replace(/^\.\//, '');
+      return `src=${quote}${courseStaticUrl(courseFolder, cleaned)}${quote}`;
+    },
+  );
+}
+
 type NormalizedResource = {
   key: string;
   label: string;
@@ -115,9 +126,12 @@ export function LabView({
   const activeHtml =
     activeSection === BRIEF_ID
       ? ''
-      : (contentSections.find((s) => s.id === activeSection)?.html ??
-        contentSections[0]?.html ??
-        '');
+      : rewriteLabHtml(
+          contentSections.find((s) => s.id === activeSection)?.html ??
+            contentSections[0]?.html ??
+            '',
+          courseFolder,
+        );
 
   const toggle = (stepId: string) => {
     if (labDone) return;
@@ -208,7 +222,7 @@ export function LabView({
             />
           ) : (
             <div
-              className="lab-html prose max-w-none text-[14px] leading-relaxed text-[var(--ink)] dark:prose-invert"
+              className="lab-html max-w-3xl text-[14px] text-[var(--ink)]"
               dangerouslySetInnerHTML={{ __html: activeHtml }}
             />
           )}

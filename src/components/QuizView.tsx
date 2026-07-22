@@ -153,7 +153,7 @@ export function QuizView({
             )}
           </div>
 
-          <div className="flex shrink-0 flex-col items-end gap-2">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-3">
             <div className="flex flex-wrap justify-end gap-2">
               <span className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--quiz)_35%,transparent)] bg-white/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[var(--quiz)] dark:bg-slate-900/50 dark:text-sky-200">
                 Pass ≥ {passingScore}%

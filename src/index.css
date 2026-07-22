@@ -149,6 +149,124 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb {
   animation: pulse-ring 1.8s ease-out infinite;
 }
 
+/* Lab section HTML — semantic tags (Tailwind preflight strips list/heading defaults) */
+.lab-html {
+  color: var(--ink);
+  line-height: 1.65;
+}
+
+.lab-html > *:first-child {
+  margin-top: 0;
+}
+
+.lab-html h1,
+.lab-html h2,
+.lab-html h3,
+.lab-html h4 {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 1.35em 0 0.55em;
+}
+
+.lab-html h1 {
+  font-size: 1.75rem;
+}
+
+.lab-html h2 {
+  font-size: 1.45rem;
+}
+
+.lab-html h3 {
+  font-size: 1.15rem;
+}
+
+.lab-html h4 {
+  font-size: 1.05rem;
+}
+
+.lab-html p {
+  margin: 0.75em 0;
+}
+
+.lab-html ul,
+.lab-html ol {
+  margin: 0.75em 0;
+  padding-left: 1.35rem;
+}
+
+.lab-html ul {
+  list-style: disc;
+}
+
+.lab-html ol {
+  list-style: decimal;
+}
+
+.lab-html li {
+  margin: 0.35em 0;
+  padding-left: 0.2rem;
+}
+
+.lab-html li > ul,
+.lab-html li > ol {
+  margin: 0.35em 0;
+}
+
+.lab-html ul ul {
+  list-style: circle;
+}
+
+.lab-html strong {
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.lab-html code {
+  font-size: 0.9em;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--lab) 10%, var(--panel));
+  padding: 0.1em 0.35em;
+}
+
+.lab-html a {
+  color: var(--lab);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.lab-html blockquote,
+.lab-html .hc-quote {
+  margin: 1em 0;
+  border-left: 3px solid var(--lab);
+  border-radius: 0 0.75rem 0.75rem 0;
+  background: color-mix(in srgb, var(--lab) 8%, transparent);
+  padding: 0.75rem 1rem;
+  color: var(--ink);
+}
+
+.lab-html figure {
+  margin: 1.25rem 0;
+}
+
+.lab-html img {
+  display: block;
+  width: 100%;
+  max-width: 48rem;
+  height: auto;
+  border-radius: 0.75rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.lab-html figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+}
+
 /* —— Dark mode readability safety nets —— */
 html[data-theme='dark'] input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']),
 html[data-theme='dark'] select,
