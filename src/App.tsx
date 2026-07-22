@@ -317,6 +317,7 @@ export default function App() {
                       html={lesson.html}
                       title={lesson.title || current.title}
                       courseFolder={course.summary.folder}
+                      theme={course.theme}
                     />
                   )}
                   {!loading && current?.type === 'quiz' && quiz && course && (

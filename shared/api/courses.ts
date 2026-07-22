@@ -4,6 +4,7 @@ import type {
   CourseManifest,
   CoursePackageManifest,
   CourseSummary,
+  CourseTheme,
   LabActivity,
   LabPayload,
   LabRubric,
@@ -162,6 +163,16 @@ export function buildSequence(manifest: CourseManifest): SequenceItem[] {
   return items;
 }
 
+export function loadCourseTheme(rootPath: string): CourseTheme | null {
+  const themePath = path.join(rootPath, 'theme', 'theme.json');
+  if (!fs.existsSync(themePath)) return null;
+  try {
+    return readJson<CourseTheme>(themePath);
+  } catch {
+    return null;
+  }
+}
+
 export function loadCourse(appRoot: string, courseId: string): LoadedCourse | null {
   const summary = listCourses(appRoot).find((c) => c.id === courseId || c.folder === courseId);
   if (!summary) return null;
@@ -177,6 +188,7 @@ export function loadCourse(appRoot: string, courseId: string): LoadedCourse | nu
     packageManifest,
     sequence: buildSequence(manifest),
     rootPath,
+    theme: loadCourseTheme(rootPath),
   };
 }
 

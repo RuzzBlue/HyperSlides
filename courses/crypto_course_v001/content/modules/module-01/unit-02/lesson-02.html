@@ -12,28 +12,14 @@
     <div data-component="pie-chart"></div>
   </div>
 
-  <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <span class="text-[10px] font-black uppercase tracking-wider text-amber-600">Step 1</span>
-      <h3 class="mt-2 text-sm font-bold text-slate-900 dark:text-white">Check the network</h3>
-      <p class="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-        Address formats and fees differ. A correct address on the wrong network can still lose funds.
-      </p>
-    </div>
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <span class="text-[10px] font-black uppercase tracking-wider text-indigo-600">Step 2</span>
-      <h3 class="mt-2 text-sm font-bold text-slate-900 dark:text-white">Review the intent</h3>
-      <p class="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-        Verify recipient, asset, amount, network, and fee before you approve.
-      </p>
-    </div>
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <span class="text-[10px] font-black uppercase tracking-wider text-emerald-600">Step 3</span>
-      <h3 class="mt-2 text-sm font-bold text-slate-900 dark:text-white">Wait for status</h3>
-      <p class="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-        Use a reputable explorer or wallet status to watch pending → confirmed.
-      </p>
-    </div>
+  <div>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">BTC ↔ ETH · step comparison</span>
+    <div data-component="compare-steps"></div>
+  </div>
+
+  <div>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">Network comparison · filterable</span>
+    <div data-component="filter-table"></div>
   </div>
 
   <div>

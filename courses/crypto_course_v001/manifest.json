@@ -9,6 +9,7 @@
   "extensions": ["mermaid", "chartjs", "prism"],
   "widgets": ["crypto-candles", "seed-phrase-demo"],
   "permissions": ["local-progress"],
+  "theme": "theme/theme.json",
   "integrity": { "algorithm": "sha256", "hash": null },
   "updates": { "channel": "stable" },
   "passwordLock": { "enabled": false }

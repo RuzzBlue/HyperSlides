@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, CircleHelp, XCircle } from 'lucide-react';
+import { CheckCircle2, CircleHelp, RotateCcw, XCircle } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import type {
   QuizAnswerMap,
@@ -7,6 +7,13 @@ import type {
   QuizPayload,
   QuizQuestion,
 } from '@shared/types';
+
+type PriorScore = {
+  percent: number;
+  passed: boolean;
+  at: string;
+  attempts?: number;
+};
 
 export function QuizView({
   courseId,
@@ -21,13 +28,24 @@ export function QuizView({
   quizId: string;
   payload: QuizPayload;
   priorResult: QuizGradeResult | null;
-  priorScore?: { percent: number; passed: boolean; at: string };
+  priorScore?: PriorScore;
   onGraded: (result: QuizGradeResult) => void;
   onContinue: () => void;
 }) {
+  const passingScore = payload.activity.passingScore ?? 70;
+  const allowedRetries = payload.activity.allowedRetries ?? 0;
+
   const [answers, setAnswers] = useState<QuizAnswerMap>({});
   const [result, setResult] = useState<QuizGradeResult | null>(priorResult);
+  const [attempts, setAttempts] = useState(priorScore?.attempts ?? 0);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setResult(priorResult);
+    setAttempts(priorScore?.attempts ?? 0);
+    setError(null);
+  }, [quizId, priorResult, priorScore?.attempts]);
 
   useEffect(() => {
     setAnswers((prev) => {
@@ -39,7 +57,7 @@ export function QuizView({
       }
       return next;
     });
-  }, [payload.questions]);
+  }, [payload.questions, quizId]);
 
   const answeredCount = useMemo(
     () =>
@@ -54,13 +72,25 @@ export function QuizView({
     [answers, payload.questions],
   );
 
+  const attemptsUsed = result?.attempts ?? attempts;
+  const retriesLeft =
+    allowedRetries === 0 ? Infinity : Math.max(0, allowedRetries - attemptsUsed);
+  const canRetry = !result ? true : allowedRetries === 0 || attemptsUsed < allowedRetries;
+  const lockedOut = Boolean(result) && !canRetry;
+  const inputsLocked = Boolean(result);
+
+  /** Only show a grade after at least one real submission exists in profile progress. */
+  const showGrade = Boolean(result) || priorScore != null;
+  const displayPercent = result?.percent ?? priorScore?.percent ?? 0;
+  const displayPassed = result?.passed ?? priorScore?.passed ?? false;
+
   const setAnswer = (id: string, value: QuizAnswerMap[string]) => {
-    if (result) return;
+    if (inputsLocked) return;
     setAnswers((prev) => ({ ...prev, [id]: value }));
   };
 
   const toggleMulti = (q: QuizQuestion, optionId: string) => {
-    if (result) return;
+    if (inputsLocked) return;
     const prev = answers[q.id];
     const current = Array.isArray(prev) ? [...prev] : [];
     const next = current.includes(optionId)
@@ -71,6 +101,7 @@ export function QuizView({
 
   const submit = async () => {
     setSubmitting(true);
+    setError(null);
     const res = await apiFetch<QuizGradeResult>({
       method: 'POST',
       path: `/api/courses/${courseId}/quizzes/${quizId}/grade`,
@@ -79,17 +110,27 @@ export function QuizView({
     setSubmitting(false);
     if (res.ok && res.data) {
       setResult(res.data);
+      setAttempts(res.data.attempts ?? attempts + 1);
       onGraded(res.data);
+    } else {
+      setError(res.error || 'Could not grade quiz');
     }
+  };
+
+  const startRetry = () => {
+    if (!canRetry || lockedOut) return;
+    setResult(null);
+    setAnswers({});
+    setError(null);
   };
 
   const resultFor = (qid: string) => result?.results.find((r) => r.questionId === qid);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[linear-gradient(180deg,#f7f9fc_0%,#eef2f8_100%)]">
-      <header className="border-b border-[#d5deec] bg-white/80 px-8 py-5 backdrop-blur">
+    <div className="flex h-full flex-col overflow-hidden bg-[linear-gradient(180deg,#f7f9fc_0%,#eef2f8_100%)] dark:bg-[linear-gradient(180deg,#1a1d24_0%,#12151b_100%)]">
+      <header className="border-b border-[#d5deec] bg-white/80 px-8 py-5 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80">
         <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#e8eef8] text-[var(--quiz)]">
+          <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#e8eef8] text-[var(--quiz)] dark:bg-slate-800">
             <CircleHelp className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
@@ -105,20 +146,36 @@ export function QuizView({
             {payload.activity.description && (
               <p className="mt-1 text-sm text-[var(--ink-muted)]">{payload.activity.description}</p>
             )}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-950/50 dark:text-indigo-300">
+                Pass ≥ {passingScore}%
+              </span>
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                {allowedRetries === 0
+                  ? 'Unlimited retries'
+                  : `${Math.min(attemptsUsed, allowedRetries)} / ${allowedRetries} attempts`}
+              </span>
+            </div>
           </div>
-          {(result || priorScore) && (
+
+          {showGrade ? (
             <div
-              className={`rounded-xl px-4 py-2 text-right ${
-                (result?.passed ?? priorScore?.passed)
-                  ? 'bg-emerald-50 text-emerald-800'
-                  : 'bg-amber-50 text-amber-900'
+              className={`rounded-xl px-4 py-2 text-right shadow-sm ring-2 ${
+                displayPassed
+                  ? 'bg-emerald-100 text-emerald-900 ring-emerald-400/60 dark:bg-emerald-950 dark:text-emerald-200 dark:ring-emerald-500/40'
+                  : 'bg-rose-100 text-rose-900 ring-rose-400/60 dark:bg-rose-950 dark:text-rose-200 dark:ring-rose-500/40'
               }`}
             >
-              <div className="text-2xl font-semibold tabular-nums">
-                {result?.percent ?? priorScore?.percent}%
-              </div>
+              <div className="text-2xl font-semibold tabular-nums">{displayPercent}%</div>
               <div className="text-[11px] font-medium uppercase tracking-wide">
-                {(result?.passed ?? priorScore?.passed) ? 'Passed' : 'Review'}
+                {displayPassed ? 'Passed' : 'Not passed'}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-2 text-right dark:border-slate-600 dark:bg-slate-800/60">
+              <div className="text-2xl font-semibold tabular-nums text-slate-400">—</div>
+              <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                Not graded
               </div>
             </div>
           )}
@@ -128,21 +185,28 @@ export function QuizView({
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-8 py-6">
         {payload.questions.map((q, i) => {
           const graded = resultFor(q.id);
+          const isPoll = q.type === 'poll';
+          let cardClass = 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900';
+          if (graded && !isPoll) {
+            cardClass = graded.correct
+              ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-400/70 dark:border-emerald-400 dark:bg-emerald-950/40 dark:ring-emerald-500/50'
+              : 'border-rose-500 bg-rose-50 ring-2 ring-rose-400/70 dark:border-rose-400 dark:bg-rose-950/40 dark:ring-rose-500/50';
+          } else if (graded && isPoll) {
+            cardClass = 'border-indigo-300 bg-indigo-50/50 ring-1 ring-indigo-200 dark:border-indigo-600 dark:bg-indigo-950/30';
+          }
+
           return (
-            <div
-              key={q.id}
-              className={`rounded-2xl border bg-white p-5 shadow-sm ${
-                graded
-                  ? graded.correct
-                    ? 'border-emerald-200'
-                    : q.type === 'poll'
-                      ? 'border-[var(--line)]'
-                      : 'border-rose-200'
-                  : 'border-[var(--line)]'
-              }`}
-            >
+            <div key={q.id} className={`rounded-2xl border-2 p-5 shadow-sm ${cardClass}`}>
               <div className="mb-3 flex items-start gap-2">
-                <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef2f8] text-[11px] font-bold text-[var(--quiz)]">
+                <span
+                  className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                    graded && !isPoll
+                      ? graded.correct
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-rose-600 text-white'
+                      : 'bg-[#eef2f8] text-[var(--quiz)] dark:bg-slate-800'
+                  }`}
+                >
                   {i + 1}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -151,28 +215,46 @@ export function QuizView({
                   </div>
                   <div className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
                     {q.type.replace(/_/g, ' ')}
-                    {q.type === 'poll' ? ' · no correct answer' : ''}
+                    {isPoll ? ' · no correct answer' : ''}
                   </div>
                 </div>
-                {graded && q.type !== 'poll' && (
-                  graded.correct ? (
-                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                  ) : (
-                    <XCircle className="h-5 w-5 text-rose-600" />
-                  )
+                {graded && !isPoll && (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
+                      graded.correct
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-rose-600 text-white'
+                    }`}
+                  >
+                    {graded.correct ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Correct
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-3.5 w-3.5" /> Incorrect
+                      </>
+                    )}
+                  </span>
                 )}
               </div>
 
               <QuestionInput
                 question={q}
                 value={answers[q.id]}
-                disabled={Boolean(result)}
+                disabled={inputsLocked}
                 onChange={(v) => setAnswer(q.id, v)}
                 onToggle={(oid) => toggleMulti(q, oid)}
               />
 
               {graded?.explanation && (
-                <div className="mt-3 rounded-lg bg-[#f4f7fb] px-3 py-2 text-[13px] text-[var(--ink-muted)]">
+                <div
+                  className={`mt-3 rounded-lg px-3 py-2 text-[13px] ${
+                    graded.correct || isPoll
+                      ? 'bg-emerald-100/80 text-emerald-950 dark:bg-emerald-900/40 dark:text-emerald-100'
+                      : 'bg-rose-100/80 text-rose-950 dark:bg-rose-900/40 dark:text-rose-100'
+                  }`}
+                >
                   {graded.explanation}
                 </div>
               )}
@@ -181,11 +263,17 @@ export function QuizView({
         })}
       </div>
 
-      <footer className="flex items-center gap-3 border-t border-[#d5deec] bg-white/90 px-8 py-4 backdrop-blur">
+      <footer className="flex flex-wrap items-center gap-3 border-t border-[#d5deec] bg-white/90 px-8 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/90">
         <span className="text-[12px] text-[var(--ink-muted)]">
           {answeredCount} / {payload.questions.length} answered
+          {allowedRetries === 0
+            ? ''
+            : retriesLeft === Infinity
+              ? ''
+              : ` · ${retriesLeft} ${retriesLeft === 1 ? 'retry' : 'retries'} left`}
         </span>
-        <div className="ml-auto flex gap-2">
+        {error && <span className="text-[12px] font-medium text-rose-600">{error}</span>}
+        <div className="ml-auto flex flex-wrap gap-2">
           {!result ? (
             <button
               type="button"
@@ -196,13 +284,25 @@ export function QuizView({
               {submitting ? 'Grading…' : 'Submit & grade'}
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={onContinue}
-              className="rounded-lg bg-[var(--accent)] px-4 py-2 text-[13px] font-semibold text-white shadow-sm hover:brightness-110"
-            >
-              Continue to next slide
-            </button>
+            <>
+              {canRetry && (
+                <button
+                  type="button"
+                  onClick={startRetry}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-[13px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Retry quiz
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onContinue}
+                className="rounded-lg bg-[var(--accent)] px-4 py-2 text-[13px] font-semibold text-white shadow-sm hover:brightness-110"
+              >
+                Continue to next slide
+              </button>
+            </>
           )}
         </div>
       </footer>
@@ -237,7 +337,7 @@ function QuestionInput({
               className={`rounded-lg border px-4 py-2 text-sm font-medium ${
                 selected
                   ? 'border-[var(--quiz)] bg-[#e8eef8] text-[var(--quiz)]'
-                  : 'border-[var(--line)] bg-white text-[var(--ink)]'
+                  : 'border-[var(--line)] bg-white text-[var(--ink)] dark:bg-slate-950'
               }`}
             >
               {v ? 'True' : 'False'}
@@ -249,7 +349,6 @@ function QuestionInput({
   }
 
   if (question.type === 'ordering') {
-    // Ensure a default order exists
     const currentOrder =
       Array.isArray(value) && value.length
         ? (value as string[])
@@ -270,7 +369,7 @@ function QuestionInput({
         {currentOrder.map((id, i) => (
           <div
             key={id}
-            className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2"
+            className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2 dark:bg-slate-950"
           >
             <span className="w-5 text-[11px] font-bold text-[var(--quiz)]">{i + 1}</span>
             <span className="min-w-0 flex-1 text-sm text-[var(--ink)]">{labelFor(id)}</span>
@@ -306,7 +405,7 @@ function QuestionInput({
         {question.options?.map((left) => (
           <div
             key={left.id}
-            className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2"
+            className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2 dark:bg-slate-950"
           >
             <span className="min-w-[8rem] flex-1 text-sm font-medium text-[var(--ink)]">
               {left.label}
@@ -315,7 +414,7 @@ function QuestionInput({
               disabled={disabled}
               value={map[left.id] ?? ''}
               onChange={(e) => onChange({ ...map, [left.id]: e.target.value })}
-              className="rounded-lg border border-[var(--line)] bg-[#fafbfd] px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[var(--quiz)]"
+              className="rounded-lg border border-[var(--line)] bg-[#fafbfd] px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[var(--quiz)] dark:bg-slate-900"
             >
               <option value="">Select…</option>
               {question.matchTargets?.map((t) => (
@@ -338,7 +437,7 @@ function QuestionInput({
         value={typeof value === 'string' ? value : ''}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Type your answer…"
-        className="w-full rounded-lg border border-[var(--line)] bg-[#fafbfd] px-3 py-2 text-sm outline-none ring-[var(--quiz)] focus:ring-2"
+        className="w-full rounded-lg border border-[var(--line)] bg-[#fafbfd] px-3 py-2 text-sm outline-none ring-[var(--quiz)] focus:ring-2 dark:bg-slate-950"
       />
     );
   }
@@ -358,7 +457,7 @@ function QuestionInput({
               className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm ${
                 on
                   ? 'border-[var(--quiz)] bg-[#e8eef8] text-[var(--ink)]'
-                  : 'border-[var(--line)] bg-white'
+                  : 'border-[var(--line)] bg-white dark:bg-slate-950'
               }`}
             >
               <span
@@ -376,7 +475,6 @@ function QuestionInput({
     );
   }
 
-  // multiple_choice, poll, and fallback
   return (
     <div className="space-y-2">
       {question.options?.map((opt) => {
@@ -390,7 +488,7 @@ function QuestionInput({
             className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm ${
               selected
                 ? 'border-[var(--quiz)] bg-[#e8eef8] text-[var(--ink)]'
-                : 'border-[var(--line)] bg-white'
+                : 'border-[var(--line)] bg-white dark:bg-slate-950'
             }`}
           >
             <span

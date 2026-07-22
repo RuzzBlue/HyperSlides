@@ -1,0 +1,22 @@
+{
+  "id": "crypto-teal",
+  "name": "Crypto Teal",
+  "fonts": {
+    "display": "\"Source Serif 4\", Georgia, serif",
+    "body": "\"Outfit\", system-ui, sans-serif",
+    "google": "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,600;700&display=swap"
+  },
+  "fontSizeBase": "16px",
+  "accent": "#0e6e6a",
+  "background": {
+    "light": {
+      "type": "gradient",
+      "value": "linear-gradient(180deg, #ecfdf5 0%, #f0fdf9 28%, #f8fafc 62%, #ffffff 100%)"
+    },
+    "dark": {
+      "type": "gradient",
+      "value": "linear-gradient(180deg, #0f1f1c 0%, #121a18 40%, #161920 100%)"
+    }
+  },
+  "cssFile": "theme.css"
+}

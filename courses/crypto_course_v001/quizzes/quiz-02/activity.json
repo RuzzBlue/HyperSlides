@@ -3,5 +3,6 @@
   "title": "Security & hygiene check",
   "description": "Demonstrate the habits that protect a new wallet.",
   "passingScore": 75,
+  "allowedRetries": 2,
   "questionsFile": "questions.json"
 }

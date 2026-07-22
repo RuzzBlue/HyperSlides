@@ -88,6 +88,17 @@ export async function handleApiRequest(
     ) {
       const quiz = loadQuiz(ctx.appRoot, segments[1], segments[3]);
       if (!quiz) return { ok: false, status: 404, error: 'Quiz not found' };
+      const progress = readProgress(ctx.appRoot, segments[1]);
+      const prior = progress.quizScores[segments[3]];
+      const allowedRetries = quiz.activity.allowedRetries ?? 0;
+      const attemptsUsed = prior?.attempts ?? 0;
+      if (allowedRetries > 0 && attemptsUsed >= allowedRetries) {
+        return {
+          ok: false,
+          status: 403,
+          error: 'No quiz retries remaining',
+        };
+      }
       const answers = (body as { answers?: QuizAnswerMap })?.answers ?? {};
       const result = gradeQuiz(
         quiz.questions,
@@ -96,15 +107,24 @@ export async function handleApiRequest(
       );
       writeProgress(ctx.appRoot, segments[1], {
         quizScores: {
-          ...readProgress(ctx.appRoot, segments[1]).quizScores,
+          ...progress.quizScores,
           [segments[3]]: {
             percent: result.percent,
             passed: result.passed,
             at: new Date().toISOString(),
+            attempts: attemptsUsed + 1,
           },
         },
       });
-      return { ok: true, status: 200, data: result };
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ...result,
+          attempts: attemptsUsed + 1,
+          allowedRetries,
+        },
+      };
     }
 
     if (method === 'GET' && segments[0] === 'courses' && segments[2] === 'labs' && segments[3]) {

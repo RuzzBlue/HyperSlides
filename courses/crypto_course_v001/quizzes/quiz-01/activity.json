@@ -1,7 +1,8 @@
 {
   "id": "quiz-01",
   "title": "Foundations check",
-  "description": "Quick quiz after the wallet fundamentals lessons. Passing score: 70%.",
+  "description": "Quick quiz after the wallet fundamentals lessons.",
   "passingScore": 70,
+  "allowedRetries": 0,
   "questionsFile": "questions.json"
 }

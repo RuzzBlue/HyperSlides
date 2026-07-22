@@ -48,7 +48,15 @@ export interface QuizActivity {
   id: string;
   title: string;
   description?: string;
+  /** Minimum percent required to pass (0–100). */
   passingScore?: number;
+  /**
+   * Total graded attempts allowed.
+   * - `0` = unlimited retries
+   * - `1` = single attempt (no retry after submit)
+   * - `N` = up to N attempts
+   */
+  allowedRetries?: number;
   questionsFile: string;
 }
 
@@ -182,6 +190,30 @@ export interface LoadedCourse {
   packageManifest: CoursePackageManifest | null;
   sequence: SequenceItem[];
   rootPath: string;
+  /** Optional presentation theme from courses/<id>/theme/theme.json — never user data */
+  theme: CourseTheme | null;
+}
+
+/** Course-owned presentation theme (packaged with the course, not user progress). */
+export interface CourseTheme {
+  id: string;
+  name: string;
+  fonts?: {
+    display?: string;
+    body?: string;
+    /** Google Fonts CSS URL or similar */
+    google?: string;
+    /** Relative path under theme/ for a local font CSS file */
+    localCss?: string;
+  };
+  fontSizeBase?: string;
+  accent?: string;
+  background?: {
+    light?: { type: 'color' | 'gradient' | 'image'; value: string };
+    dark?: { type: 'color' | 'gradient' | 'image'; value: string };
+  };
+  /** Optional extra CSS file relative to theme/ */
+  cssFile?: string;
 }
 
 export interface QuizPayload {
@@ -226,13 +258,25 @@ export interface QuizGradeResult {
     pointsPossible: number;
     explanation?: string;
   }>;
+  /** Set by grade API after persisting to user progress. */
+  attempts?: number;
+  allowedRetries?: number;
 }
 
 export interface ProgressState {
   courseId: string;
   currentIndex: number;
   completedKeys: string[];
-  quizScores: Record<string, { percent: number; passed: boolean; at: string }>;
+  quizScores: Record<
+    string,
+    {
+      percent: number;
+      passed: boolean;
+      at: string;
+      /** Number of graded submissions stored on the user profile (not in the course package). */
+      attempts?: number;
+    }
+  >;
   labChecked: Record<string, string[]>;
   labPassed: Record<string, boolean>;
   updatedAt: string;

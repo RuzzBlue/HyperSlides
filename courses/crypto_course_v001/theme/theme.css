@@ -1,0 +1,12 @@
+/* Course-local presentation polish — respects app dark/light via [data-theme] */
+.lesson-stage {
+  --hc-accent: var(--lesson-accent, #0e6e6a);
+}
+
+.lesson-stage h2 {
+  letter-spacing: -0.02em;
+}
+
+html[data-theme='dark'] .lesson-stage {
+  color-scheme: dark;
+}
