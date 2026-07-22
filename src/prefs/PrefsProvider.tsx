@@ -95,6 +95,8 @@ const fallbackSettings: AppPrefs = {
   rememberLastCourse: true,
   showSlideNumbers: true,
   useCourseSettings: true,
+  contentZoom: '100',
+  presenterMenu: 'fixed-footer',
 };
 
 export function PrefsProvider({ children }: { children: ReactNode }) {

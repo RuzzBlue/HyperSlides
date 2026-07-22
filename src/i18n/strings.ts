@@ -47,7 +47,19 @@ const en = {
   useCourseSettingsWarning:
     'Off: the app ignores course language/theme defaults entirely. Lessons may not match the author’s intended look or language.',
   appearanceLockedByCourse: 'Locked by the current course',
-  settingsComingSoon: 'More app preferences will land here as HyperClass grows.',
+  presenterSettings: 'Presenter',
+  presenterMenu: 'Presenter menu',
+  presenterFixedFooter: 'Fixed footer',
+  presenterFixedHeader: 'Fixed header',
+  presenterFloatingFooter: 'Floating footer',
+  presenterFloatingHeader: 'Floating header',
+  presenterMenuHint:
+    'Controls where the presenter bar appears in Present mode. Floating bars show when you hover near the top or bottom edge.',
+  zoom: 'Zoom',
+  zoomFit: 'Fit',
+  toggleNavigator: 'Toggle navigator',
+  goToSlide: 'Go to slide',
+  fullscreenStage: 'Fullscreen stage',
   resetProgressTitle: 'Reset course progress (testing)',
   resetProgressHint:
     'Wipes quiz scores, lab checks, and slide completion for every course on this device. Profile and appearance stay. Temporary testing tool.',
@@ -185,7 +197,19 @@ const es: Record<keyof typeof en, string> = {
   useCourseSettingsWarning:
     'Desactivado: la app ignora por completo los valores del curso. Las lecciones pueden no coincidir con el aspecto o idioma previstos por el autor.',
   appearanceLockedByCourse: 'Bloqueado por el curso actual',
-  settingsComingSoon: 'Más preferencias de la app llegarán aquí a medida que HyperClass crezca.',
+  presenterSettings: 'Presentador',
+  presenterMenu: 'Menú del presentador',
+  presenterFixedFooter: 'Pie fijo',
+  presenterFixedHeader: 'Encabezado fijo',
+  presenterFloatingFooter: 'Pie flotante',
+  presenterFloatingHeader: 'Encabezado flotante',
+  presenterMenuHint:
+    'Define dónde aparece la barra del presentador en modo Presentar. Las barras flotantes se muestran al pasar el cursor cerca del borde superior o inferior.',
+  zoom: 'Zoom',
+  zoomFit: 'Ajustar',
+  toggleNavigator: 'Mostrar/ocultar navegador',
+  goToSlide: 'Ir a la diapositiva',
+  fullscreenStage: 'Escenario a pantalla completa',
   resetProgressTitle: 'Restablecer progreso del curso (pruebas)',
   resetProgressHint:
     'Borra puntuaciones, checks de labs y diapositivas completadas de todos los cursos en este dispositivo. El perfil y la apariencia se mantienen. Herramienta temporal de pruebas.',

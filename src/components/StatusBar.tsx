@@ -1,5 +1,6 @@
-import type { SequenceItemType } from '@shared/types';
+import type { ContentZoomPreset, SequenceItemType } from '@shared/types';
 import { usePrefs } from '../prefs/PrefsProvider';
+import { ZoomControl } from './ZoomControl';
 
 export function StatusBar({
   moduleTitle,
@@ -7,12 +8,16 @@ export function StatusBar({
   type,
   index,
   total,
+  zoom,
+  onZoomChange,
 }: {
   moduleTitle: string;
   unitTitle?: string;
   type: SequenceItemType;
   index: number;
   total: number;
+  zoom: ContentZoomPreset;
+  onZoomChange: (z: ContentZoomPreset) => void;
 }) {
   const { tr, trf } = usePrefs();
   const pct = total ? Math.round(((index + 1) / total) * 100) : 0;
@@ -28,16 +33,19 @@ export function StatusBar({
           <span>{unitTitle}</span>
         </>
       )}
-      <span className="ml-auto tabular-nums">
-        {typeLabel} · {trf('slideOf', { current: index + 1, total })}
-      </span>
-      <div className="h-1.5 w-28 overflow-hidden rounded-full bg-[var(--chrome-deep)]">
-        <div
-          className="h-full rounded-full bg-[var(--accent)] transition-all duration-300"
-          style={{ width: `${pct}%` }}
-        />
+      <div className="ml-auto flex items-center gap-3">
+        <ZoomControl value={zoom} onChange={onZoomChange} compact menuPlacement="up" />
+        <span className="tabular-nums">
+          {typeLabel} · {trf('slideOf', { current: index + 1, total })}
+        </span>
+        <div className="h-1.5 w-28 overflow-hidden rounded-full bg-[var(--chrome-deep)]">
+          <div
+            className="h-full rounded-full bg-[var(--accent)] transition-all duration-300"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <span className="w-8 tabular-nums">{pct}%</span>
       </div>
-      <span className="w-8 tabular-nums">{pct}%</span>
     </footer>
   );
 }

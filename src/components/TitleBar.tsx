@@ -10,7 +10,7 @@ export function TitleBar({
 }: {
   courseTitle?: string;
   onHome: () => void;
-  /** library = brand lockup; course = home icon only (back to library) */
+  /** library = brand only; course = home + brand lockup */
   mode?: 'library' | 'course';
   onOpenSettings: () => void;
   onOpenProfile: () => void;
@@ -30,20 +30,18 @@ export function TitleBar({
             <Home className="h-4 w-4" strokeWidth={2.25} />
           </button>
         ) : (
-          <>
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--accent)] text-white shadow-sm">
-              <Hexagon className="h-4 w-4" strokeWidth={2.25} />
-            </div>
-            <div className="leading-tight">
-              <div className="text-[13px] font-semibold tracking-wide text-[var(--ink)]">
-                {tr('appName')}
-              </div>
-              <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-                {tr('appSubtitle')}
-              </div>
-            </div>
-          </>
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--accent)] text-white shadow-sm">
+            <Hexagon className="h-4 w-4" strokeWidth={2.25} />
+          </div>
         )}
+        <div className="leading-tight">
+          <div className="text-[13px] font-semibold tracking-wide text-[var(--ink)]">
+            {tr('appName')}
+          </div>
+          <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            {tr('appSubtitle')}
+          </div>
+        </div>
       </div>
 
       <div className="mx-4 h-5 w-px bg-[var(--line)]" />

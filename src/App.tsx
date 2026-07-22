@@ -15,18 +15,22 @@ import { AppShell } from './components/AppShell';
 import { HomeView } from './components/HomeView';
 import { LabView } from './components/LabView';
 import { LessonView } from './components/LessonView';
+import { PresenterChrome } from './components/PresenterChrome';
 import { QuizView } from './components/QuizView';
 import { SettingsModal } from './components/SettingsModal';
 import { SlideSidebar } from './components/SlideSidebar';
 import { StatusBar } from './components/StatusBar';
 import { TitleBar } from './components/TitleBar';
 import { Toolbar } from './components/Toolbar';
+import { StageZoomFrame } from './components/ZoomControl';
 import { usePrefs } from './prefs/PrefsProvider';
+import type { ContentZoomPreset } from '@shared/types';
 
 type ViewMode = 'home' | 'present';
+type SettingsTab = 'profile' | 'appearance' | 'settings' | 'presenter';
 
 export default function App() {
-  const { settings, tr, applyCourseSettings, clearCourseSettings } = usePrefs();
+  const { settings, tr, applyCourseSettings, clearCourseSettings, save } = usePrefs();
   const [view, setView] = useState<ViewMode>('home');
   const [courses, setCourses] = useState<CourseSummary[]>([]);
   const [course, setCourse] = useState<Omit<LoadedCourse, 'rootPath'> | null>(null);
@@ -40,10 +44,20 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [fullscreenStage, setFullscreenStage] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'profile' | 'appearance' | 'settings'>('appearance');
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('appearance');
   const [error, setError] = useState<string | null>(null);
 
-  const openSettings = (tab: 'profile' | 'appearance' | 'settings') => {
+  const contentZoom = settings.contentZoom ?? '100';
+  const presenterMenu = settings.presenterMenu ?? 'fixed-footer';
+
+  const setContentZoom = useCallback(
+    (zoom: ContentZoomPreset) => {
+      void save({ settings: { ...settings, contentZoom: zoom } });
+    },
+    [save, settings],
+  );
+
+  const openSettings = (tab: SettingsTab) => {
     setSettingsTab(tab);
     setSettingsOpen(true);
   };
@@ -319,12 +333,17 @@ export default function App() {
           onPrev={() => goTo(index - 1)}
           onNext={() => goTo(index + 1)}
           onGoTo={goTo}
-          onPresent={() => setFullscreenStage(true)}
+          onPresent={() => {
+            setSidebarOpen(false);
+            setFullscreenStage(true);
+          }}
+          zoom={contentZoom}
+          onZoomChange={setContentZoom}
         />
       )}
 
       <div className="flex min-h-0 flex-1">
-        {sidebarOpen && !fullscreenStage && course && (
+        {sidebarOpen && course && (
           <SlideSidebar
             sequence={course.sequence}
             index={index}
@@ -339,57 +358,75 @@ export default function App() {
             fullscreenStage ? 'bg-[#111318]' : 'bg-[var(--chrome)]'
           }`}
         >
-          <div className="flex min-h-0 flex-1 p-0">
+          {fullscreenStage && course && current && presenterMenu === 'fixed-header' && (
+              <PresenterChrome
+                mode={presenterMenu}
+                index={index}
+                total={course.sequence.length}
+                current={current}
+                sidebarOpen={sidebarOpen}
+                zoom={contentZoom}
+                onZoomChange={setContentZoom}
+                onToggleSidebar={() => setSidebarOpen((v) => !v)}
+                onPrev={() => goTo(index - 1)}
+                onNext={() => goTo(index + 1)}
+                onGoTo={goTo}
+              />
+            )}
+
+          <div className="relative flex min-h-0 flex-1 p-0">
             <div className="animate-stage relative min-h-0 h-full w-full flex-1 overflow-hidden bg-[var(--stage)]">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={current?.key ?? 'empty'}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.28 }}
-                  className="h-full w-full"
-                >
-                  {loading && (
-                    <div className="flex h-full items-center justify-center text-[var(--ink-muted)]">
-                      Loading…
-                    </div>
-                  )}
-                  {!loading && current?.type === 'lesson' && lesson && course && (
-                    <LessonView
-                      html={lesson.html}
-                      title={lesson.title || current.title}
-                      courseFolder={course.summary.folder}
-                      theme={course.theme}
-                    />
-                  )}
-                  {!loading && current?.type === 'quiz' && quiz && course && (
-                    <QuizView
-                      courseId={course.summary.id}
-                      quizId={current.activityId!}
-                      payload={quiz}
-                      priorResult={quizResult}
-                      priorScore={progress?.quizScores?.[current.activityId!]}
-                      onGraded={onQuizGraded}
-                      onContinue={() => goTo(index + 1)}
-                    />
-                  )}
-                  {!loading && current?.type === 'lab' && lab && course && (
-                    <LabView
-                      payload={lab}
-                      courseFolder={course.summary.folder}
-                      checked={progress?.labChecked?.[current.activityId!] ?? []}
-                      passed={progress?.labPassed?.[current.activityId!]}
-                      onCheck={onLabCheck}
-                      onPass={() => void onLabPass()}
-                      onContinue={() => goTo(index + 1)}
-                    />
-                  )}
-                </motion.div>
-              </AnimatePresence>
+              <StageZoomFrame zoom={contentZoom}>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={current?.key ?? 'empty'}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.28 }}
+                    className="h-full w-full"
+                  >
+                    {loading && (
+                      <div className="flex h-full items-center justify-center text-[var(--ink-muted)]">
+                        Loading…
+                      </div>
+                    )}
+                    {!loading && current?.type === 'lesson' && lesson && course && (
+                      <LessonView
+                        html={lesson.html}
+                        title={lesson.title || current.title}
+                        courseFolder={course.summary.folder}
+                        theme={course.theme}
+                      />
+                    )}
+                    {!loading && current?.type === 'quiz' && quiz && course && (
+                      <QuizView
+                        courseId={course.summary.id}
+                        quizId={current.activityId!}
+                        payload={quiz}
+                        priorResult={quizResult}
+                        priorScore={progress?.quizScores?.[current.activityId!]}
+                        onGraded={onQuizGraded}
+                        onContinue={() => goTo(index + 1)}
+                      />
+                    )}
+                    {!loading && current?.type === 'lab' && lab && course && (
+                      <LabView
+                        payload={lab}
+                        courseFolder={course.summary.folder}
+                        checked={progress?.labChecked?.[current.activityId!] ?? []}
+                        passed={progress?.labPassed?.[current.activityId!]}
+                        onCheck={onLabCheck}
+                        onPass={() => void onLabPass()}
+                        onContinue={() => goTo(index + 1)}
+                      />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </StageZoomFrame>
 
               {fullscreenStage && current?.type === 'lesson' && (
-                <div className="group/exit absolute right-0 top-0 z-20 h-20 w-36">
+                <div className="group/exit absolute right-0 top-0 z-40 h-20 w-36">
                   <button
                     type="button"
                     onClick={() => setFullscreenStage(false)}
@@ -399,8 +436,46 @@ export default function App() {
                   </button>
                 </div>
               )}
+
+              {fullscreenStage &&
+                course &&
+                current &&
+                (presenterMenu === 'floating-footer' || presenterMenu === 'floating-header') && (
+                  <PresenterChrome
+                    mode={presenterMenu}
+                    index={index}
+                    total={course.sequence.length}
+                    current={current}
+                    sidebarOpen={sidebarOpen}
+                    zoom={contentZoom}
+                    onZoomChange={setContentZoom}
+                    onToggleSidebar={() => setSidebarOpen((v) => !v)}
+                    onPrev={() => goTo(index - 1)}
+                    onNext={() => goTo(index + 1)}
+                    onGoTo={goTo}
+                  />
+                )}
             </div>
           </div>
+
+          {fullscreenStage &&
+            course &&
+            current &&
+            presenterMenu === 'fixed-footer' && (
+              <PresenterChrome
+                mode={presenterMenu}
+                index={index}
+                total={course.sequence.length}
+                current={current}
+                sidebarOpen={sidebarOpen}
+                zoom={contentZoom}
+                onZoomChange={setContentZoom}
+                onToggleSidebar={() => setSidebarOpen((v) => !v)}
+                onPrev={() => goTo(index - 1)}
+                onNext={() => goTo(index + 1)}
+                onGoTo={goTo}
+              />
+            )}
 
           {!fullscreenStage && course && current && (
             <StatusBar
@@ -409,6 +484,8 @@ export default function App() {
               type={current.type}
               index={index}
               total={course.sequence.length}
+              zoom={contentZoom}
+              onZoomChange={setContentZoom}
             />
           )}
         </main>

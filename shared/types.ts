@@ -334,6 +334,25 @@ export interface AppearancePrefs {
   locale: AppLocale;
 }
 
+export type ContentZoomPreset =
+  | 'fit'
+  | '25'
+  | '33'
+  | '50'
+  | '66'
+  | '75'
+  | '100'
+  | '125'
+  | '150'
+  | '200'
+  | '400';
+
+export type PresenterMenuMode =
+  | 'fixed-footer'
+  | 'fixed-header'
+  | 'floating-footer'
+  | 'floating-header';
+
 export interface AppPrefs {
   autoAdvanceAfterQuiz: boolean;
   rememberLastCourse: boolean;
@@ -343,6 +362,10 @@ export interface AppPrefs {
    * (user.json defaults are restored when returning to the library).
    */
   useCourseSettings: boolean;
+  /** Stage content zoom preset (lessons / activities). */
+  contentZoom: ContentZoomPreset;
+  /** Where the presenter chrome appears while presenting. */
+  presenterMenu: PresenterMenuMode;
 }
 
 export interface UserState {

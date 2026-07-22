@@ -20,6 +20,8 @@ const DEFAULT_SETTINGS: AppPrefs = {
   rememberLastCourse: true,
   showSlideNumbers: true,
   useCourseSettings: true,
+  contentZoom: '100',
+  presenterMenu: 'fixed-footer',
 };
 
 function ensureDir(dir: string) {

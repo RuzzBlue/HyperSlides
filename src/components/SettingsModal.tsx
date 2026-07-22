@@ -6,6 +6,7 @@ import {
   Monitor,
   Moon,
   Palette,
+  Presentation,
   RotateCcw,
   Settings as SettingsIcon,
   Sun,
@@ -13,11 +14,11 @@ import {
   X,
 } from 'lucide-react';
 import { apiFetch } from '../api/client';
-import type { AppearancePrefs, AppPrefs, UserProfile } from '@shared/types';
+import type { AppearancePrefs, AppPrefs, PresenterMenuMode, UserProfile } from '@shared/types';
 import { usePrefs } from '../prefs/PrefsProvider';
 import type { StringKey } from '../i18n/strings';
 
-type TabId = 'profile' | 'appearance' | 'settings';
+type TabId = 'profile' | 'appearance' | 'settings' | 'presenter';
 
 const ACCENTS = ['#0e6e6a', '#2f5aa8', '#c45c26', '#6b4f9a', '#1f7a4c', '#b42318', '#0f766e', '#1d4ed8'];
 
@@ -190,6 +191,12 @@ export function SettingsModal({
                   label={tr('appSettings')}
                   onClick={() => setTab('settings')}
                 />
+                <TabBtn
+                  active={tab === 'presenter'}
+                  icon={<Presentation className="h-4 w-4" />}
+                  label={tr('presenterSettings')}
+                  onClick={() => setTab('presenter')}
+                />
               </nav>
             </aside>
 
@@ -200,7 +207,9 @@ export function SettingsModal({
                     ? tr('profile')
                     : tab === 'appearance'
                       ? tr('appearance')
-                      : tr('appSettings')}
+                      : tab === 'presenter'
+                        ? tr('presenterSettings')
+                        : tr('appSettings')}
                 </h2>
                 <button
                   type="button"
@@ -240,6 +249,9 @@ export function SettingsModal({
                     onError={setError}
                     onProgressReset={onProgressReset}
                   />
+                )}
+                {tab === 'presenter' && (
+                  <PresenterSettingsTab draft={draftSettings} setDraft={setDraftSettings} tr={tr} />
                 )}
               </div>
 
@@ -522,7 +534,10 @@ function AppSettingsTab({
 }) {
   const [resetting, setResetting] = useState(false);
 
-  const rows: Array<{ key: keyof AppPrefs; label: string }> = [
+  const rows: Array<{
+    key: 'useCourseSettings' | 'autoAdvanceAfterQuiz' | 'rememberLastCourse' | 'showSlideNumbers';
+    label: string;
+  }> = [
     { key: 'useCourseSettings', label: tr('useCourseSettings') },
     { key: 'autoAdvanceAfterQuiz', label: tr('autoAdvanceQuiz') },
     { key: 'rememberLastCourse', label: tr('rememberLastCourse') },
@@ -580,7 +595,6 @@ function AppSettingsTab({
 
   return (
     <div>
-      <p className="mb-4 text-[13px] text-[var(--ink-muted)]">{tr('settingsComingSoon')}</p>
       <div className="space-y-2">
         {rows.map((row) => (
           <div key={row.key}>
@@ -627,6 +641,43 @@ function AppSettingsTab({
           {resetting ? '…' : tr('resetProgressButton')}
         </button>
       </div>
+    </div>
+  );
+}
+
+function PresenterSettingsTab({
+  draft,
+  setDraft,
+  tr,
+}: {
+  draft: AppPrefs;
+  setDraft: (v: AppPrefs) => void;
+  tr: (k: StringKey) => string;
+}) {
+  const options: Array<{ value: PresenterMenuMode; label: string }> = [
+    { value: 'fixed-footer', label: tr('presenterFixedFooter') },
+    { value: 'fixed-header', label: tr('presenterFixedHeader') },
+    { value: 'floating-footer', label: tr('presenterFloatingFooter') },
+    { value: 'floating-header', label: tr('presenterFloatingHeader') },
+  ];
+
+  return (
+    <div>
+      <Field label={tr('presenterMenu')} hint={tr('presenterMenuHint')}>
+        <select
+          value={draft.presenterMenu}
+          onChange={(e) =>
+            setDraft({ ...draft, presenterMenu: e.target.value as PresenterMenuMode })
+          }
+          className={textInputClass()}
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </Field>
     </div>
   );
 }

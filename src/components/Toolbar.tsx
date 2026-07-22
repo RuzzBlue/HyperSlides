@@ -10,7 +10,9 @@ import {
   Highlighter,
 } from 'lucide-react';
 import type { SequenceItem } from '@shared/types';
+import type { ContentZoomPreset } from '@shared/types';
 import { usePrefs } from '../prefs/PrefsProvider';
+import { ZoomControl } from './ZoomControl';
 
 export function Toolbar({
   index,
@@ -22,6 +24,8 @@ export function Toolbar({
   onNext,
   onGoTo,
   onPresent,
+  zoom,
+  onZoomChange,
 }: {
   index: number;
   total: number;
@@ -32,10 +36,16 @@ export function Toolbar({
   onNext: () => void;
   onGoTo: (zeroBasedIndex: number) => void;
   onPresent: () => void;
+  zoom: ContentZoomPreset;
+  onZoomChange: (z: ContentZoomPreset) => void;
 }) {
   const { tr } = usePrefs();
   const typeLabel =
-    current?.type === 'quiz' ? 'Quiz' : current?.type === 'lab' ? 'Lab' : 'Lesson';
+    current?.type === 'quiz'
+      ? tr('typeQuiz')
+      : current?.type === 'lab'
+        ? tr('typeLab')
+        : tr('typeLesson');
 
   const [draft, setDraft] = useState(String(total ? index + 1 : 0));
 
@@ -58,10 +68,12 @@ export function Toolbar({
         type="button"
         onClick={onToggleSidebar}
         className={`cursor-pointer rounded-md p-1.5 ${sidebarOpen ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--ink-muted)] hover:bg-black/5'}`}
-        title="Toggle navigator"
+        title={tr('toggleNavigator')}
       >
         <PanelLeft className="h-4 w-4" />
       </button>
+
+      <ZoomControl value={zoom} onChange={onZoomChange} menuPlacement="down" />
 
       <div className="mx-1 h-5 w-px bg-[var(--line)]" />
 
@@ -78,7 +90,7 @@ export function Toolbar({
           <input
             type="text"
             inputMode="numeric"
-            aria-label="Go to slide"
+            aria-label={tr('goToSlide')}
             value={draft}
             onChange={(e) => setDraft(e.target.value.replace(/[^\d]/g, ''))}
             onBlur={commitSlide}
@@ -139,7 +151,7 @@ export function Toolbar({
           type="button"
           onClick={onPresent}
           className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5"
-          title="Fullscreen stage"
+          title={tr('fullscreenStage')}
         >
           <Maximize2 className="h-4 w-4" />
         </button>
