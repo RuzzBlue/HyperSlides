@@ -346,6 +346,7 @@ export default function App() {
                       title={lesson.title || current.title}
                       courseFolder={course.summary.folder}
                       theme={course.theme}
+                      packageManifest={course.packageManifest}
                     />
                   )}
                   {!loading && current?.type === 'quiz' && quiz && course && (

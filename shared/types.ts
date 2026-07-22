@@ -119,6 +119,23 @@ export interface CoursePackageManifest {
   hyperclassMinVersion?: string;
   author?: string;
   description?: string;
+  /**
+   * Primary language of course content (ISO 639-1). Reference for authors and
+   * the locked presentation locale when `toggleLanguage` is false.
+   */
+  language?: string;
+  /**
+   * When true, the learner's dark/light preference drives lesson presentation.
+   * When false, lessons stay on `defaultColorMode` while the rest of the app can still toggle.
+   */
+  toggleDarkLightTheme?: boolean;
+  /**
+   * When true, the learner's locale may drive presentation content (multi-locale packs).
+   * When false, the learner can still change app chrome language, but presentation stays on `language`.
+   */
+  toggleLanguage?: boolean;
+  /** Color mode used for lessons when `toggleDarkLightTheme` is false. Defaults to `light`. */
+  defaultColorMode?: 'light' | 'dark';
   extensions: string[];
   widgets?: string[];
   permissions?: string[];

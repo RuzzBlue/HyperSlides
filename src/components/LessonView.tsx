@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, type CSSProperties } from 'react';
-import type { CourseTheme } from '@shared/types';
+import type { CoursePackageManifest, CourseTheme } from '@shared/types';
 import { usePrefs } from '../prefs/PrefsProvider';
 import { PortalsRenderer } from './lesson/InteractiveWidgets';
 
@@ -19,11 +19,28 @@ function bgCss(
   return spec.value;
 }
 
-function resolveMode(theme: 'light' | 'dark' | 'system'): 'light' | 'dark' {
+function resolveUserMode(theme: 'light' | 'dark' | 'system'): 'light' | 'dark' {
   if (theme === 'system') {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
   return theme;
+}
+
+function resolvePresentationMode(
+  manifest: CoursePackageManifest | null | undefined,
+  userMode: 'light' | 'dark',
+): 'light' | 'dark' {
+  if (manifest?.toggleDarkLightTheme) return userMode;
+  return manifest?.defaultColorMode === 'dark' ? 'dark' : 'light';
+}
+
+function resolvePresentationLocale(
+  manifest: CoursePackageManifest | null | undefined,
+  userLocale: string,
+): string {
+  const courseLang = manifest?.language || 'en';
+  if (manifest?.toggleLanguage) return userLocale || courseLang;
+  return courseLang;
 }
 
 export function LessonView({
@@ -31,14 +48,19 @@ export function LessonView({
   title,
   courseFolder,
   theme,
+  packageManifest,
 }: {
   html: string;
   title: string;
   courseFolder: string;
   theme?: CourseTheme | null;
+  packageManifest?: CoursePackageManifest | null;
 }) {
   const { appearance } = usePrefs();
-  const mode = resolveMode(appearance.theme);
+  const userMode = resolveUserMode(appearance.theme);
+  const mode = resolvePresentationMode(packageManifest, userMode);
+  const presentationLocale = resolvePresentationLocale(packageManifest, appearance.locale);
+  const themeFollowsUser = Boolean(packageManifest?.toggleDarkLightTheme);
   const uid = useId().replace(/:/g, '');
   const stageId = useMemo(() => `lesson-stage-${uid}`, [uid]);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -89,12 +111,23 @@ export function LessonView({
     background: mode === 'dark' ? darkBg || 'var(--stage)' : lightBg || 'var(--stage)',
   } as CSSProperties;
 
+  /** When theme is locked, isolate lesson from app data-theme so dark: utilities match the course mode. */
+  const forceAttr =
+    themeFollowsUser
+      ? undefined
+      : mode === 'dark'
+        ? ({ 'data-force-dark': '' } as const)
+        : ({ 'data-force-light': '' } as const);
+
   return (
     <div
       className="lesson-theme-root relative h-full overflow-y-auto"
       style={style}
+      lang={presentationLocale}
       data-lesson-theme={theme?.id || 'default'}
       data-lesson-mode={mode}
+      data-presentation-locale={presentationLocale}
+      {...forceAttr}
     >
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(ellipse_at_top,_color-mix(in_srgb,var(--lesson-accent)_16%,transparent),_transparent_70%)]"
