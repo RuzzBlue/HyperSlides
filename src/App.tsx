@@ -286,18 +286,8 @@ export default function App() {
             fullscreenStage ? 'bg-[#111318]' : 'bg-[var(--chrome)]'
           }`}
         >
-          <div
-            className={`flex min-h-0 flex-1 items-center justify-center ${
-              fullscreenStage ? 'p-0' : 'p-5'
-            }`}
-          >
-            <div
-              className={`animate-stage relative overflow-hidden bg-[var(--stage)] ${
-                fullscreenStage
-                  ? 'h-full w-full rounded-none'
-                  : 'h-full w-full max-w-[1200px] rounded-xl shadow-[var(--shadow)] ring-1 ring-black/5'
-              }`}
-            >
+          <div className="flex min-h-0 flex-1 p-0">
+            <div className="animate-stage relative min-h-0 h-full w-full flex-1 overflow-hidden bg-[var(--stage)]">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={current?.key ?? 'empty'}

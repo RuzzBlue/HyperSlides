@@ -102,7 +102,7 @@ export function LessonView({
       />
       <article
         id={stageId}
-        className="lesson-stage relative mx-auto w-full max-w-4xl rounded-2xl border border-slate-200/90 bg-white/95 px-6 py-10 shadow-sm md:px-12 md:py-14 dark:border-slate-600 dark:bg-slate-900/95 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04)]"
+        className="lesson-stage relative mx-auto w-full max-w-4xl px-6 py-10 md:px-12 md:py-14"
         aria-label={title}
         style={{ ['--lesson-accent' as string]: accent }}
       >
