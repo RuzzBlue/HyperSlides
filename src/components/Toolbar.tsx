@@ -91,6 +91,33 @@ export function Toolbar({
 
         <div className="mx-1 h-5 w-px bg-[var(--line)]" />
 
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+              current?.type === 'quiz'
+                ? 'bg-[#e8eef8] text-[var(--quiz)]'
+                : current?.type === 'lab'
+                  ? 'bg-[#f0eaf7] text-[var(--lab)]'
+                  : 'bg-[var(--accent-soft)] text-[var(--accent)]'
+            }`}
+          >
+            {typeLabel}
+          </span>
+          <span className="hidden max-w-[280px] truncate text-[12px] text-[var(--ink-muted)] lg:inline">
+            {current?.title}
+          </span>
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <div className="pointer-events-auto flex items-center gap-0.5 rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 px-1 py-0.5 shadow-sm backdrop-blur-sm">
+          {insertTools.map((tool) => (
+            <ToolGhost key={tool.key} icon={tool.icon} label={tr(tool.key)} />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-1 items-center justify-end gap-2">
         <div className="flex items-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--stage)] p-0.5 shadow-sm">
           <button
             type="button"
@@ -131,33 +158,6 @@ export function Toolbar({
           </button>
         </div>
 
-        <div className="ml-2 flex min-w-0 items-center gap-2">
-          <span
-            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-              current?.type === 'quiz'
-                ? 'bg-[#e8eef8] text-[var(--quiz)]'
-                : current?.type === 'lab'
-                  ? 'bg-[#f0eaf7] text-[var(--lab)]'
-                  : 'bg-[var(--accent-soft)] text-[var(--accent)]'
-            }`}
-          >
-            {typeLabel}
-          </span>
-          <span className="hidden max-w-[200px] truncate text-[12px] text-[var(--ink-muted)] lg:inline">
-            {current?.title}
-          </span>
-        </div>
-      </div>
-
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="pointer-events-auto flex items-center gap-0.5 rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 px-1 py-0.5 shadow-sm backdrop-blur-sm">
-          {insertTools.map((tool) => (
-            <ToolGhost key={tool.key} icon={tool.icon} label={tr(tool.key)} />
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-1 items-center justify-end gap-1">
         <button
           type="button"
           onClick={onPresent}
