@@ -11,4 +11,5 @@ export { MermaidWidget } from './widgets/Mermaid';
 export { PieChartWidget } from './widgets/PieChart';
 export { YTVideoWidget } from './widgets/YTVideo';
 export { CourseWidgetFrame } from './widgets/CourseWidget';
+export { PdfEmbedWidget, AssetImageWidget, AssetDownloadWidget } from './widgets/AssetEmbeds';
 export { PortalsRenderer } from './widgets/PortalsRenderer';

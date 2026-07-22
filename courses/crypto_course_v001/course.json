@@ -2,7 +2,7 @@
   "id": "crypto_course_v001",
   "title": "Crypto Fundamentals",
   "subtitle": "From blockchain basics to your first safe transaction",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": "RuzzBlue",
   "description": "An interactive, practice-first introduction to cryptocurrency: learn how blockchains record value, protect keys and seed phrases, recognize common threats, and complete a careful first-wallet journey.",
   "coverAccent": "#0e6e6a",
@@ -104,6 +104,12 @@
               "title": "Make a Test Transaction",
               "file": "lesson-02.html",
               "durationMinutes": 5
+            },
+            {
+              "id": "lesson-03",
+              "title": "Course assets in lessons",
+              "file": "lesson-03.html",
+              "durationMinutes": 4
             }
           ],
           "quizAfter": "quiz-03",

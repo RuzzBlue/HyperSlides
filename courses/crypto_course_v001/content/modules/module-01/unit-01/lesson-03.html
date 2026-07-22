@@ -8,15 +8,21 @@
   </div>
 
   <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
-    <div class="relative overflow-hidden rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-white p-6 dark:border-orange-500/20 dark:from-orange-950/30 dark:to-slate-900">
-      <span class="text-[10px] font-black uppercase tracking-[0.16em] text-orange-600 dark:text-orange-400">Connected</span>
+    <div class="group relative overflow-hidden rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-white p-6 transition duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-orange-500/15 dark:border-orange-500/20 dark:from-orange-950/30 dark:to-slate-900">
+      <div class="flex items-start justify-between">
+        <span class="text-[10px] font-black uppercase tracking-[0.16em] text-orange-600 dark:text-orange-400">Connected</span>
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 text-sm font-black text-orange-600 transition group-hover:scale-110 dark:bg-orange-950 dark:text-orange-400">ON</span>
+      </div>
       <h3 class="mt-2 text-xl font-black text-slate-900 dark:text-white">Hot wallet</h3>
       <p class="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
         Internet-connected software. Convenient for learning and everyday amounts — but exposed to phishing and malware.
       </p>
     </div>
-    <div class="relative overflow-hidden rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-6 dark:border-sky-500/20 dark:from-sky-950/30 dark:to-slate-900">
-      <span class="text-[10px] font-black uppercase tracking-[0.16em] text-sky-600 dark:text-sky-400">Offline keys</span>
+    <div class="group relative overflow-hidden rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-6 transition duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-sky-500/15 dark:border-sky-500/20 dark:from-sky-950/30 dark:to-slate-900">
+      <div class="flex items-start justify-between">
+        <span class="text-[10px] font-black uppercase tracking-[0.16em] text-sky-600 dark:text-sky-400">Offline keys</span>
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-100 text-sm font-black text-sky-600 transition group-hover:scale-110 dark:bg-sky-950 dark:text-sky-400">OFF</span>
+      </div>
       <h3 class="mt-2 text-xl font-black text-slate-900 dark:text-white">Cold storage</h3>
       <p class="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
         Keys remain offline, usually on dedicated hardware. Stronger isolation — still dependent on a safe backup.

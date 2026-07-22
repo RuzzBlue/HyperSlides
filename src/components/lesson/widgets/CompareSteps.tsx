@@ -56,7 +56,7 @@ export function CompareStepsWidget() {
       <div className="grid gap-4 md:grid-cols-2">
         <div
           key={`btc-${step}`}
-          className="animate-[slide-in_0.35s_ease-out] rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 dark:border-amber-700/40 dark:from-amber-950/30 dark:to-slate-900"
+          className="animate-[slide-in_0.35s_ease-out] rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 transition hover:-translate-y-0.5 hover:shadow-md dark:border-amber-700/40 dark:from-amber-950/30 dark:to-slate-900"
         >
           <div className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
             Bitcoin
@@ -65,7 +65,7 @@ export function CompareStepsWidget() {
         </div>
         <div
           key={`eth-${step}`}
-          className="animate-[slide-in_0.35s_ease-out] rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 dark:border-indigo-700/40 dark:from-indigo-950/30 dark:to-slate-900"
+          className="animate-[slide-in_0.35s_ease-out] rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 transition hover:-translate-y-0.5 hover:shadow-md dark:border-indigo-700/40 dark:from-indigo-950/30 dark:to-slate-900"
         >
           <div className="text-[10px] font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-400">
             Ethereum

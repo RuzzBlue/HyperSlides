@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 import { ExpandableShell, PanZoomSurface } from '../ExpandableShell';
 
@@ -28,15 +28,17 @@ const BIG_MERMAID = `flowchart TB
   L -.->|sync headers / state| W`;
 
 export function MermaidWidget({ chart }: { chart?: string }) {
-  const id = useId().replace(/:/g, '');
+  const baseId = useId().replace(/:/g, '');
   const ref = useRef<HTMLDivElement>(null);
   const definition = chart || BIG_MERMAID;
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const { svg } = await mermaid.render(`mmd-${id}`, definition);
+        const renderId = `mmd-${baseId}-${tick}-${Math.random().toString(36).slice(2, 8)}`;
+        const { svg } = await mermaid.render(renderId, definition);
         if (!cancelled && ref.current) ref.current.innerHTML = svg;
       } catch {
         if (ref.current) ref.current.textContent = 'Diagram failed to render.';
@@ -45,7 +47,7 @@ export function MermaidWidget({ chart }: { chart?: string }) {
     return () => {
       cancelled = true;
     };
-  }, [definition, id]);
+  }, [definition, baseId, tick]);
 
   return (
     <ExpandableShell
@@ -54,7 +56,12 @@ export function MermaidWidget({ chart }: { chart?: string }) {
       expandedBodyClassName="min-h-0 flex-1"
     >
       <PanZoomSurface className="h-full min-h-[280px] bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
-        <div ref={ref} className="[&_svg]:max-w-none" />
+        <div
+          ref={ref}
+          className="[&_svg]:max-w-none"
+          onDoubleClick={() => setTick((t) => t + 1)}
+          title="Double-click to re-render diagram"
+        />
       </PanZoomSurface>
     </ExpandableShell>
   );

@@ -45,31 +45,74 @@ const SEGMENTS = [
 
 export function PieChartWidget() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const chartRef = useRef<Chart | null>(null);
   const [selected, setSelected] = useState(0);
 
   useEffect(() => {
     if (!canvasRef.current) return;
+    chartRef.current?.destroy();
     const chart = new Chart(canvasRef.current, {
       type: 'doughnut',
       data: {
-        labels: SEGMENTS.map((s) => s.label),
+        labels: SEGMENTS.map((s) => `${s.label} (${s.value}%)`),
         datasets: [
           {
             data: SEGMENTS.map((s) => s.value),
             backgroundColor: SEGMENTS.map((s) => s.color),
-            borderWidth: 0,
+            borderWidth: 2,
+            borderColor: '#ffffff',
           },
         ],
       },
       options: {
-        plugins: { legend: { display: false } },
+        maintainAspectRatio: true,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'bottom',
+            labels: {
+              boxWidth: 12,
+              boxHeight: 12,
+              padding: 12,
+              font: { family: 'Outfit', size: 11, weight: 600 },
+              generateLabels: (c) => {
+                const data = c.data;
+                if (!data.labels?.length || !data.datasets.length) return [];
+                const ds = data.datasets[0];
+                const colors = (ds.backgroundColor as string[]) || [];
+                return data.labels.map((label, i) => ({
+                  text: String(label),
+                  fillStyle: colors[i],
+                  strokeStyle: colors[i],
+                  hidden: false,
+                  index: i,
+                }));
+              },
+            },
+            onClick: (_e, item) => {
+              if (typeof item.index === 'number') setSelected(item.index);
+            },
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const s = SEGMENTS[ctx.dataIndex];
+                return s ? `${s.label}: ${s.value}%` : '';
+              },
+            },
+          },
+        },
         cutout: '58%',
         onClick: (_evt, elements) => {
           if (elements[0]) setSelected(elements[0].index);
         },
       },
     });
-    return () => chart.destroy();
+    chartRef.current = chart;
+    return () => {
+      chart.destroy();
+      chartRef.current = null;
+    };
   }, []);
 
   const seg = SEGMENTS[selected];
@@ -77,15 +120,26 @@ export function PieChartWidget() {
   return (
     <ExpandableShell title="Illustrative distribution model" bodyClassName="p-5">
       <div className="grid gap-5 md:grid-cols-2">
-        <div className="mx-auto w-full max-w-[240px]">
+        <div className="mx-auto w-full max-w-[280px]">
           <canvas ref={canvasRef} />
         </div>
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
           <span className="text-[10px] font-black uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-400">
             Segment detail
           </span>
-          <h4 className="mt-2 text-lg font-black text-slate-900 dark:text-white">{seg.label}</h4>
-          <p className="mt-1 text-2xl font-black tabular-nums text-indigo-600">{seg.value}%</p>
+          <div className="mt-3 flex items-start gap-3">
+            <span
+              className="mt-1 h-8 w-8 shrink-0 rounded-lg shadow-sm ring-2 ring-white dark:ring-slate-800"
+              style={{ backgroundColor: seg.color }}
+              aria-hidden
+            />
+            <div className="min-w-0">
+              <h4 className="text-lg font-black text-slate-900 dark:text-white">{seg.label}</h4>
+              <p className="mt-0.5 text-2xl font-black tabular-nums" style={{ color: seg.color }}>
+                {seg.value}%
+              </p>
+            </div>
+          </div>
           <div className="mt-3 space-y-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
             <p>
               <span className="font-bold text-slate-800 dark:text-slate-200">Vesting rules:</span>{' '}
@@ -102,14 +156,19 @@ export function PieChartWidget() {
                 key={s.label}
                 type="button"
                 onClick={() => setSelected(i)}
-                className={`cursor-pointer rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ${
                   i === selected
                     ? 'text-white'
                     : 'bg-white text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300'
                 }`}
                 style={i === selected ? { backgroundColor: s.color } : undefined}
               >
-                {s.label}
+                <span
+                  className="h-2.5 w-2.5 rounded-sm"
+                  style={{ backgroundColor: s.color }}
+                  aria-hidden
+                />
+                {s.label} · {s.value}%
               </button>
             ))}
           </div>

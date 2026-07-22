@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode, type WheelEvent } from 'react';
-import { Maximize2, Minimize2, X } from 'lucide-react';
-import { createPortal } from 'react-dom';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type WheelEvent } from 'react';
+import { Maximize2, Minimize2 } from 'lucide-react';
 
+/**
+ * Expandable media card. Uses fixed positioning on the SAME DOM node so
+ * canvas / mermaid / iframe children are never remounted (avoids blank charts).
+ */
 export function ExpandableShell({
   title,
   children,
@@ -16,6 +19,14 @@ export function ExpandableShell({
   expandedBodyClassName?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [placeholderH, setPlaceholderH] = useState(0);
+
+  useLayoutEffect(() => {
+    if (expanded && wrapRef.current) {
+      setPlaceholderH(wrapRef.current.getBoundingClientRect().height);
+    }
+  }, [expanded]);
 
   useEffect(() => {
     if (!expanded) return;
@@ -23,7 +34,12 @@ export function ExpandableShell({
       if (e.key === 'Escape') setExpanded(false);
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
   }, [expanded]);
 
   const header = (
@@ -43,35 +59,38 @@ export function ExpandableShell({
     </div>
   );
 
-  if (expanded) {
-    return createPortal(
-      <div className="fixed inset-0 z-[300] flex flex-col bg-black/55 p-4 backdrop-blur-sm md:p-8">
-        <div className="relative mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-950">
-          <button
-            type="button"
-            onClick={() => setExpanded(false)}
-            className="absolute right-3 top-3 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-slate-900/80 text-white hover:bg-slate-900"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          {header}
-          <div className={`min-h-0 flex-1 overflow-auto ${expandedBodyClassName || bodyClassName}`}>
-            {children}
-          </div>
-        </div>
-      </div>,
-      document.body,
-    );
-  }
-
   return (
-    <div
-      className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md dark:border-slate-800 dark:bg-slate-900 ${className}`}
-    >
-      {header}
-      <div className={bodyClassName}>{children}</div>
-    </div>
+    <>
+      {expanded && (
+        <>
+          <div style={{ height: placeholderH }} aria-hidden className="pointer-events-none" />
+          <div
+            className="fixed inset-0 z-[299] bg-black/55 backdrop-blur-sm"
+            onClick={() => setExpanded(false)}
+            aria-hidden
+          />
+        </>
+      )}
+      <div
+        ref={wrapRef}
+        className={
+          expanded
+            ? 'fixed inset-3 z-[300] flex max-h-[calc(100vh-1.5rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl md:inset-8 dark:border-slate-700 dark:bg-slate-950'
+            : `overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md dark:border-slate-800 dark:bg-slate-900 ${className}`
+        }
+      >
+        {header}
+        <div
+          className={
+            expanded
+              ? `flex min-h-0 flex-1 flex-col overflow-auto ${expandedBodyClassName || bodyClassName}`
+              : bodyClassName
+          }
+        >
+          {children}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -83,7 +102,6 @@ export function PanZoomSurface({
   children: ReactNode;
   className?: string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
@@ -93,40 +111,45 @@ export function PanZoomSurface({
     setScale((s) => Math.min(3, Math.max(0.4, s + (e.deltaY < 0 ? 0.1 : -0.1))));
   }, []);
 
+  const reset = () => {
+    setScale(1);
+    setPos({ x: 0, y: 0 });
+  };
+
   return (
     <div className={`relative ${className}`}>
-      <div className="absolute right-2 top-2 z-10 flex gap-1">
+      <div
+        className="absolute right-2 top-2 z-20 flex gap-1"
+        onPointerDown={(e) => e.stopPropagation()}
+      >
         <button
           type="button"
           onClick={() => setScale((s) => Math.min(3, s + 0.15))}
-          className="cursor-pointer rounded bg-slate-900/80 px-2 py-1 text-xs font-bold text-white"
+          className="cursor-pointer rounded bg-slate-900/80 px-2 py-1 text-xs font-bold text-white hover:bg-slate-900"
         >
           +
         </button>
         <button
           type="button"
           onClick={() => setScale((s) => Math.max(0.4, s - 0.15))}
-          className="cursor-pointer rounded bg-slate-900/80 px-2 py-1 text-xs font-bold text-white"
+          className="cursor-pointer rounded bg-slate-900/80 px-2 py-1 text-xs font-bold text-white hover:bg-slate-900"
         >
           −
         </button>
         <button
           type="button"
-          onClick={() => {
-            setScale(1);
-            setPos({ x: 0, y: 0 });
-          }}
-          className="cursor-pointer rounded bg-slate-900/80 px-2 py-1 text-xs font-bold text-white"
+          onClick={reset}
+          className="cursor-pointer rounded bg-slate-900/80 px-2 py-1 text-xs font-bold text-white hover:bg-slate-900"
         >
           Reset
         </button>
       </div>
       <div
-        ref={ref}
         className="h-full min-h-[200px] cursor-grab overflow-hidden active:cursor-grabbing"
         onWheel={onWheel}
         onPointerDown={(e) => {
-          (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+          if ((e.target as HTMLElement).closest('button')) return;
+          (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
           drag.current = { x: e.clientX, y: e.clientY, px: pos.x, py: pos.y };
         }}
         onPointerMove={(e) => {
@@ -139,13 +162,16 @@ export function PanZoomSurface({
         onPointerUp={() => {
           drag.current = null;
         }}
+        onPointerCancel={() => {
+          drag.current = null;
+        }}
       >
         <div
           style={{
             transform: `translate(${pos.x}px, ${pos.y}px) scale(${scale})`,
             transformOrigin: 'center center',
           }}
-          className="flex min-h-[200px] items-center justify-center p-4 transition-transform duration-75"
+          className="flex min-h-[200px] items-center justify-center p-4 will-change-transform"
         >
           {children}
         </div>
