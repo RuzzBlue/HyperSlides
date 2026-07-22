@@ -13,7 +13,6 @@ function resolveAppRoot() {
 
 async function bootApi() {
   require('tsx/cjs/api').register();
-  const { handleApiRequest } = require('../shared/api/handleApiRequest.ts');
   const { startServer } = require('../server/createServer.ts');
 
   appRoot = resolveAppRoot();
@@ -22,6 +21,15 @@ async function bootApi() {
   await startServer(8765, { appRoot, serveDist: false });
 
   ipcMain.handle('hyperclass:api', async (_event, req) => {
+    // Dev: pick up shared API route changes without a full Electron relaunch.
+    if (!app.isPackaged) {
+      for (const key of Object.keys(require.cache)) {
+        if (key.includes(`${path.sep}shared${path.sep}api${path.sep}`)) {
+          delete require.cache[key];
+        }
+      }
+    }
+    const { handleApiRequest } = require('../shared/api/handleApiRequest.ts');
     return handleApiRequest(req, { appRoot });
   });
 }

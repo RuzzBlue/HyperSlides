@@ -510,15 +510,46 @@ function AppSettingsTab({
     if (!window.confirm(tr('resetProgressConfirm'))) return;
     setResetting(true);
     onError(null);
-    const res = await apiFetch<{ cleared: number }>({
+
+    // Prefer dedicated wipe endpoint (deletes progress files). Fall back to
+    // emptying each course via existing PUT — works even if the API process
+    // was not restarted after a hot UI reload.
+    const wipe = await apiFetch<{ cleared: number }>({
       method: 'POST',
       path: '/api/progress/reset',
     });
-    setResetting(false);
-    if (!res.ok) {
-      onError(res.error ?? 'Could not reset progress');
-      return;
+
+    if (!wipe.ok) {
+      const coursesRes = await apiFetch<Array<{ id: string }>>({
+        method: 'GET',
+        path: '/api/courses',
+      });
+      if (!coursesRes.ok || !coursesRes.data) {
+        setResetting(false);
+        onError(wipe.error ?? coursesRes.error ?? 'Could not reset progress');
+        return;
+      }
+      for (const course of coursesRes.data) {
+        const put = await apiFetch({
+          method: 'PUT',
+          path: `/api/courses/${course.id}/progress`,
+          body: {
+            currentIndex: 0,
+            completedKeys: [],
+            quizScores: {},
+            labChecked: {},
+            labPassed: {},
+          },
+        });
+        if (!put.ok) {
+          setResetting(false);
+          onError(put.error ?? 'Could not reset progress');
+          return;
+        }
+      }
     }
+
+    setResetting(false);
     onStatus(tr('resetProgressDone'));
     onProgressReset?.();
     setTimeout(() => onStatus(null), 2000);
