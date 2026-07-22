@@ -119,23 +119,20 @@ export interface CoursePackageManifest {
   hyperclassMinVersion?: string;
   author?: string;
   description?: string;
-  /**
-   * Primary language of course content (ISO 639-1). Reference for authors and
-   * the locked presentation locale when `toggleLanguage` is false.
-   */
+  /** Primary language of course content (ISO 639-1), e.g. `en` / `es`. */
   language?: string;
   /**
-   * When true, the learner's dark/light preference drives lesson presentation.
-   * When false, lessons stay on `defaultColorMode` while the rest of the app can still toggle.
-   */
-  toggleDarkLightTheme?: boolean;
-  /**
-   * When true, the learner's locale may drive presentation content (multi-locale packs).
-   * When false, the learner can still change app chrome language, but presentation stays on `language`.
+   * When true (and the learner has “Use course settings” on), language can be changed
+   * while the course is open. When false, language is locked to `language` for that session.
    */
   toggleLanguage?: boolean;
-  /** Color mode used for lessons when `toggleDarkLightTheme` is false. Defaults to `light`. */
-  defaultColorMode?: 'light' | 'dark';
+  /** Course default color mode applied when “Use course settings” is on. */
+  darkLightTheme?: 'light' | 'dark';
+  /**
+   * When true (and “Use course settings” is on), theme can be changed while the course is open.
+   * When false, theme is locked to `darkLightTheme` for that session.
+   */
+  toggleDarkLightTheme?: boolean;
   extensions: string[];
   widgets?: string[];
   permissions?: string[];
@@ -341,6 +338,11 @@ export interface AppPrefs {
   autoAdvanceAfterQuiz: boolean;
   rememberLastCourse: boolean;
   showSlideNumbers: boolean;
+  /**
+   * When true, opening a course applies that course’s language / color defaults for the session
+   * (user.json defaults are restored when returning to the library).
+   */
+  useCourseSettings: boolean;
 }
 
 export interface UserState {

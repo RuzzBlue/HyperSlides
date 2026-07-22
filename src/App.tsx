@@ -26,7 +26,7 @@ import { usePrefs } from './prefs/PrefsProvider';
 type ViewMode = 'home' | 'present';
 
 export default function App() {
-  const { settings, tr } = usePrefs();
+  const { settings, tr, applyCourseSettings, clearCourseSettings } = usePrefs();
   const [view, setView] = useState<ViewMode>('home');
   const [courses, setCourses] = useState<CourseSummary[]>([]);
   const [course, setCourse] = useState<Omit<LoadedCourse, 'rootPath'> | null>(null);
@@ -97,6 +97,19 @@ export default function App() {
     };
   }, [course?.theme]);
 
+  useEffect(() => {
+    if (view !== 'present' || !course) return;
+    if (settings.useCourseSettings) applyCourseSettings(course.packageManifest);
+    else clearCourseSettings();
+  }, [
+    settings.useCourseSettings,
+    view,
+    course?.summary.id,
+    course?.packageManifest,
+    applyCourseSettings,
+    clearCourseSettings,
+  ]);
+
   const openCourse = async (id: string) => {
     setLoading(true);
     setError(null);
@@ -116,6 +129,7 @@ export default function App() {
     setCourse(res.data);
     setProgress(prog.data ?? null);
     setIndex(settings.rememberLastCourse ? (prog.data?.currentIndex ?? 0) : 0);
+    applyCourseSettings(res.data.packageManifest);
     setView('present');
     setLoading(false);
   };
@@ -286,6 +300,7 @@ export default function App() {
         <TitleBar
           courseTitle={course?.summary.title}
           onHome={() => {
+            clearCourseSettings();
             setView('home');
             setCourse(null);
           }}
@@ -346,7 +361,6 @@ export default function App() {
                       title={lesson.title || current.title}
                       courseFolder={course.summary.folder}
                       theme={course.theme}
-                      packageManifest={course.packageManifest}
                     />
                   )}
                   {!loading && current?.type === 'quiz' && quiz && course && (

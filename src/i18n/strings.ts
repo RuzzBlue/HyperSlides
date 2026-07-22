@@ -41,6 +41,12 @@ const en = {
   autoAdvanceQuiz: 'Auto-advance after passing a quiz',
   rememberLastCourse: 'Remember last opened course',
   showSlideNumbers: 'Show slide numbers in navigator',
+  useCourseSettings: 'Use course settings',
+  useCourseSettingsHint:
+    'When on, opening a course applies that course’s language and light/dark defaults for the session. Your personal defaults in this profile are restored when you return to the library. Courses may lock theme or language while you present.',
+  useCourseSettingsWarning:
+    'Off: the app ignores course language/theme defaults entirely. Lessons may not match the author’s intended look or language.',
+  appearanceLockedByCourse: 'Locked by the current course',
   settingsComingSoon: 'More app preferences will land here as HyperClass grows.',
   resetProgressTitle: 'Reset course progress (testing)',
   resetProgressHint:
@@ -173,6 +179,12 @@ const es: Record<keyof typeof en, string> = {
   autoAdvanceQuiz: 'Avanzar automáticamente al aprobar un cuestionario',
   rememberLastCourse: 'Recordar el último curso abierto',
   showSlideNumbers: 'Mostrar números de diapositiva en el navegador',
+  useCourseSettings: 'Usar ajustes del curso',
+  useCourseSettingsHint:
+    'Si está activo, al abrir un curso se aplican su idioma y modo claro/oscuro para la sesión. Tus ajustes personales se restauran al volver a la biblioteca. El curso puede bloquear tema o idioma mientras presentas.',
+  useCourseSettingsWarning:
+    'Desactivado: la app ignora por completo los valores del curso. Las lecciones pueden no coincidir con el aspecto o idioma previstos por el autor.',
+  appearanceLockedByCourse: 'Bloqueado por el curso actual',
   settingsComingSoon: 'Más preferencias de la app llegarán aquí a medida que HyperClass crezca.',
   resetProgressTitle: 'Restablecer progreso del curso (pruebas)',
   resetProgressHint:

@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS: AppPrefs = {
   autoAdvanceAfterQuiz: false,
   rememberLastCourse: true,
   showSlideNumbers: true,
+  useCourseSettings: true,
 };
 
 function ensureDir(dir: string) {

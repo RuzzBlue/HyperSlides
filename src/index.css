@@ -3,15 +3,8 @@
 /* Scan course lesson HTML so utility classes in fragments are generated */
 @source "../courses/**/*.html";
 
-/* Match app theme — exclude forced light/dark lesson islands */
-@custom-variant dark (
-  &:where(
-    [data-theme='dark'],
-    [data-theme='dark'] *,
-    [data-force-dark],
-    [data-force-dark] *
-  ):not(:where([data-force-light], [data-force-light] *))
-);
+/* Match app theme attribute instead of prefers-color-scheme */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 :root,
 html[data-theme='light'] {

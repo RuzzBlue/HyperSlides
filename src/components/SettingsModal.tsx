@@ -33,7 +33,8 @@ export function SettingsModal({
   /** Called after all course progress files are wiped (testing helper). */
   onProgressReset?: () => void;
 }) {
-  const { profile, appearance, settings, tr, save } = usePrefs();
+  const { profile, appearance, settings, tr, save, appearanceLocks, courseSettingsActive } =
+    usePrefs();
   const [tab, setTab] = useState<TabId>(initialTab);
   const [draftProfile, setDraftProfile] = useState({
     firstName: '',
@@ -222,7 +223,13 @@ export function SettingsModal({
                   />
                 )}
                 {tab === 'appearance' && (
-                  <AppearanceTab draft={draftAppearance} setDraft={setDraftAppearance} tr={tr} />
+                  <AppearanceTab
+                    draft={draftAppearance}
+                    setDraft={setDraftAppearance}
+                    tr={tr}
+                    locks={appearanceLocks}
+                    courseSettingsActive={courseSettingsActive}
+                  />
                 )}
                 {tab === 'settings' && (
                   <AppSettingsTab
@@ -400,11 +407,18 @@ function AppearanceTab({
   draft,
   setDraft,
   tr,
+  locks,
+  courseSettingsActive,
 }: {
   draft: AppearancePrefs;
   setDraft: (v: AppearancePrefs) => void;
   tr: (k: StringKey) => string;
+  locks: { theme: boolean; locale: boolean };
+  courseSettingsActive: boolean;
 }) {
+  const themeLocked = courseSettingsActive && locks.theme;
+  const localeLocked = courseSettingsActive && locks.locale;
+
   return (
     <div>
       <Field label={tr('accentColor')}>
@@ -430,7 +444,10 @@ function AppearanceTab({
         </div>
       </Field>
 
-      <Field label={tr('theme')}>
+      <Field
+        label={tr('theme')}
+        hint={themeLocked ? tr('appearanceLockedByCourse') : undefined}
+      >
         <div className="flex flex-wrap gap-2">
           {(
             [
@@ -442,8 +459,9 @@ function AppearanceTab({
             <button
               key={value}
               type="button"
+              disabled={themeLocked}
               onClick={() => setDraft({ ...draft, theme: value })}
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[12px] font-medium ${
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[12px] font-medium disabled:cursor-not-allowed disabled:opacity-45 ${
                 draft.theme === value
                   ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
                   : 'border-[var(--line)] text-[var(--ink)] hover:bg-[var(--panel)]'
@@ -456,7 +474,10 @@ function AppearanceTab({
         </div>
       </Field>
 
-      <Field label={tr('language')}>
+      <Field
+        label={tr('language')}
+        hint={localeLocked ? tr('appearanceLockedByCourse') : undefined}
+      >
         <div className="flex gap-2">
           {(
             [
@@ -467,8 +488,9 @@ function AppearanceTab({
             <button
               key={value}
               type="button"
+              disabled={localeLocked}
               onClick={() => setDraft({ ...draft, locale: value })}
-              className={`rounded-lg border px-3 py-2 text-[12px] font-medium ${
+              className={`rounded-lg border px-3 py-2 text-[12px] font-medium disabled:cursor-not-allowed disabled:opacity-45 ${
                 draft.locale === value
                   ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
                   : 'border-[var(--line)] text-[var(--ink)] hover:bg-[var(--panel)]'
@@ -501,6 +523,7 @@ function AppSettingsTab({
   const [resetting, setResetting] = useState(false);
 
   const rows: Array<{ key: keyof AppPrefs; label: string }> = [
+    { key: 'useCourseSettings', label: tr('useCourseSettings') },
     { key: 'autoAdvanceAfterQuiz', label: tr('autoAdvanceQuiz') },
     { key: 'rememberLastCourse', label: tr('rememberLastCourse') },
     { key: 'showSlideNumbers', label: tr('showSlideNumbers') },
@@ -560,18 +583,30 @@ function AppSettingsTab({
       <p className="mb-4 text-[13px] text-[var(--ink-muted)]">{tr('settingsComingSoon')}</p>
       <div className="space-y-2">
         {rows.map((row) => (
-          <label
-            key={row.key}
-            className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-3"
-          >
-            <input
-              type="checkbox"
-              checked={draft[row.key]}
-              onChange={(e) => setDraft({ ...draft, [row.key]: e.target.checked })}
-              className="h-4 w-4 accent-[var(--accent)]"
-            />
-            <span className="text-[13px] text-[var(--ink)]">{row.label}</span>
-          </label>
+          <div key={row.key}>
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-3">
+              <input
+                type="checkbox"
+                checked={draft[row.key]}
+                onChange={(e) => setDraft({ ...draft, [row.key]: e.target.checked })}
+                className="h-4 w-4 accent-[var(--accent)]"
+              />
+              <span className="text-[13px] text-[var(--ink)]">{row.label}</span>
+            </label>
+            {row.key === 'useCourseSettings' && (
+              <p
+                className={`mt-1.5 px-1 text-[11px] leading-relaxed ${
+                  draft.useCourseSettings
+                    ? 'text-[var(--ink-muted)]'
+                    : 'font-medium text-amber-700 dark:text-amber-300'
+                }`}
+              >
+                {draft.useCourseSettings
+                  ? tr('useCourseSettingsHint')
+                  : tr('useCourseSettingsWarning')}
+              </p>
+            )}
+          </div>
         ))}
       </div>
 
