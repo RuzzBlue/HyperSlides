@@ -1,4 +1,5 @@
 import type { SequenceItemType } from '@shared/types';
+import { usePrefs } from '../prefs/PrefsProvider';
 
 export function StatusBar({
   moduleTitle,
@@ -13,10 +14,13 @@ export function StatusBar({
   index: number;
   total: number;
 }) {
+  const { tr, trf } = usePrefs();
   const pct = total ? Math.round(((index + 1) / total) * 100) : 0;
+  const typeLabel =
+    type === 'quiz' ? tr('typeQuiz') : type === 'lab' ? tr('typeLab') : tr('typeLesson');
 
   return (
-    <footer className="flex h-8 shrink-0 items-center gap-3 border-t border-[var(--line)] bg-[#f3f4f6] px-4 text-[11px] text-[var(--ink-muted)]">
+    <footer className="flex h-8 shrink-0 items-center gap-3 border-t border-[var(--line)] bg-[#f3f4f6] px-4 text-[11px] text-[var(--ink-muted)] dark:bg-[var(--chrome-top)]">
       <span className="font-medium text-[var(--ink)]">{moduleTitle}</span>
       {unitTitle && (
         <>
@@ -25,7 +29,7 @@ export function StatusBar({
         </>
       )}
       <span className="ml-auto tabular-nums">
-        {type} · {index + 1} of {total}
+        {typeLabel} · {trf('slideOf', { current: index + 1, total })}
       </span>
       <div className="h-1.5 w-28 overflow-hidden rounded-full bg-[var(--chrome-deep)]">
         <div

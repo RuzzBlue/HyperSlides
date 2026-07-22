@@ -20,7 +20,7 @@
     "A funded learning wallet on a network you control"
   ],
   "sections": [
-    {"id":"prepare","title":"Prepare the transfer","file":"sections/01-prepare.html"},
+    {"id":"prepare","title":"Prepare the transfers","file":"sections/01-prepare.html"},
     {"id":"send","title":"Review & send","file":"sections/02-send.html"},
     {"id":"confirm","title":"Confirm & reflect","file":"sections/03-confirm.html"}
   ],

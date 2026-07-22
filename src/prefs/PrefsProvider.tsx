@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { apiFetch } from '../api/client';
 import type { AppearancePrefs, AppPrefs, UserProfile, UserState } from '@shared/types';
-import { t, type StringKey } from '../i18n/strings';
+import { t, tf, type StringKey } from '../i18n/strings';
 
 function hexToSoft(hex: string): string {
   const cleaned = hex.replace('#', '');
@@ -42,6 +42,7 @@ interface PrefsContextValue {
   settings: AppPrefs;
   locale: AppearancePrefs['locale'];
   tr: (key: StringKey) => string;
+  trf: (key: StringKey, vars: Record<string, string | number>) => string;
   refresh: () => Promise<void>;
   save: (patch: {
     profile?: Partial<Omit<UserProfile, 'userId' | 'createdAt'>>;
@@ -119,6 +120,7 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
       settings: state?.settings ?? fallbackSettings,
       locale,
       tr: (key) => t(locale, key),
+      trf: (key, vars) => tf(locale, key, vars),
       refresh,
       save,
     }),

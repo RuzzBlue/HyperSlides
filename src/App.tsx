@@ -26,7 +26,7 @@ import { usePrefs } from './prefs/PrefsProvider';
 type ViewMode = 'home' | 'present';
 
 export default function App() {
-  const { settings } = usePrefs();
+  const { settings, tr } = usePrefs();
   const [view, setView] = useState<ViewMode>('home');
   const [courses, setCourses] = useState<CourseSummary[]>([]);
   const [course, setCourse] = useState<Omit<LoadedCourse, 'rootPath'> | null>(null);
@@ -373,14 +373,16 @@ export default function App() {
                 </motion.div>
               </AnimatePresence>
 
-              {fullscreenStage && (
-                <button
-                  type="button"
-                  onClick={() => setFullscreenStage(false)}
-                  className="absolute right-4 top-4 rounded-md bg-black/50 px-3 py-1.5 text-sm text-white backdrop-blur hover:bg-black/70"
-                >
-                  Exit (Esc)
-                </button>
+              {fullscreenStage && current?.type === 'lesson' && (
+                <div className="group/exit absolute right-0 top-0 z-20 h-20 w-36">
+                  <button
+                    type="button"
+                    onClick={() => setFullscreenStage(false)}
+                    className="absolute right-4 top-4 rounded-md bg-black/50 px-3 py-1.5 text-sm text-white backdrop-blur opacity-0 transition-opacity hover:bg-black/70 group-hover/exit:opacity-100 focus-visible:opacity-100"
+                  >
+                    {tr('exitPresent')}
+                  </button>
+                </div>
               )}
             </div>
           </div>

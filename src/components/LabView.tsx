@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { courseStaticUrl } from '../api/client';
 import type { LabPayload, LabResource } from '@shared/types';
+import { usePrefs } from '../prefs/PrefsProvider';
+import type { StringKey } from '../i18n/strings';
 
 const BRIEF_ID = '__lab_brief';
 
@@ -84,14 +86,18 @@ export function LabView({
   onPass: () => void;
   onContinue: () => void;
 }) {
+  const { tr, trf } = usePrefs();
   const contentSections =
     payload.sections.length > 0
       ? payload.sections
-      : [{ id: 'instructions', title: 'Instructions', html: payload.instructionsHtml }];
+      : [{ id: 'instructions', title: tr('labInstructions'), html: payload.instructionsHtml }];
 
   const navSections = useMemo(
-    () => [{ id: BRIEF_ID, title: 'Lab brief' }, ...contentSections.map((s) => ({ id: s.id, title: s.title }))],
-    [contentSections],
+    () => [
+      { id: BRIEF_ID, title: tr('labBrief') },
+      ...contentSections.map((s) => ({ id: s.id, title: s.title })),
+    ],
+    [contentSections, tr],
   );
 
   const [activeSection, setActiveSection] = useState(BRIEF_ID);
@@ -183,7 +189,7 @@ export function LabView({
             className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--lab)] px-3 py-2 text-[12px] font-semibold text-white shadow-sm hover:brightness-110"
           >
             <ClipboardCheck className="h-3.5 w-3.5" />
-            {labDone ? 'Review submission' : 'Submit'}
+            {labDone ? tr('labReviewSubmission') : tr('labSubmit')}
           </button>
         </div>
       </header>
@@ -191,7 +197,7 @@ export function LabView({
       <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[220px_1fr]">
         <aside className="min-h-0 overflow-y-auto border-r border-[color-mix(in_srgb,var(--lab)_22%,transparent)] bg-white/60 p-3 dark:bg-slate-900/50">
           <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-            Sections
+            {tr('labSections')}
           </div>
           <div className="space-y-1">
             {navSections.map((sec, i) => (
@@ -219,6 +225,7 @@ export function LabView({
             <LabBrief
               objective={payload.activity.learningObjective}
               resources={resources}
+              tr={tr}
             />
           ) : (
             <div
@@ -232,8 +239,11 @@ export function LabView({
       <footer className="flex items-center gap-3 border-t border-[color-mix(in_srgb,var(--lab)_22%,transparent)] bg-[var(--lab-soft)] px-6 py-2">
         <span className="text-[12px] text-[var(--ink-muted)]">
           {labDone
-            ? 'Lab marked complete'
-            : `${localChecked.length} / ${payload.rubric.steps.length} rubric checks`}
+            ? tr('labMarkedComplete')
+            : trf('labRubricChecks', {
+                checked: localChecked.length,
+                total: payload.rubric.steps.length,
+              })}
         </span>
         <button
           type="button"
@@ -241,7 +251,7 @@ export function LabView({
           disabled={!labDone}
           className="ml-auto rounded-lg bg-[var(--lab)] px-4 py-2 text-[13px] font-semibold text-white shadow-sm enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Continue to next slide
+          {tr('continueNextSlide')}
         </button>
       </footer>
 
@@ -250,14 +260,14 @@ export function LabView({
           <button
             type="button"
             className="absolute inset-0 cursor-pointer"
-            aria-label="Close drawer"
+            aria-label={tr('labCloseDrawer')}
             onClick={() => setDrawerOpen(false)}
           />
           <aside className="relative flex h-full w-full max-w-md flex-col border-l border-[color-mix(in_srgb,var(--lab)_28%,transparent)] bg-white shadow-2xl dark:bg-slate-900">
             <div className="flex items-center justify-between border-b border-[color-mix(in_srgb,var(--lab)_22%,transparent)] px-4 py-3">
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--lab)]">
-                  Rubric & evidence
+                  {tr('labRubricEvidence')}
                 </div>
                 <div className="text-[14px] font-semibold text-[var(--ink)]">
                   {payload.rubric.title}
@@ -300,7 +310,7 @@ export function LabView({
                           </div>
                           <p className="mt-1 text-[11px] text-[var(--ink-muted)]">{step.instructions}</p>
                           <div className="mt-2 rounded-lg bg-[color-mix(in_srgb,var(--lab)_10%,transparent)] px-2.5 py-1.5 text-[11px] text-[var(--ink)]">
-                            <span className="font-semibold text-[var(--lab)]">Expected: </span>
+                            <span className="font-semibold text-[var(--lab)]">{tr('labExpected')} </span>
                             {step.expectedResult}
                           </div>
                         </div>
@@ -312,23 +322,23 @@ export function LabView({
 
               <div className="rounded-xl border border-dashed border-[var(--line)] p-3">
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-                  Evidence (UI preview)
+                  {tr('labEvidencePreview')}
                 </div>
                 <label className="mb-2 flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-[12px] text-[var(--ink-muted)]">
                   <Upload className="h-3.5 w-3.5" />
-                  Add screenshot / file (coming soon)
+                  {tr('labAddEvidence')}
                   <input type="file" className="hidden" disabled />
                 </label>
                 <input
                   type="url"
-                  placeholder="Proof URL"
+                  placeholder={tr('labProofUrl')}
                   value={evidenceUrl}
                   onChange={(e) => setEvidenceUrl(e.target.value)}
                   disabled={labDone}
                   className="mb-2 w-full rounded-lg border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-[12px] text-[var(--ink)]"
                 />
                 <textarea
-                  placeholder="Written notes / confirmation"
+                  placeholder={tr('labWrittenNotes')}
                   value={evidenceNote}
                   onChange={(e) => setEvidenceNote(e.target.value)}
                   disabled={labDone}
@@ -342,7 +352,7 @@ export function LabView({
                     disabled={labDone}
                     onChange={(e) => setConfirmed(e.target.checked)}
                   />
-                  I confirm I completed the lab steps
+                  {tr('labConfirmComplete')}
                 </label>
               </div>
             </div>
@@ -355,11 +365,11 @@ export function LabView({
                   onClick={submitLab}
                   className="w-full rounded-lg bg-[var(--lab)] px-3 py-2.5 text-[13px] font-semibold text-white enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Submit lab & mark complete
+                  {tr('labSubmitComplete')}
                 </button>
               ) : (
                 <div className="rounded-lg bg-emerald-50 px-3 py-2 text-center text-[13px] font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
-                  Lab passed — you can continue
+                  {tr('labPassedContinue')}
                 </div>
               )}
             </div>
@@ -373,9 +383,11 @@ export function LabView({
 function LabBrief({
   objective,
   resources,
+  tr,
 }: {
   objective?: string;
   resources: NormalizedResource[];
+  tr: (key: StringKey) => string;
 }) {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -384,18 +396,15 @@ function LabBrief({
           className="text-xl font-semibold text-[var(--ink)]"
           style={{ fontFamily: 'var(--font-display)' }}
         >
-          Lab brief
+          {tr('labBrief')}
         </h2>
-        <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          Learning objective and materials for this lab. Open links in a new tab, or download
-          course files before you start the sections.
-        </p>
+        <p className="mt-1 text-sm text-[var(--ink-muted)]">{tr('labBriefIntro')}</p>
       </div>
 
       {objective && (
         <div className="rounded-xl border border-[color-mix(in_srgb,var(--lab)_28%,transparent)] bg-white/80 p-4 dark:bg-slate-900/70">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--lab)]">
-            Learning objective
+            {tr('labLearningObjective')}
           </div>
           <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink)]">{objective}</p>
         </div>
@@ -403,10 +412,10 @@ function LabBrief({
 
       <div>
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-          Resources
+          {tr('labResources')}
         </div>
         {resources.length === 0 ? (
-          <p className="text-sm text-[var(--ink-muted)]">No resources attached to this lab.</p>
+          <p className="text-sm text-[var(--ink-muted)]">{tr('labNoResources')}</p>
         ) : (
           <ul className="space-y-2">
             {resources.map((r) => (
@@ -426,7 +435,7 @@ function LabBrief({
                     )}
                     <span className="min-w-0 flex-1">{r.label}</span>
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
-                      {r.kind === 'download' ? 'Download' : 'Open'}
+                      {r.kind === 'download' ? tr('labDownload') : tr('labOpenLink')}
                     </span>
                   </a>
                 ) : (

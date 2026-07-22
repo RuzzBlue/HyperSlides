@@ -74,6 +74,62 @@ const en = {
   colVersion: 'Version',
   colModified: 'Date modified',
   createdBy: 'Created by RuzzBlue - 2026',
+  // Presenter chrome
+  exitPresent: 'Exit (Esc)',
+  slideOf: '{current} of {total}',
+  typeLesson: 'lesson',
+  typeQuiz: 'quiz',
+  typeLab: 'lab',
+  // Shared activity chrome
+  continueNextSlide: 'Continue to next slide',
+  // Quiz
+  quizPassAt: 'Pass ≥ {score}%',
+  quizUnlimitedRetries: 'Unlimited retries',
+  quizAttemptsCount: '{used} / {max} attempts',
+  quizPassed: 'Passed',
+  quizNotPassed: 'Not passed',
+  quizNotGraded: 'Not graded',
+  quizCorrect: 'Correct',
+  quizIncorrect: 'Incorrect',
+  quizAnsweredCount: '{answered} / {total} answered',
+  quizRetryLeft: '{count} retry left',
+  quizRetriesLeft: '{count} retries left',
+  quizSubmitGrade: 'Submit & grade',
+  quizGrading: 'Grading…',
+  quizRetry: 'Retry quiz',
+  quizGradeError: 'Could not grade quiz',
+  quizTrue: 'True',
+  quizFalse: 'False',
+  quizOrderingHint: 'Use arrows to set the correct sequence.',
+  quizSelectPlaceholder: 'Select…',
+  quizTypeAnswer: 'Type your answer…',
+  quizPollNoAnswer: 'no correct answer',
+  quizPollMulti: 'multi select',
+  // Lab
+  labBrief: 'Lab brief',
+  labBriefIntro:
+    'Learning objective and materials for this lab. Open links in a new tab, or download course files before you start the sections.',
+  labLearningObjective: 'Learning objective',
+  labResources: 'Resources',
+  labNoResources: 'No resources attached to this lab.',
+  labDownload: 'Download',
+  labOpenLink: 'Open',
+  labSubmit: 'Submit',
+  labReviewSubmission: 'Review submission',
+  labMarkedComplete: 'Lab marked complete',
+  labRubricChecks: '{checked} / {total} rubric checks',
+  labSections: 'Sections',
+  labRubricEvidence: 'Rubric & evidence',
+  labExpected: 'Expected:',
+  labEvidencePreview: 'Evidence (UI preview)',
+  labAddEvidence: 'Add screenshot / file (coming soon)',
+  labProofUrl: 'Proof URL',
+  labWrittenNotes: 'Written notes / confirmation',
+  labConfirmComplete: 'I confirm I completed the lab steps',
+  labSubmitComplete: 'Submit lab & mark complete',
+  labPassedContinue: 'Lab passed — you can continue',
+  labInstructions: 'Instructions',
+  labCloseDrawer: 'Close drawer',
 } as const;
 
 const es: Record<keyof typeof en, string> = {
@@ -150,6 +206,58 @@ const es: Record<keyof typeof en, string> = {
   colVersion: 'Versión',
   colModified: 'Fecha de modificación',
   createdBy: 'Creado por RuzzBlue - 2026',
+  exitPresent: 'Salir (Esc)',
+  slideOf: '{current} de {total}',
+  typeLesson: 'lección',
+  typeQuiz: 'cuestionario',
+  typeLab: 'laboratorio',
+  continueNextSlide: 'Continuar a la siguiente diapositiva',
+  quizPassAt: 'Aprobar ≥ {score}%',
+  quizUnlimitedRetries: 'Reintentos ilimitados',
+  quizAttemptsCount: '{used} / {max} intentos',
+  quizPassed: 'Aprobado',
+  quizNotPassed: 'No aprobado',
+  quizNotGraded: 'Sin calificar',
+  quizCorrect: 'Correcto',
+  quizIncorrect: 'Incorrecto',
+  quizAnsweredCount: '{answered} / {total} respondidas',
+  quizRetryLeft: '{count} reintento restante',
+  quizRetriesLeft: '{count} reintentos restantes',
+  quizSubmitGrade: 'Enviar y calificar',
+  quizGrading: 'Calificando…',
+  quizRetry: 'Reintentar cuestionario',
+  quizGradeError: 'No se pudo calificar el cuestionario',
+  quizTrue: 'Verdadero',
+  quizFalse: 'Falso',
+  quizOrderingHint: 'Usa las flechas para definir el orden correcto.',
+  quizSelectPlaceholder: 'Seleccionar…',
+  quizTypeAnswer: 'Escribe tu respuesta…',
+  quizPollNoAnswer: 'sin respuesta correcta',
+  quizPollMulti: 'selección múltiple',
+  labBrief: 'Resumen del lab',
+  labBriefIntro:
+    'Objetivo de aprendizaje y materiales de este laboratorio. Abre enlaces en una pestaña nueva o descarga archivos del curso antes de empezar las secciones.',
+  labLearningObjective: 'Objetivo de aprendizaje',
+  labResources: 'Recursos',
+  labNoResources: 'No hay recursos asociados a este laboratorio.',
+  labDownload: 'Descargar',
+  labOpenLink: 'Abrir',
+  labSubmit: 'Enviar',
+  labReviewSubmission: 'Revisar envío',
+  labMarkedComplete: 'Laboratorio marcado como completo',
+  labRubricChecks: '{checked} / {total} checks de rúbrica',
+  labSections: 'Secciones',
+  labRubricEvidence: 'Rúbrica y evidencia',
+  labExpected: 'Esperado:',
+  labEvidencePreview: 'Evidencia (vista previa)',
+  labAddEvidence: 'Añadir captura / archivo (próximamente)',
+  labProofUrl: 'URL de prueba',
+  labWrittenNotes: 'Notas / confirmación escrita',
+  labConfirmComplete: 'Confirmo que completé los pasos del laboratorio',
+  labSubmitComplete: 'Enviar laboratorio y marcar completo',
+  labPassedContinue: 'Laboratorio aprobado — puedes continuar',
+  labInstructions: 'Instrucciones',
+  labCloseDrawer: 'Cerrar panel',
 };
 
 export type StringKey = keyof typeof en;
@@ -158,4 +266,17 @@ const catalogs: Record<AppLocale, Record<StringKey, string>> = { en, es };
 
 export function t(locale: AppLocale, key: StringKey): string {
   return catalogs[locale]?.[key] ?? en[key];
+}
+
+/** Simple `{token}` replacement for translated strings. */
+export function tf(
+  locale: AppLocale,
+  key: StringKey,
+  vars: Record<string, string | number>,
+): string {
+  let out = t(locale, key);
+  for (const [k, v] of Object.entries(vars)) {
+    out = out.replaceAll(`{${k}}`, String(v));
+  }
+  return out;
 }

@@ -7,6 +7,8 @@ import type {
   QuizPayload,
   QuizQuestion,
 } from '@shared/types';
+import { usePrefs } from '../prefs/PrefsProvider';
+import type { StringKey } from '../i18n/strings';
 
 type PriorScore = {
   percent: number;
@@ -14,6 +16,8 @@ type PriorScore = {
   at: string;
   attempts?: number;
 };
+
+type Translate = (key: StringKey) => string;
 
 function isMultiSelectQuestion(q: QuizQuestion) {
   return q.type === 'multiple_select' || (q.type === 'poll' && Boolean(q.multiSelect));
@@ -36,6 +40,7 @@ export function QuizView({
   onGraded: (result: QuizGradeResult) => void;
   onContinue: () => void;
 }) {
+  const { tr, trf } = usePrefs();
   const passingScore = payload.activity.passingScore ?? 70;
   const allowedRetries = payload.activity.allowedRetries ?? 0;
 
@@ -118,7 +123,7 @@ export function QuizView({
       setAttempts(res.data.attempts ?? attempts + 1);
       onGraded(res.data);
     } else {
-      setError(res.error || 'Could not grade quiz');
+      setError(res.error || tr('quizGradeError'));
     }
   };
 
@@ -156,12 +161,15 @@ export function QuizView({
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-3">
             <div className="flex flex-wrap justify-end gap-2">
               <span className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--quiz)_35%,transparent)] bg-white/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[var(--quiz)] dark:bg-slate-900/50 dark:text-sky-200">
-                Pass ≥ {passingScore}%
+                {trf('quizPassAt', { score: passingScore })}
               </span>
               <span className="inline-flex items-center rounded-full border border-slate-200/80 bg-white/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
                 {allowedRetries === 0
-                  ? 'Unlimited retries'
-                  : `${Math.min(attemptsUsed, allowedRetries)} / ${allowedRetries} attempts`}
+                  ? tr('quizUnlimitedRetries')
+                  : trf('quizAttemptsCount', {
+                      used: Math.min(attemptsUsed, allowedRetries),
+                      max: allowedRetries,
+                    })}
               </span>
             </div>
 
@@ -175,14 +183,14 @@ export function QuizView({
               >
                 <div className="text-2xl font-semibold tabular-nums">{displayPercent}%</div>
                 <div className="text-[11px] font-medium uppercase tracking-wide">
-                  {displayPassed ? 'Passed' : 'Not passed'}
+                  {displayPassed ? tr('quizPassed') : tr('quizNotPassed')}
                 </div>
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-slate-300/80 bg-white/50 px-4 py-2 text-right dark:border-slate-600 dark:bg-slate-900/40">
                 <div className="text-2xl font-semibold tabular-nums text-slate-400">—</div>
                 <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                  Not graded
+                  {tr('quizNotGraded')}
                 </div>
               </div>
             )}
@@ -224,8 +232,8 @@ export function QuizView({
                   </div>
                   <div className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
                     {q.type.replace(/_/g, ' ')}
-                    {isPoll && q.multiSelect ? ' · multi select' : ''}
-                    {isPoll ? ' · no correct answer' : ''}
+                    {isPoll && q.multiSelect ? ` · ${tr('quizPollMulti')}` : ''}
+                    {isPoll ? ` · ${tr('quizPollNoAnswer')}` : ''}
                   </div>
                 </div>
                 {graded && !isPoll && (
@@ -238,11 +246,11 @@ export function QuizView({
                   >
                     {graded.correct ? (
                       <>
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Correct
+                        <CheckCircle2 className="h-3.5 w-3.5" /> {tr('quizCorrect')}
                       </>
                     ) : (
                       <>
-                        <XCircle className="h-3.5 w-3.5" /> Incorrect
+                        <XCircle className="h-3.5 w-3.5" /> {tr('quizIncorrect')}
                       </>
                     )}
                   </span>
@@ -255,6 +263,7 @@ export function QuizView({
                 disabled={inputsLocked}
                 onChange={(v) => setAnswer(q.id, v)}
                 onToggle={(oid) => toggleMulti(q, oid)}
+                tr={tr}
               />
 
               {graded?.explanation && (
@@ -275,12 +284,15 @@ export function QuizView({
 
       <footer className="flex flex-wrap items-center gap-3 border-t border-[color-mix(in_srgb,var(--quiz)_22%,transparent)] bg-[var(--quiz-soft)] px-8 py-2">
         <span className="text-[12px] text-[var(--ink-muted)]">
-          {answeredCount} / {payload.questions.length} answered
-          {allowedRetries === 0
+          {trf('quizAnsweredCount', {
+            answered: answeredCount,
+            total: payload.questions.length,
+          })}
+          {allowedRetries === 0 || retriesLeft === Infinity
             ? ''
-            : retriesLeft === Infinity
-              ? ''
-              : ` · ${retriesLeft} ${retriesLeft === 1 ? 'retry' : 'retries'} left`}
+            : ` · ${trf(retriesLeft === 1 ? 'quizRetryLeft' : 'quizRetriesLeft', {
+                count: retriesLeft,
+              })}`}
         </span>
         {error && <span className="text-[12px] font-medium text-rose-600">{error}</span>}
         <div className="ml-auto flex flex-wrap gap-2">
@@ -291,7 +303,7 @@ export function QuizView({
               onClick={() => void submit()}
               className="rounded-lg bg-[var(--quiz)] px-4 py-2 text-[13px] font-semibold text-white shadow-sm enabled:hover:brightness-110 disabled:opacity-40"
             >
-              {submitting ? 'Grading…' : 'Submit & grade'}
+              {submitting ? tr('quizGrading') : tr('quizSubmitGrade')}
             </button>
           ) : (
             <>
@@ -302,7 +314,7 @@ export function QuizView({
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-[13px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
-                  Retry quiz
+                  {tr('quizRetry')}
                 </button>
               )}
               <button
@@ -310,7 +322,7 @@ export function QuizView({
                 onClick={onContinue}
                 className="rounded-lg bg-[var(--accent)] px-4 py-2 text-[13px] font-semibold text-white shadow-sm hover:brightness-110"
               >
-                Continue to next slide
+                {tr('continueNextSlide')}
               </button>
             </>
           )}
@@ -326,12 +338,14 @@ function QuestionInput({
   disabled,
   onChange,
   onToggle,
+  tr,
 }: {
   question: QuizQuestion;
   value: QuizAnswerMap[string] | undefined;
   disabled: boolean;
   onChange: (v: QuizAnswerMap[string]) => void;
   onToggle: (optionId: string) => void;
+  tr: Translate;
 }) {
   if (question.type === 'true_false') {
     return (
@@ -350,7 +364,7 @@ function QuestionInput({
                   : 'border-[var(--line)] bg-white text-[var(--ink)] dark:bg-slate-950 dark:text-slate-100'
               }`}
             >
-              {v ? 'True' : 'False'}
+              {v ? tr('quizTrue') : tr('quizFalse')}
             </button>
           );
         })}
@@ -375,7 +389,7 @@ function QuestionInput({
     };
     return (
       <div className="space-y-2">
-        <p className="text-[11px] text-[var(--ink-muted)]">Use arrows to set the correct sequence.</p>
+        <p className="text-[11px] text-[var(--ink-muted)]">{tr('quizOrderingHint')}</p>
         {currentOrder.map((id, i) => (
           <div
             key={id}
@@ -426,10 +440,10 @@ function QuestionInput({
               onChange={(e) => onChange({ ...map, [left.id]: e.target.value })}
               className="rounded-lg border border-[var(--line)] bg-[#fafbfd] px-2 py-1.5 text-sm text-[var(--ink)] outline-none focus:ring-2 focus:ring-[var(--quiz)] dark:bg-slate-900 dark:text-slate-100"
             >
-              <option value="">Select…</option>
-              {question.matchTargets?.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
+              <option value="">{tr('quizSelectPlaceholder')}</option>
+              {question.matchTargets?.map((target) => (
+                <option key={target.id} value={target.id}>
+                  {target.label}
                 </option>
               ))}
             </select>
@@ -446,7 +460,7 @@ function QuestionInput({
         disabled={disabled}
         value={typeof value === 'string' ? value : ''}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Type your answer…"
+        placeholder={tr('quizTypeAnswer')}
         className="w-full rounded-lg border border-[var(--line)] bg-[#fafbfd] px-3 py-2 text-sm text-[var(--ink)] outline-none ring-[var(--quiz)] focus:ring-2 dark:bg-slate-950 dark:text-slate-100"
       />
     );
