@@ -1,0 +1,31 @@
+{
+  "id": "rubric-lab-01",
+  "labId": "lab-01",
+  "title": "Hot wallet lab rubric",
+  "steps": [
+    {
+      "id": "step-1",
+      "title": "Install the wallet app",
+      "instructions": "Install from the official website or trusted app store. Open the app and reach the create/import screen.",
+      "expectedResult": "The wallet application is installed and launches successfully on your device."
+    },
+    {
+      "id": "step-2",
+      "title": "Create the wallet & secure the seed",
+      "instructions": "Create a new wallet. Write the recovery phrase on paper (or another offline method). Confirm the phrase in the app if prompted.",
+      "expectedResult": "Wallet created; seed phrase stored securely offline — not in screenshots, email, or cloud notes."
+    },
+    {
+      "id": "step-3",
+      "title": "Receive address ready",
+      "instructions": "Open Receive / Deposit and copy your public address. Optionally verify the address format looks correct for the network.",
+      "expectedResult": "You can display and copy your public receive address without exposing the seed phrase."
+    },
+    {
+      "id": "step-4",
+      "title": "Fund with a test amount (optional)",
+      "instructions": "Send a small amount of crypto to your new address from an exchange or another wallet. Wait for confirmation.",
+      "expectedResult": "Balance shows the incoming funds (or pending confirmation). Keep a screenshot of the balance or tx as your proof."
+    }
+  ]
+}

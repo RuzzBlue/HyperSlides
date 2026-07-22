@@ -1,0 +1,47 @@
+{
+  "id": "crypto_course_v001",
+  "title": "Crypto Fundamentals",
+  "subtitle": "Wallets, keys & your first transactions",
+  "version": "1.0.0",
+  "author": "CryptoHub",
+  "description": "A short interactive course introducing cryptocurrency, hot wallets, and safe self-custody — with a graded quiz and a hands-on lab.",
+  "coverAccent": "#0e6e6a",
+  "modules": [
+    {
+      "id": "module-01",
+      "title": "Module 1 · Foundations",
+      "description": "What crypto is, how wallets work, and how to stay safe.",
+      "path": "content/modules/module-01",
+      "units": [
+        {
+          "id": "unit-01",
+          "title": "What is Cryptocurrency?",
+          "lessons": [
+            {
+              "id": "lesson-01",
+              "title": "Welcome to Crypto",
+              "file": "lesson-01.html",
+              "durationMinutes": 3
+            },
+            {
+              "id": "lesson-02",
+              "title": "Keys, Addresses & Ownership",
+              "file": "lesson-02.html",
+              "durationMinutes": 4
+            },
+            {
+              "id": "lesson-03",
+              "title": "Hot Wallets vs Cold Storage",
+              "file": "lesson-03.html",
+              "durationMinutes": 4
+            }
+          ],
+          "quizAfter": "quiz-01",
+          "labAfter": null
+        }
+      ],
+      "quizAfter": null,
+      "labAfter": "lab-01"
+    }
+  ]
+}

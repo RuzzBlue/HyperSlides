@@ -1,0 +1,501 @@
+import { useEffect, useState, type ReactNode } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import {
+  Check,
+  Copy,
+  Monitor,
+  Moon,
+  Palette,
+  Settings as SettingsIcon,
+  Sun,
+  UserRound,
+  X,
+} from 'lucide-react';
+import type { AppearancePrefs, AppPrefs, UserProfile } from '@shared/types';
+import { usePrefs } from '../prefs/PrefsProvider';
+import type { StringKey } from '../i18n/strings';
+
+type TabId = 'profile' | 'appearance' | 'settings';
+
+const ACCENTS = ['#0e6e6a', '#2f5aa8', '#c45c26', '#6b4f9a', '#1f7a4c', '#b42318', '#0f766e', '#1d4ed8'];
+
+export function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { profile, appearance, settings, tr, save } = usePrefs();
+  const [tab, setTab] = useState<TabId>('profile');
+  const [draftProfile, setDraftProfile] = useState({
+    firstName: '',
+    lastName: '',
+    displayName: '',
+    organizationId: '',
+  });
+  const [draftAppearance, setDraftAppearance] = useState<AppearancePrefs>(appearance);
+  const [draftSettings, setDraftSettings] = useState<AppPrefs>(settings);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || !profile) return;
+    setDraftProfile({
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      displayName: profile.displayName,
+      organizationId: profile.organizationId,
+    });
+    setDraftAppearance(appearance);
+    setDraftSettings(settings);
+    setStatus(null);
+    setError(null);
+  }, [open, profile, appearance, settings]);
+
+  useEffect(() => {
+    if (open) return;
+    const root = document.documentElement;
+    root.style.setProperty('--accent', appearance.accentColor);
+    const cleaned = appearance.accentColor.replace('#', '');
+    if (cleaned.length === 6) {
+      const r = parseInt(cleaned.slice(0, 2), 16);
+      const g = parseInt(cleaned.slice(2, 4), 16);
+      const b = parseInt(cleaned.slice(4, 6), 16);
+      root.style.setProperty('--accent-soft', `rgba(${r}, ${g}, ${b}, 0.18)`);
+    }
+    const theme =
+      appearance.theme === 'system'
+        ? window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light'
+        : appearance.theme;
+    root.dataset.theme = theme;
+    root.lang = appearance.locale;
+  }, [open, appearance]);
+
+  useEffect(() => {
+    if (!open) return;
+    const root = document.documentElement;
+    root.style.setProperty('--accent', draftAppearance.accentColor);
+    const cleaned = draftAppearance.accentColor.replace('#', '');
+    if (cleaned.length === 6) {
+      const r = parseInt(cleaned.slice(0, 2), 16);
+      const g = parseInt(cleaned.slice(2, 4), 16);
+      const b = parseInt(cleaned.slice(4, 6), 16);
+      root.style.setProperty('--accent-soft', `rgba(${r}, ${g}, ${b}, 0.18)`);
+    }
+    const theme =
+      draftAppearance.theme === 'system'
+        ? window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light'
+        : draftAppearance.theme;
+    root.dataset.theme = theme;
+    root.lang = draftAppearance.locale;
+  }, [open, draftAppearance]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  const onSave = async () => {
+    setSaving(true);
+    setError(null);
+    const res = await save({
+      profile: draftProfile,
+      appearance: draftAppearance,
+      settings: draftSettings,
+    });
+    setSaving(false);
+    if (!res.ok) {
+      setError(res.error ?? 'Save failed');
+      return;
+    }
+    setStatus(tr('saved'));
+    setTimeout(() => setStatus(null), 1600);
+  };
+
+  const copyUserId = async () => {
+    if (!profile?.userId) return;
+    await navigator.clipboard.writeText(profile.userId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1400);
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            aria-label="Close settings"
+            onClick={onClose}
+          />
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label={tr('settings')}
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.98 }}
+            transition={{ duration: 0.22 }}
+            className="relative flex h-[min(640px,90vh)] w-full max-w-3xl overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--stage)] shadow-[var(--shadow)]"
+          >
+            <aside className="flex w-[200px] shrink-0 flex-col border-r border-[var(--line)] bg-[var(--panel)]">
+              <div className="border-b border-[var(--line)] px-4 py-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                  {tr('settings')}
+                </div>
+                <div className="mt-0.5 text-[15px] font-semibold text-[var(--ink)]">{tr('appName')}</div>
+              </div>
+              <nav className="flex flex-1 flex-col gap-1 p-2">
+                <TabBtn
+                  active={tab === 'profile'}
+                  icon={<UserRound className="h-4 w-4" />}
+                  label={tr('profile')}
+                  onClick={() => setTab('profile')}
+                />
+                <TabBtn
+                  active={tab === 'appearance'}
+                  icon={<Palette className="h-4 w-4" />}
+                  label={tr('appearance')}
+                  onClick={() => setTab('appearance')}
+                />
+                <TabBtn
+                  active={tab === 'settings'}
+                  icon={<SettingsIcon className="h-4 w-4" />}
+                  label={tr('appSettings')}
+                  onClick={() => setTab('settings')}
+                />
+              </nav>
+            </aside>
+
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3">
+                <h2 className="text-[15px] font-semibold text-[var(--ink)]">
+                  {tab === 'profile'
+                    ? tr('profile')
+                    : tab === 'appearance'
+                      ? tr('appearance')
+                      : tr('appSettings')}
+                </h2>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                {tab === 'profile' && profile && (
+                  <ProfileTab
+                    profile={profile}
+                    draft={draftProfile}
+                    setDraft={setDraftProfile}
+                    tr={tr}
+                    copied={copied}
+                    onCopy={copyUserId}
+                  />
+                )}
+                {tab === 'appearance' && (
+                  <AppearanceTab draft={draftAppearance} setDraft={setDraftAppearance} tr={tr} />
+                )}
+                {tab === 'settings' && (
+                  <AppSettingsTab draft={draftSettings} setDraft={setDraftSettings} tr={tr} />
+                )}
+              </div>
+
+              <footer className="flex items-center gap-3 border-t border-[var(--line)] px-5 py-3">
+                {error && <span className="text-[12px] text-[var(--danger)]">{error}</span>}
+                {status && !error && (
+                  <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--success)]">
+                    <Check className="h-3.5 w-3.5" />
+                    {status}
+                  </span>
+                )}
+                <div className="ml-auto flex gap-2">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="rounded-lg border border-[var(--line)] bg-[var(--stage)] px-3 py-1.5 text-[12px] font-medium text-[var(--ink)] hover:bg-[var(--panel)]"
+                  >
+                    {tr('cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void onSave()}
+                    className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-[12px] font-semibold text-white hover:brightness-110 disabled:opacity-50"
+                  >
+                    {saving ? '…' : tr('save')}
+                  </button>
+                </div>
+              </footer>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function TabBtn({
+  active,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-medium transition ${
+        active
+          ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+          : 'text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)]'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function Field({
+  label,
+  children,
+  hint,
+}: {
+  label: string;
+  children: ReactNode;
+  hint?: string;
+}) {
+  return (
+    <label className="mb-4 block">
+      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+        {label}
+      </div>
+      {children}
+      {hint && <div className="mt-1 text-[11px] text-[var(--ink-muted)]">{hint}</div>}
+    </label>
+  );
+}
+
+function textInputClass() {
+  return 'w-full rounded-lg border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-[13px] text-[var(--ink)] outline-none ring-[var(--accent)] focus:ring-2';
+}
+
+function ProfileTab({
+  profile,
+  draft,
+  setDraft,
+  tr,
+  copied,
+  onCopy,
+}: {
+  profile: UserProfile;
+  draft: {
+    firstName: string;
+    lastName: string;
+    displayName: string;
+    organizationId: string;
+  };
+  setDraft: (v: typeof draft) => void;
+  tr: (k: StringKey) => string;
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  return (
+    <div>
+      <p className="mb-4 text-[13px] text-[var(--ink-muted)]">{tr('profileIdentity')}</p>
+      <Field label={tr('userId')} hint={tr('userIdHint')}>
+        <div className="flex gap-2">
+          <input
+            readOnly
+            value={profile.userId}
+            className={`${textInputClass()} font-mono text-[12px] opacity-90`}
+          />
+          <button
+            type="button"
+            onClick={onCopy}
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[var(--line)] px-3 text-[12px] font-medium text-[var(--ink)] hover:bg-[var(--panel)]"
+          >
+            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? tr('copied') : tr('copyId')}
+          </button>
+        </div>
+      </Field>
+      <div className="grid gap-0 sm:grid-cols-2 sm:gap-3">
+        <Field label={tr('firstName')}>
+          <input
+            value={draft.firstName}
+            onChange={(e) => setDraft({ ...draft, firstName: e.target.value })}
+            className={textInputClass()}
+          />
+        </Field>
+        <Field label={tr('lastName')}>
+          <input
+            value={draft.lastName}
+            onChange={(e) => setDraft({ ...draft, lastName: e.target.value })}
+            className={textInputClass()}
+          />
+        </Field>
+      </div>
+      <Field label={tr('displayName')}>
+        <input
+          value={draft.displayName}
+          onChange={(e) => setDraft({ ...draft, displayName: e.target.value })}
+          className={textInputClass()}
+        />
+      </Field>
+      <Field label={tr('organizationId')} hint={tr('organizationHint')}>
+        <input
+          value={draft.organizationId}
+          onChange={(e) => setDraft({ ...draft, organizationId: e.target.value })}
+          className={textInputClass()}
+          placeholder="AcmeOrg"
+        />
+      </Field>
+    </div>
+  );
+}
+
+function AppearanceTab({
+  draft,
+  setDraft,
+  tr,
+}: {
+  draft: AppearancePrefs;
+  setDraft: (v: AppearancePrefs) => void;
+  tr: (k: StringKey) => string;
+}) {
+  return (
+    <div>
+      <Field label={tr('accentColor')}>
+        <div className="flex flex-wrap items-center gap-2">
+          {ACCENTS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              title={c}
+              onClick={() => setDraft({ ...draft, accentColor: c })}
+              className={`h-8 w-8 rounded-full border-2 ${
+                draft.accentColor.toLowerCase() === c ? 'border-[var(--ink)]' : 'border-transparent'
+              }`}
+              style={{ background: c }}
+            />
+          ))}
+          <input
+            type="color"
+            value={draft.accentColor}
+            onChange={(e) => setDraft({ ...draft, accentColor: e.target.value })}
+            className="h-8 w-10 cursor-pointer rounded border border-[var(--line)] bg-transparent"
+          />
+        </div>
+      </Field>
+
+      <Field label={tr('theme')}>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ['light', tr('themeLight'), <Sun className="h-3.5 w-3.5" />],
+              ['dark', tr('themeDark'), <Moon className="h-3.5 w-3.5" />],
+              ['system', tr('themeSystem'), <Monitor className="h-3.5 w-3.5" />],
+            ] as const
+          ).map(([value, label, icon]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setDraft({ ...draft, theme: value })}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[12px] font-medium ${
+                draft.theme === value
+                  ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                  : 'border-[var(--line)] text-[var(--ink)] hover:bg-[var(--panel)]'
+              }`}
+            >
+              {icon}
+              {label}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <Field label={tr('language')}>
+        <div className="flex gap-2">
+          {(
+            [
+              ['en', 'English'],
+              ['es', 'Español'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setDraft({ ...draft, locale: value })}
+              className={`rounded-lg border px-3 py-2 text-[12px] font-medium ${
+                draft.locale === value
+                  ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                  : 'border-[var(--line)] text-[var(--ink)] hover:bg-[var(--panel)]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </Field>
+    </div>
+  );
+}
+
+function AppSettingsTab({
+  draft,
+  setDraft,
+  tr,
+}: {
+  draft: AppPrefs;
+  setDraft: (v: AppPrefs) => void;
+  tr: (k: StringKey) => string;
+}) {
+  const rows: Array<{ key: keyof AppPrefs; label: string }> = [
+    { key: 'autoAdvanceAfterQuiz', label: tr('autoAdvanceQuiz') },
+    { key: 'rememberLastCourse', label: tr('rememberLastCourse') },
+    { key: 'showSlideNumbers', label: tr('showSlideNumbers') },
+  ];
+
+  return (
+    <div>
+      <p className="mb-4 text-[13px] text-[var(--ink-muted)]">{tr('settingsComingSoon')}</p>
+      <div className="space-y-2">
+        {rows.map((row) => (
+          <label
+            key={row.key}
+            className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-3"
+          >
+            <input
+              type="checkbox"
+              checked={draft[row.key]}
+              onChange={(e) => setDraft({ ...draft, [row.key]: e.target.checked })}
+              className="h-4 w-4 accent-[var(--accent)]"
+            />
+            <span className="text-[13px] text-[var(--ink)]">{row.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}

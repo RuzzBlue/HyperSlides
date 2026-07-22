@@ -1,0 +1,108 @@
+@import 'tailwindcss';
+
+:root,
+html[data-theme='light'] {
+  --chrome: #e8eaed;
+  --chrome-top: #fbfbfc;
+  --chrome-deep: #d5d8de;
+  --panel: #f4f5f7;
+  --stage: #ffffff;
+  --ink: #1c1f26;
+  --ink-muted: #5c6570;
+  --line: #c9ced6;
+  --accent: #0e6e6a;
+  --accent-soft: #d7f0ee;
+  --accent-hot: #c45c26;
+  --quiz: #2f5aa8;
+  --lab: #6b4f9a;
+  --success: #1f7a4c;
+  --danger: #b42318;
+  --shadow: 0 12px 40px rgba(28, 31, 38, 0.12);
+  --home-grad-top: #f7f8fa;
+  --home-grad-bottom: #e9ebf0;
+  --font-ui: 'Outfit', system-ui, sans-serif;
+  --font-display: 'Source Serif 4', Georgia, serif;
+}
+
+html[data-theme='dark'] {
+  --chrome: #1a1d24;
+  --chrome-top: #22262f;
+  --chrome-deep: #2a2f3a;
+  --panel: #232832;
+  --stage: #161920;
+  --ink: #eef1f6;
+  --ink-muted: #9aa3b2;
+  --line: #343b49;
+  --accent-soft: rgba(62, 207, 191, 0.16);
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --home-grad-top: #1a1d24;
+  --home-grad-bottom: #12151b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background: var(--chrome);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--chrome-deep);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-stage {
+  animation: slide-in 0.35s ease-out;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.pulse-accent {
+  animation: pulse-ring 1.8s ease-out infinite;
+}

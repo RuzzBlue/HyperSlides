@@ -1,0 +1,81 @@
+{
+  "name": "hyperslide",
+  "private": true,
+  "version": "0.1.0",
+  "description": "HyperSlide — WebDeck Presenter for interactive HTML courses",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "concurrently -k \"vite --port 5173 --host\" \"wait-on http://127.0.0.1:5173 && electron .\"",
+    "dev:web": "concurrently -k \"tsx server/index.ts\" \"vite --port 5173 --host\"",
+    "dev:ui": "vite --port 5173 --host",
+    "dev:electron": "wait-on http://127.0.0.1:5173 && electron .",
+    "build": "tsc --noEmit && vite build",
+    "serve:full": "npm run build && tsx server/index.ts",
+    "serve": "tsx server/index.ts",
+    "electron:build": "npm run build && electron-builder",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "lucide-react": "^0.546.0",
+    "motion": "^12.23.24",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^5.0.4",
+    "concurrently": "^9.1.2",
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3",
+    "tailwindcss": "^4.1.14",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.3",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.hyperslide.app",
+    "productName": "HyperSlide",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "shared/**/*",
+      "courses/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist-electron"
+    },
+    "extraResources": [
+      {
+        "from": "courses",
+        "to": "courses"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable"
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

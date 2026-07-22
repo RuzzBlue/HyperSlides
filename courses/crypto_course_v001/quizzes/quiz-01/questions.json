@@ -1,0 +1,73 @@
+[
+  {
+    "id": "q1",
+    "type": "multiple_choice",
+    "prompt": "What does a private key allow you to do?",
+    "options": [
+      { "id": "a", "label": "Only view your public address history" },
+      { "id": "b", "label": "Authorize sending funds from your wallet" },
+      { "id": "c", "label": "Change the blockchain’s consensus rules" },
+      { "id": "d", "label": "Reset someone else’s seed phrase" }
+    ],
+    "correct": "b",
+    "explanation": "The private key (or seed) signs transactions — that’s how you prove ownership and send funds.",
+    "points": 1
+  },
+  {
+    "id": "q2",
+    "type": "true_false",
+    "prompt": "It is safe to share your public wallet address so others can send you crypto.",
+    "correct": true,
+    "explanation": "Addresses are meant to be shared. Never share your seed phrase or private key.",
+    "points": 1
+  },
+  {
+    "id": "q3",
+    "type": "multiple_select",
+    "prompt": "Which of these are good practices for a seed phrase? (Select all that apply)",
+    "options": [
+      { "id": "a", "label": "Write it down offline and store it securely" },
+      { "id": "b", "label": "Email it to yourself for convenience" },
+      { "id": "c", "label": "Never type it into random websites" },
+      { "id": "d", "label": "Photograph it and keep only the photo in iCloud" }
+    ],
+    "correct": ["a", "c"],
+    "explanation": "Offline backups and never entering the phrase into untrusted sites are core self-custody habits.",
+    "points": 2
+  },
+  {
+    "id": "q4",
+    "type": "short_answer",
+    "prompt": "Complete the saying: “Not your keys, not your ____.”",
+    "correct": ["coins", "crypto"],
+    "explanation": "Usually phrased “Not your keys, not your coins” — custody of keys equals custody of assets.",
+    "points": 1
+  },
+  {
+    "id": "q5",
+    "type": "multiple_choice",
+    "prompt": "A hot wallet is best described as:",
+    "options": [
+      { "id": "a", "label": "A wallet whose keys stay fully offline on a hardware device" },
+      { "id": "b", "label": "Software connected to the internet for everyday use" },
+      { "id": "c", "label": "A bank account that pays crypto interest" },
+      { "id": "d", "label": "A mining machine that creates new addresses" }
+    ],
+    "correct": "b",
+    "explanation": "Hot wallets are online software wallets — convenient, but more exposed than cold storage.",
+    "points": 1
+  },
+  {
+    "id": "q6",
+    "type": "poll",
+    "prompt": "Which topic do you want more of next?",
+    "options": [
+      { "id": "a", "label": "Hardware wallets & cold storage" },
+      { "id": "b", "label": "On-chain transactions & fees" },
+      { "id": "c", "label": "NFTs and on-chain identity" },
+      { "id": "d", "label": "DeFi basics" }
+    ],
+    "explanation": "Polls have no correct answer — thanks for the feedback!",
+    "points": 0
+  }
+]

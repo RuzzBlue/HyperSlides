@@ -1,0 +1,238 @@
+/** Shared API + course types for Electron and browser runtimes */
+
+export type ApiMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+export interface ApiRequest {
+  method: ApiMethod;
+  path: string;
+  body?: unknown;
+  params?: Record<string, string>;
+}
+
+export interface ApiResponse<T = unknown> {
+  ok: boolean;
+  status: number;
+  data?: T;
+  error?: string;
+}
+
+export type QuestionType =
+  | 'multiple_choice'
+  | 'multiple_select'
+  | 'true_false'
+  | 'short_answer'
+  | 'ordering'
+  | 'matching'
+  | 'fill_blank'
+  | 'poll';
+
+export interface QuizOption {
+  id: string;
+  label: string;
+}
+
+export interface QuizQuestion {
+  id: string;
+  type: QuestionType;
+  prompt: string;
+  options?: QuizOption[];
+  /** Correct answer(s) — omitted for polls */
+  correct?: string | string[] | boolean | Record<string, string>;
+  explanation?: string;
+  points?: number;
+}
+
+export interface QuizActivity {
+  id: string;
+  title: string;
+  description?: string;
+  passingScore?: number;
+  questionsFile: string;
+}
+
+export interface LabStep {
+  id: string;
+  title: string;
+  instructions: string;
+  expectedResult: string;
+}
+
+export interface LabRubric {
+  id: string;
+  labId: string;
+  title: string;
+  steps: LabStep[];
+}
+
+export interface LabActivity {
+  id: string;
+  title: string;
+  description?: string;
+  instructionsFile: string;
+  rubricFile: string;
+  estimatedMinutes?: number;
+}
+
+export interface CourseLessonRef {
+  id: string;
+  title: string;
+  file: string;
+  durationMinutes?: number;
+}
+
+export interface CourseUnit {
+  id: string;
+  title: string;
+  lessons: CourseLessonRef[];
+  quizAfter?: string | null;
+  labAfter?: string | null;
+}
+
+export interface CourseModule {
+  id: string;
+  title: string;
+  description?: string;
+  path: string;
+  units: CourseUnit[];
+  quizAfter?: string | null;
+  labAfter?: string | null;
+}
+
+export interface CourseManifest {
+  id: string;
+  title: string;
+  subtitle?: string;
+  version: string;
+  author?: string;
+  description?: string;
+  coverAccent?: string;
+  modules: CourseModule[];
+}
+
+export type SequenceItemType = 'lesson' | 'quiz' | 'lab';
+
+export interface SequenceItem {
+  key: string;
+  type: SequenceItemType;
+  title: string;
+  moduleId: string;
+  moduleTitle: string;
+  unitId?: string;
+  unitTitle?: string;
+  /** Relative path inside the course folder for lessons */
+  file?: string;
+  /** Quiz or lab id */
+  activityId?: string;
+  index: number;
+}
+
+export interface CourseSummary {
+  id: string;
+  title: string;
+  subtitle?: string;
+  version: string;
+  author?: string;
+  description?: string;
+  coverAccent?: string;
+  folder: string;
+  moduleCount: number;
+  lessonCount: number;
+  quizCount: number;
+  labCount: number;
+}
+
+export interface LoadedCourse {
+  summary: CourseSummary;
+  manifest: CourseManifest;
+  sequence: SequenceItem[];
+  rootPath: string;
+}
+
+export interface QuizPayload {
+  activity: QuizActivity;
+  questions: QuizQuestion[];
+}
+
+export interface LabPayload {
+  activity: LabActivity;
+  instructionsHtml: string;
+  rubric: LabRubric;
+}
+
+export interface LessonPayload {
+  html: string;
+  title: string;
+  file: string;
+}
+
+export interface QuizAnswerMap {
+  [questionId: string]: string | string[] | boolean | Record<string, string>;
+}
+
+export interface QuizGradeResult {
+  score: number;
+  maxScore: number;
+  percent: number;
+  passed: boolean;
+  results: Array<{
+    questionId: string;
+    correct: boolean;
+    pointsEarned: number;
+    pointsPossible: number;
+    explanation?: string;
+  }>;
+}
+
+export interface ProgressState {
+  courseId: string;
+  currentIndex: number;
+  completedKeys: string[];
+  quizScores: Record<string, { percent: number; passed: boolean; at: string }>;
+  labChecked: Record<string, string[]>;
+  updatedAt: string;
+}
+
+export type ThemeMode = 'light' | 'dark' | 'system';
+export type AppLocale = 'en' | 'es';
+
+export interface UserProfile {
+  /** Stable unique identity — generated once, never reused or changed */
+  userId: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  /** Optional org code — letters and numbers */
+  organizationId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AppearancePrefs {
+  accentColor: string;
+  theme: ThemeMode;
+  locale: AppLocale;
+}
+
+export interface AppPrefs {
+  autoAdvanceAfterQuiz: boolean;
+  rememberLastCourse: boolean;
+  showSlideNumbers: boolean;
+}
+
+export interface UserState {
+  profile: UserProfile;
+  appearance: AppearancePrefs;
+  settings: AppPrefs;
+}
+
+declare global {
+  interface Window {
+    hyperslide?: {
+      fetch: (req: ApiRequest) => Promise<ApiResponse>;
+      platform: string;
+      isElectron: true;
+    };
+  }
+}
+
+export {};

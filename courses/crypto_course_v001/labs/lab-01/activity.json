@@ -1,0 +1,8 @@
+{
+  "id": "lab-01",
+  "title": "Create your first hot wallet",
+  "description": "Install a wallet app, create a wallet with a secure backup, and verify you can receive funds. Self-check against the rubric — labs are not auto-graded.",
+  "instructionsFile": "instructions.html",
+  "rubricFile": "lab-01.json",
+  "estimatedMinutes": 25
+}
