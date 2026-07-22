@@ -57,6 +57,13 @@ const STEP_PRESETS: Record<string, { y: string; t: string; d: string }[]> = {
   ],
 };
 
+const yearBase =
+  'relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-black shadow-sm transition cursor-pointer';
+const yearIdle =
+  'border-slate-200 bg-white text-slate-700 hover:border-[var(--lesson-accent,#4f46e5)] hover:bg-[var(--lesson-accent,#4f46e5)] hover:text-white dark:border-slate-600 dark:bg-slate-950 dark:text-slate-200';
+const yearActive =
+  'border-[var(--lesson-accent,#4f46e5)] bg-[var(--lesson-accent,#4f46e5)] text-white shadow-md';
+
 export function DetailTimelineWidget({ preset }: { preset?: string }) {
   const events = DETAIL_TIMELINES[preset || 'blockchain'] || DETAIL_TIMELINES.blockchain;
   const [active, setActive] = useState(0);
@@ -64,48 +71,44 @@ export function DetailTimelineWidget({ preset }: { preset?: string }) {
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_1.1fr]">
-      <div className="relative space-y-0 pl-2">
-        <div className="absolute bottom-2 left-[19px] top-2 w-0.5 bg-gradient-to-b from-indigo-500 via-violet-400 to-emerald-400" />
-        {events.map((ev, i) => (
-          <button
-            key={ev.y}
-            type="button"
-            onClick={() => setActive(i)}
-            className={`relative mb-4 flex w-full cursor-pointer gap-4 text-left last:mb-0 ${
-              i === active ? 'opacity-100' : 'opacity-70 hover:opacity-100'
-            }`}
-          >
-            <div
-              className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-black shadow-sm ${
-                i === active
-                  ? 'border-indigo-500 bg-indigo-600 text-white'
-                  : 'border-indigo-200 bg-white text-indigo-700 dark:border-indigo-700 dark:bg-slate-900 dark:text-indigo-300'
-              }`}
+      <div className="relative pl-2">
+        {/* Line centered through the 40px year badges (left-2 + 20px = center) */}
+        <div
+          className="absolute left-[1.25rem] top-5 bottom-5 w-0.5 -translate-x-1/2 rounded-full bg-gradient-to-b from-[var(--lesson-accent,#6366f1)] via-violet-400 to-emerald-400"
+          aria-hidden
+        />
+        <div className="relative space-y-0">
+          {events.map((ev, i) => (
+            <button
+              key={ev.y}
+              type="button"
+              onClick={() => setActive(i)}
+              className="relative mb-4 flex w-full cursor-pointer gap-4 text-left last:mb-0"
             >
-              {ev.y}
-            </div>
-            <div
-              className={`min-w-0 flex-1 rounded-2xl border p-3 ${
-                i === active
-                  ? 'border-indigo-300 bg-indigo-50 shadow-md dark:border-indigo-600 dark:bg-indigo-950/40'
-                  : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
-              }`}
-            >
-              <div className="text-sm font-black text-slate-900 dark:text-white">{ev.t}</div>
-            </div>
-          </button>
-        ))}
+              <div className={`${yearBase} ${i === active ? yearActive : yearIdle}`}>{ev.y}</div>
+              <div
+                className={`min-w-0 flex-1 rounded-2xl border p-3 transition ${
+                  i === active
+                    ? 'border-[color-mix(in_srgb,var(--lesson-accent,#4f46e5)_40%,transparent)] bg-[color-mix(in_srgb,var(--lesson-accent,#4f46e5)_10%,white)] shadow-md dark:bg-[color-mix(in_srgb,var(--lesson-accent,#4f46e5)_18%,#0f172a)]'
+                    : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900'
+                }`}
+              >
+                <div className="text-sm font-black text-slate-900 dark:text-white">{ev.t}</div>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-white to-indigo-50/80 p-6 shadow-lg dark:border-indigo-900 dark:from-slate-900 dark:to-indigo-950/40">
-        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">
+      <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-lg dark:border-slate-800 dark:from-slate-900 dark:to-slate-950">
+        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--lesson-accent,#4f46e5)]">
           Historical timeline detail
         </span>
         <h3 className="mt-2 text-2xl font-black tracking-tight text-slate-900 dark:text-white">{e.t}</h3>
-        <p className="mt-1 text-sm font-semibold text-indigo-700 dark:text-indigo-300">{e.subtitle}</p>
+        <p className="mt-1 text-sm font-semibold text-[var(--lesson-accent,#4f46e5)]">{e.subtitle}</p>
         <p className="mt-4 text-sm leading-relaxed text-slate-700 dark:text-slate-300">{e.body}</p>
         {e.extra && (
-          <p className="mt-3 border-t border-indigo-100 pt-3 text-sm leading-relaxed text-slate-600 dark:border-indigo-900 dark:text-slate-400">
+          <p className="mt-3 border-t border-slate-100 pt-3 text-sm leading-relaxed text-slate-600 dark:border-slate-800 dark:text-slate-400">
             {e.extra}
           </p>
         )}
@@ -121,8 +124,12 @@ export function HorizontalTimelineWidget({ preset }: { preset?: string }) {
 
   return (
     <div className="space-y-5">
-      <div className="relative overflow-x-auto pb-2">
-        <div className="absolute left-4 right-4 top-5 h-0.5 bg-gradient-to-r from-indigo-500 via-violet-400 to-emerald-400" />
+      <div className="relative overflow-x-auto pt-3 pb-2">
+        {/* Line through vertical center of year circles (pt-3 + 20px) */}
+        <div
+          className="absolute left-6 right-6 top-[2.125rem] h-0.5 -translate-y-1/2 rounded-full bg-gradient-to-r from-[var(--lesson-accent,#6366f1)] via-violet-400 to-emerald-400"
+          aria-hidden
+        />
         <div className="relative flex min-w-max gap-2 px-2">
           {events.map((ev, i) => (
             <button
@@ -131,18 +138,12 @@ export function HorizontalTimelineWidget({ preset }: { preset?: string }) {
               onClick={() => setActive(i)}
               className="flex w-36 cursor-pointer flex-col items-center gap-2"
             >
+              <span className={`${yearBase} ${i === active ? yearActive : yearIdle}`}>{ev.y}</span>
               <span
-                className={`flex h-10 w-10 items-center justify-center rounded-full border-2 text-[10px] font-black ${
+                className={`text-center text-[11px] font-bold leading-tight transition ${
                   i === active
-                    ? 'border-indigo-500 bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-                    : 'border-white bg-slate-100 text-slate-600 ring-2 ring-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700'
-                }`}
-              >
-                {ev.y}
-              </span>
-              <span
-                className={`text-center text-[11px] font-bold leading-tight ${
-                  i === active ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-500'
+                    ? 'text-[var(--lesson-accent,#4f46e5)]'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
                 {ev.t}
@@ -152,11 +153,11 @@ export function HorizontalTimelineWidget({ preset }: { preset?: string }) {
         </div>
       </div>
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">
+        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--lesson-accent,#4f46e5)]">
           Timeline focus
         </span>
         <h4 className="mt-1 text-lg font-black text-slate-900 dark:text-white">{e.t}</h4>
-        <p className="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400">{e.subtitle}</p>
+        <p className="mt-1 text-xs font-semibold text-[var(--lesson-accent,#4f46e5)]">{e.subtitle}</p>
         <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{e.body}</p>
       </div>
     </div>
@@ -169,19 +170,22 @@ export function TimelineWidget({ preset }: { preset?: string }) {
   }
   const events = STEP_PRESETS[preset] || STEP_PRESETS['wallet-setup'];
   return (
-    <div className="relative space-y-0 pl-2">
-      <div className="absolute bottom-2 left-[19px] top-2 w-0.5 bg-gradient-to-b from-indigo-500 via-violet-400 to-emerald-400" />
-      {events.map((e) => (
-        <div key={`${e.y}-${e.t}`} className="relative flex gap-4 pb-6 last:pb-0">
-          <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-indigo-200 bg-white text-[10px] font-black text-indigo-700 shadow-sm dark:border-indigo-700 dark:bg-slate-900 dark:text-indigo-300">
-            {e.y}
+    <div className="relative pl-2">
+      <div
+        className="absolute left-[1.25rem] top-5 bottom-5 w-0.5 -translate-x-1/2 rounded-full bg-gradient-to-b from-[var(--lesson-accent,#6366f1)] via-violet-400 to-emerald-400"
+        aria-hidden
+      />
+      <div className="relative">
+        {events.map((e) => (
+          <div key={`${e.y}-${e.t}`} className="relative mb-6 flex gap-4 last:mb-0">
+            <div className={`${yearBase} ${yearIdle} pointer-events-none`}>{e.y}</div>
+            <div className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="text-sm font-black text-slate-900 dark:text-white">{e.t}</div>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-400">{e.d}</p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="text-sm font-black text-slate-900 dark:text-white">{e.t}</div>
-            <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-400">{e.d}</p>
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

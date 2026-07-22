@@ -13,6 +13,7 @@ import { MermaidWidget } from './Mermaid';
 import { PieChartWidget } from './PieChart';
 import { YTVideoWidget } from './YTVideo';
 import { CourseWidgetFrame } from './CourseWidget';
+import { RevealStepsWidget } from './RevealSteps';
 import { AssetDownloadWidget, AssetImageWidget, PdfEmbedWidget } from './AssetEmbeds';
 
 type PortalSpec = {
@@ -143,6 +144,9 @@ export function PortalsRenderer({
             break;
           case 'yt-video':
             node = <YTVideoWidget videoId={p.videoId} />;
+            break;
+          case 'reveal-steps':
+            node = <RevealStepsWidget preset={p.preset} />;
             break;
           case 'pdf-embed':
             node = (

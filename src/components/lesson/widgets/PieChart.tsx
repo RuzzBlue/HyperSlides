@@ -64,8 +64,12 @@ export function PieChartWidget() {
           },
         ],
       },
-      options: {
+        options: {
         maintainAspectRatio: true,
+        onHover: (event, elements) => {
+          const canvas = event.native?.target as HTMLCanvasElement | undefined;
+          if (canvas) canvas.style.cursor = elements.length ? 'pointer' : 'default';
+        },
         plugins: {
           legend: {
             display: true,
@@ -120,8 +124,8 @@ export function PieChartWidget() {
   return (
     <ExpandableShell title="Illustrative distribution model" bodyClassName="p-5">
       <div className="grid gap-5 md:grid-cols-2">
-        <div className="mx-auto w-full max-w-[280px]">
-          <canvas ref={canvasRef} />
+        <div className="mx-auto w-full max-w-[280px] cursor-pointer">
+          <canvas ref={canvasRef} className="cursor-pointer" />
         </div>
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
           <span className="text-[10px] font-black uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-400">

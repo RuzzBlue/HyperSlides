@@ -1,5 +1,5 @@
-import { Download, FileText, ImageIcon } from 'lucide-react';
-import { ExpandableShell } from '../ExpandableShell';
+import { Download, FileText } from 'lucide-react';
+import { ExpandableShell, PanZoomSurface } from '../ExpandableShell';
 
 function assetUrl(courseFolder: string, rel: string) {
   const clean = rel.replace(/^\/+/, '');
@@ -43,22 +43,26 @@ export function AssetImageWidget({
   const path = src || 'assets/images/transferencia 1 junio.svg';
   const url = assetUrl(courseFolder, path);
   return (
-    <ExpandableShell title={title || 'Course image'} bodyClassName="bg-slate-50 p-4 dark:bg-slate-950">
-      <div className="flex flex-col items-center gap-3">
-        <div className="flex w-full items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+    <ExpandableShell
+      title={title || 'Course image'}
+      bodyClassName="h-[300px] bg-slate-50 dark:bg-slate-950"
+      expandedBodyClassName="min-h-0 flex-1 bg-slate-50 dark:bg-slate-950"
+    >
+      <PanZoomSurface className="h-full min-h-[280px]">
+        <div className="flex flex-col items-center gap-3 p-2">
           <img
             src={url}
             alt={caption || title || 'Asset'}
-            className="max-h-[320px] w-full object-contain"
+            className="max-h-[60vh] max-w-full object-contain"
+            draggable={false}
           />
+          {caption && (
+            <p className="rounded-md bg-black/55 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
+              {caption}
+            </p>
+          )}
         </div>
-        {caption && (
-          <p className="flex items-center gap-2 text-xs text-slate-500">
-            <ImageIcon className="h-3.5 w-3.5" />
-            {caption}
-          </p>
-        )}
-      </div>
+      </PanZoomSurface>
     </ExpandableShell>
   );
 }
@@ -77,27 +81,36 @@ export function AssetDownloadWidget({
   const name = path.split('/').pop() || 'download.txt';
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-indigo-50/50 p-5 shadow-sm dark:border-slate-800 dark:from-slate-900 dark:to-indigo-950/30">
+    <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-[color-mix(in_srgb,var(--lesson-accent,#4f46e5)_8%,white)] p-5 shadow-sm dark:border-slate-800 dark:from-slate-900 dark:to-slate-950">
       <div className="flex flex-wrap items-center gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/25">
+        <div
+          className="flex h-12 w-12 items-center justify-center rounded-xl text-white shadow-lg"
+          style={{ backgroundColor: 'var(--lesson-accent, #0e6e6a)' }}
+        >
           <FileText className="h-6 w-6" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-400">
+          <div
+            className="text-[10px] font-black uppercase tracking-[0.16em]"
+            style={{ color: 'var(--lesson-accent, #0e6e6a)' }}
+          >
             Downloadable resource
           </div>
           <div className="truncate text-sm font-bold text-slate-900 dark:text-white">
             {label || name}
           </div>
-          <p className="text-xs text-slate-500">Example of linking course assets for offline review.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Example of linking course assets for offline review.
+          </p>
         </div>
         <a
           href={url}
           download={name}
-          className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-indigo-500 hover:shadow-lg"
+          className="inline-flex cursor-pointer items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:brightness-110 hover:shadow-lg"
+          style={{ backgroundColor: 'var(--lesson-accent, #0e6e6a)', color: '#ffffff' }}
         >
-          <Download className="h-4 w-4" />
-          Download .txt
+          <Download className="h-4 w-4 text-white" />
+          <span className="text-white">Download .txt</span>
         </a>
       </div>
     </div>

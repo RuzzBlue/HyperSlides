@@ -54,7 +54,7 @@ export function ExpandableShell({
         title={expanded ? 'Exit expand' : 'Expand'}
       >
         {expanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-        {expanded ? 'Close' : 'Expand'}
+        <span className="text-[var(--lesson-accent,#0e6e6a)]">{expanded ? 'Close' : 'Expand'}</span>
       </button>
     </div>
   );

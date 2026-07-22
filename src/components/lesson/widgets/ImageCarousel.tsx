@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { ExpandableShell } from '../ExpandableShell';
+import { ExpandableShell, PanZoomSurface } from '../ExpandableShell';
 
 const SLIDES = [
   {
@@ -22,23 +22,39 @@ export function ImageCarouselWidget() {
   const slide = SLIDES[i];
 
   return (
-    <ExpandableShell title="Visual walkthrough" bodyClassName="relative">
-      <div className="relative aspect-[16/9] bg-slate-950">
-        <img src={slide.src} alt={slide.caption} className="h-full w-full object-cover" loading="lazy" />
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-          <p className="text-sm font-medium text-white">{slide.caption}</p>
+    <ExpandableShell
+      title="Visual walkthrough"
+      bodyClassName="relative h-[280px]"
+      expandedBodyClassName="min-h-0 flex-1"
+    >
+      <PanZoomSurface className="h-full min-h-[280px] bg-slate-950">
+        <div className="relative w-full max-w-4xl">
+          <img
+            src={slide.src}
+            alt={slide.caption}
+            className="max-h-[70vh] w-full rounded-lg object-contain"
+            loading="lazy"
+            draggable={false}
+          />
+          <div className="pointer-events-none absolute inset-x-4 bottom-4 flex justify-center">
+            <p className="max-w-xl rounded-lg bg-black/65 px-4 py-2 text-center text-sm font-medium text-white shadow-lg backdrop-blur-sm">
+              {slide.caption}
+            </p>
+          </div>
         </div>
+      </PanZoomSurface>
+      <div className="absolute bottom-3 left-3 z-20 flex gap-2">
         <button
           type="button"
           onClick={() => setI((v) => (v - 1 + SLIDES.length) % SLIDES.length)}
-          className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white backdrop-blur"
+          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black/55 text-white backdrop-blur hover:bg-black/70"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
         <button
           type="button"
           onClick={() => setI((v) => (v + 1) % SLIDES.length)}
-          className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white backdrop-blur"
+          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black/55 text-white backdrop-blur hover:bg-black/70"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
