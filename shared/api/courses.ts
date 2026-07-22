@@ -379,6 +379,21 @@ export function writeProgress(
   return next;
 }
 
+/** Temporary testing helper — deletes all course progress JSON files under data/progress/. */
+export function resetAllCourseProgress(appRoot: string): { cleared: number; files: string[] } {
+  const dir = path.join(getDataRoot(appRoot), 'progress');
+  if (!fs.existsSync(dir)) {
+    return { cleared: 0, files: [] };
+  }
+  const files = fs
+    .readdirSync(dir)
+    .filter((name) => name.endsWith('.json'));
+  for (const name of files) {
+    fs.unlinkSync(path.join(dir, name));
+  }
+  return { cleared: files.length, files };
+}
+
 export function resolveCourseAsset(
   appRoot: string,
   courseId: string,

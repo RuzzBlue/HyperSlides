@@ -6,11 +6,13 @@ import {
   Monitor,
   Moon,
   Palette,
+  RotateCcw,
   Settings as SettingsIcon,
   Sun,
   UserRound,
   X,
 } from 'lucide-react';
+import { apiFetch } from '../api/client';
 import type { AppearancePrefs, AppPrefs, UserProfile } from '@shared/types';
 import { usePrefs } from '../prefs/PrefsProvider';
 import type { StringKey } from '../i18n/strings';
@@ -23,10 +25,13 @@ export function SettingsModal({
   open,
   onClose,
   initialTab = 'profile',
+  onProgressReset,
 }: {
   open: boolean;
   onClose: () => void;
   initialTab?: TabId;
+  /** Called after all course progress files are wiped (testing helper). */
+  onProgressReset?: () => void;
 }) {
   const { profile, appearance, settings, tr, save } = usePrefs();
   const [tab, setTab] = useState<TabId>(initialTab);
@@ -220,7 +225,14 @@ export function SettingsModal({
                   <AppearanceTab draft={draftAppearance} setDraft={setDraftAppearance} tr={tr} />
                 )}
                 {tab === 'settings' && (
-                  <AppSettingsTab draft={draftSettings} setDraft={setDraftSettings} tr={tr} />
+                  <AppSettingsTab
+                    draft={draftSettings}
+                    setDraft={setDraftSettings}
+                    tr={tr}
+                    onStatus={setStatus}
+                    onError={setError}
+                    onProgressReset={onProgressReset}
+                  />
                 )}
               </div>
 
@@ -475,16 +487,42 @@ function AppSettingsTab({
   draft,
   setDraft,
   tr,
+  onStatus,
+  onError,
+  onProgressReset,
 }: {
   draft: AppPrefs;
   setDraft: (v: AppPrefs) => void;
   tr: (k: StringKey) => string;
+  onStatus: (msg: string | null) => void;
+  onError: (msg: string | null) => void;
+  onProgressReset?: () => void;
 }) {
+  const [resetting, setResetting] = useState(false);
+
   const rows: Array<{ key: keyof AppPrefs; label: string }> = [
     { key: 'autoAdvanceAfterQuiz', label: tr('autoAdvanceQuiz') },
     { key: 'rememberLastCourse', label: tr('rememberLastCourse') },
     { key: 'showSlideNumbers', label: tr('showSlideNumbers') },
   ];
+
+  const wipeProgress = async () => {
+    if (!window.confirm(tr('resetProgressConfirm'))) return;
+    setResetting(true);
+    onError(null);
+    const res = await apiFetch<{ cleared: number }>({
+      method: 'POST',
+      path: '/api/progress/reset',
+    });
+    setResetting(false);
+    if (!res.ok) {
+      onError(res.error ?? 'Could not reset progress');
+      return;
+    }
+    onStatus(tr('resetProgressDone'));
+    onProgressReset?.();
+    setTimeout(() => onStatus(null), 2000);
+  };
 
   return (
     <div>
@@ -504,6 +542,24 @@ function AppSettingsTab({
             <span className="text-[13px] text-[var(--ink)]">{row.label}</span>
           </label>
         ))}
+      </div>
+
+      <div className="mt-6 rounded-xl border border-rose-200/80 bg-rose-50/60 p-4 dark:border-rose-900/50 dark:bg-rose-950/30">
+        <div className="text-[13px] font-semibold text-rose-800 dark:text-rose-200">
+          {tr('resetProgressTitle')}
+        </div>
+        <p className="mt-1 text-[12px] leading-relaxed text-rose-700/90 dark:text-rose-300/90">
+          {tr('resetProgressHint')}
+        </p>
+        <button
+          type="button"
+          disabled={resetting}
+          onClick={() => void wipeProgress()}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-rose-300 bg-white px-3 py-2 text-[12px] font-semibold text-rose-700 shadow-sm hover:bg-rose-50 disabled:opacity-50 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200 dark:hover:bg-rose-900"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          {resetting ? '…' : tr('resetProgressButton')}
+        </button>
       </div>
     </div>
   );

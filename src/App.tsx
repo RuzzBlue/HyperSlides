@@ -48,6 +48,20 @@ export default function App() {
     setSettingsOpen(true);
   };
 
+  const handleProgressReset = useCallback(async () => {
+    setQuizResult(null);
+    setIndex(0);
+    if (!course) {
+      setProgress(null);
+      return;
+    }
+    const prog = await apiFetch<ProgressState>({
+      method: 'GET',
+      path: `/api/courses/${course.summary.id}/progress`,
+    });
+    setProgress(prog.data ?? null);
+  }, [course]);
+
   const current: SequenceItem | null = course?.sequence[index] ?? null;
 
   const loadCourses = useCallback(async () => {
@@ -260,6 +274,7 @@ export default function App() {
           open={settingsOpen}
           onClose={() => setSettingsOpen(false)}
           initialTab={settingsTab}
+          onProgressReset={() => void handleProgressReset()}
         />
       </AppShell>
     );
@@ -385,6 +400,7 @@ export default function App() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         initialTab={settingsTab}
+        onProgressReset={() => void handleProgressReset()}
       />
     </AppShell>
   );

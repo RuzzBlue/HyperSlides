@@ -7,6 +7,7 @@ import {
   loadLesson,
   loadQuiz,
   readProgress,
+  resetAllCourseProgress,
   resolveCourseAsset,
   writeProgress,
 } from './courses.ts';
@@ -140,6 +141,11 @@ export async function handleApiRequest(
     if (method === 'PUT' && segments[0] === 'courses' && segments[2] === 'progress') {
       const next = writeProgress(ctx.appRoot, segments[1], (body ?? {}) as object);
       return { ok: true, status: 200, data: next };
+    }
+
+    if (method === 'POST' && segments[0] === 'progress' && segments[1] === 'reset') {
+      const result = resetAllCourseProgress(ctx.appRoot);
+      return { ok: true, status: 200, data: result };
     }
 
     if (method === 'GET' && segments[0] === 'courses' && segments[2] === 'asset') {

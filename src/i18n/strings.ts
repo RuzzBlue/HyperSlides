@@ -42,6 +42,13 @@ const en = {
   rememberLastCourse: 'Remember last opened course',
   showSlideNumbers: 'Show slide numbers in navigator',
   settingsComingSoon: 'More app preferences will land here as HyperClass grows.',
+  resetProgressTitle: 'Reset course progress (testing)',
+  resetProgressHint:
+    'Wipes quiz scores, lab checks, and slide completion for every course on this device. Profile and appearance stay. Temporary testing tool.',
+  resetProgressButton: 'Wipe all course progress',
+  resetProgressConfirm:
+    'Delete all course progress? This cannot be undone. You will look like a first-time learner.',
+  resetProgressDone: 'Course progress wiped',
   present: 'Present',
   navigator: 'Navigator',
   slides: 'slides',
@@ -111,6 +118,13 @@ const es: Record<keyof typeof en, string> = {
   rememberLastCourse: 'Recordar el último curso abierto',
   showSlideNumbers: 'Mostrar números de diapositiva en el navegador',
   settingsComingSoon: 'Más preferencias de la app llegarán aquí a medida que HyperClass crezca.',
+  resetProgressTitle: 'Restablecer progreso del curso (pruebas)',
+  resetProgressHint:
+    'Borra puntuaciones, checks de labs y diapositivas completadas de todos los cursos en este dispositivo. El perfil y la apariencia se mantienen. Herramienta temporal de pruebas.',
+  resetProgressButton: 'Borrar todo el progreso',
+  resetProgressConfirm:
+    '¿Borrar todo el progreso de los cursos? No se puede deshacer. Quedarás como un alumno nuevo.',
+  resetProgressDone: 'Progreso de cursos borrado',
   present: 'Presentar',
   navigator: 'Navegador',
   slides: 'diapositivas',
