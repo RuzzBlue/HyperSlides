@@ -95,9 +95,9 @@ export function Toolbar({
           <span
             className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
               current?.type === 'quiz'
-                ? 'bg-[#e8eef8] text-[var(--quiz)]'
+                ? 'bg-[var(--quiz-soft)] text-[var(--quiz)]'
                 : current?.type === 'lab'
-                  ? 'bg-[#f0eaf7] text-[var(--lab)]'
+                  ? 'bg-[var(--lab-soft)] text-[var(--lab)]'
                   : 'bg-[var(--accent-soft)] text-[var(--accent)]'
             }`}
           >

@@ -22,6 +22,7 @@ const DEFAULT_SETTINGS: AppPrefs = {
   useCourseSettings: true,
   contentZoom: '100',
   presenterMenu: 'fixed-footer',
+  navigatorSidebarWidth: 260,
 };
 
 function ensureDir(dir: string) {

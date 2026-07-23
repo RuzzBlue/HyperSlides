@@ -16,52 +16,68 @@
         {
           "id": "unit-01",
           "title": "What is Cryptocurrency?",
-          "lessons": [
+          "items": [
             {
+              "type": "lesson",
               "id": "lesson-01",
               "title": "Welcome to Crypto",
               "file": "lesson-01.html",
               "durationMinutes": 3
             },
             {
+              "type": "quiz",
+              "id": "quiz-01",
+              "title": "Quiz · Foundations check"
+            },
+            {
+              "type": "lesson",
               "id": "lesson-02",
               "title": "Keys, Addresses & Ownership",
               "file": "lesson-02.html",
               "durationMinutes": 4
             },
             {
+              "type": "lesson",
               "id": "lesson-03",
               "title": "Hot Wallets vs Cold Storage",
               "file": "lesson-03.html",
               "durationMinutes": 4
             }
-          ],
-          "quizAfter": "quiz-01",
-          "labAfter": null
+          ]
         },
         {
           "id": "unit-02",
           "title": "How Blockchains Work",
-          "lessons": [
+          "items": [
             {
+              "type": "lesson",
               "id": "lesson-01",
               "title": "The Shared Ledger",
               "file": "lesson-01.html",
               "durationMinutes": 5
             },
             {
+              "type": "lesson",
               "id": "lesson-02",
               "title": "Transactions, Blocks & Confirmation",
               "file": "lesson-02.html",
               "durationMinutes": 5
+            },
+            {
+              "type": "quiz",
+              "id": "quiz-04",
+              "title": "Quiz · Practice priorities poll"
             }
-          ],
-          "quizAfter": "quiz-04",
-          "labAfter": null
+          ]
         }
       ],
-      "quizAfter": null,
-      "labAfter": "lab-01"
+      "items": [
+        {
+          "type": "lab",
+          "id": "lab-01",
+          "title": "Lab · Create your first hot wallet"
+        }
+      ]
     },
     {
       "id": "module-02",
@@ -72,52 +88,66 @@
         {
           "id": "unit-01",
           "title": "Threats & Hygiene",
-          "lessons": [
+          "items": [
             {
+              "type": "lesson",
               "id": "lesson-01",
               "title": "Spotting Crypto Scams",
               "file": "lesson-01.html",
               "durationMinutes": 5
             },
             {
+              "type": "lab",
+              "id": "lab-02",
+              "title": "Lab · Send a test transaction"
+            },
+            {
+              "type": "lesson",
               "id": "lesson-02",
               "title": "Your Personal Security Routine",
               "file": "lesson-02.html",
               "durationMinutes": 4
+            },
+            {
+              "type": "quiz",
+              "id": "quiz-02",
+              "title": "Quiz · Security & hygiene check"
             }
-          ],
-          "quizAfter": "quiz-02",
-          "labAfter": null
+          ]
         },
         {
           "id": "unit-02",
           "title": "Your First Wallet Journey",
-          "lessons": [
+          "items": [
             {
+              "type": "lesson",
               "id": "lesson-01",
               "title": "Prepare a Wallet Safely",
               "file": "lesson-01.html",
               "durationMinutes": 5
             },
             {
+              "type": "quiz",
+              "id": "quiz-03",
+              "title": "Quiz · Wallet journey reflection"
+            },
+            {
+              "type": "lesson",
               "id": "lesson-02",
               "title": "Make a Test Transaction",
               "file": "lesson-02.html",
               "durationMinutes": 5
             },
             {
+              "type": "lesson",
               "id": "lesson-03",
               "title": "Course assets in lessons",
               "file": "lesson-03.html",
               "durationMinutes": 4
             }
-          ],
-          "quizAfter": "quiz-03",
-          "labAfter": null
+          ]
         }
-      ],
-      "quizAfter": null,
-      "labAfter": "lab-02"
+      ]
     }
   ]
 }

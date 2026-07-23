@@ -18,7 +18,11 @@ import { LessonView } from './components/LessonView';
 import { PresenterChrome } from './components/PresenterChrome';
 import { QuizView } from './components/QuizView';
 import { SettingsModal } from './components/SettingsModal';
-import { SlideSidebar } from './components/SlideSidebar';
+import {
+  clampNavigatorSidebarWidth,
+  NAVIGATOR_SIDEBAR_DEFAULT_WIDTH,
+  SlideSidebar,
+} from './components/SlideSidebar';
 import { StatusBar } from './components/StatusBar';
 import { TitleBar } from './components/TitleBar';
 import { Toolbar } from './components/Toolbar';
@@ -42,6 +46,7 @@ export default function App() {
   const [quizResult, setQuizResult] = useState<QuizGradeResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(NAVIGATOR_SIDEBAR_DEFAULT_WIDTH);
   const [fullscreenStage, setFullscreenStage] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('appearance');
@@ -56,6 +61,10 @@ export default function App() {
     if (settings.contentZoom) setContentZoomState(settings.contentZoom);
   }, [settings.contentZoom]);
 
+  useEffect(() => {
+    setSidebarWidth(clampNavigatorSidebarWidth(settings.navigatorSidebarWidth ?? NAVIGATOR_SIDEBAR_DEFAULT_WIDTH));
+  }, [settings.navigatorSidebarWidth]);
+
   const setContentZoom = useCallback(
     (zoom: ContentZoomPreset) => {
       setContentZoomState(zoom);
@@ -63,6 +72,21 @@ export default function App() {
     },
     [save],
   );
+
+  const commitSidebarWidth = useCallback(
+    (width: number) => {
+      const next = clampNavigatorSidebarWidth(width);
+      setSidebarWidth(next);
+      void save({ settings: { navigatorSidebarWidth: next } });
+    },
+    [save],
+  );
+
+  const resetSidebarWidth = useCallback(() => {
+    setSidebarWidth(NAVIGATOR_SIDEBAR_DEFAULT_WIDTH);
+    setSidebarOpen(true);
+    void save({ settings: { navigatorSidebarWidth: NAVIGATOR_SIDEBAR_DEFAULT_WIDTH } });
+  }, [save]);
 
   const exitPresent = useCallback(() => {
     setFullscreenStage(false);
@@ -333,6 +357,9 @@ export default function App() {
           mode="course"
           onOpenSettings={() => openSettings('appearance')}
           onOpenProfile={() => openSettings('profile')}
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={() => setSidebarOpen((v) => !v)}
+          onResetSidebar={resetSidebarWidth}
         />
       )}
       {!fullscreenStage && (
@@ -362,6 +389,9 @@ export default function App() {
             progress={progress}
             onSelect={goTo}
             showSlideNumbers={settings.showSlideNumbers}
+            width={sidebarWidth}
+            onWidthChange={setSidebarWidth}
+            onWidthCommit={commitSidebarWidth}
           />
         )}
 

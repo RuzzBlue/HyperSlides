@@ -2,9 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type {
   CourseManifest,
+  CourseModule,
   CoursePackageManifest,
+  CourseSequenceEntry,
   CourseSummary,
   CourseTheme,
+  CourseUnit,
   LabActivity,
   LabPayload,
   LabRubric,
@@ -82,82 +85,146 @@ export function listCourses(appRoot: string): CourseSummary[] {
         labCount,
         modifiedAt,
       });
-    } catch {
-      // skip invalid course folders
+    } catch (err) {
+      console.error(`[courses] Skipping "${folder}":`, err);
     }
   }
 
   return summaries;
 }
 
+function pushSequenceEntries(
+  entries: CourseSequenceEntry[],
+  ctx: {
+    mod: { id: string; title: string; path: string };
+    unit?: { id: string; title: string };
+    items: SequenceItem[];
+    nextIndex: () => number;
+  },
+) {
+  for (const entry of entries) {
+    if (entry.type === 'lesson') {
+      ctx.items.push({
+        key: ctx.unit
+          ? `${ctx.mod.id}/${ctx.unit.id}/${entry.id}`
+          : `${ctx.mod.id}/${entry.id}`,
+        type: 'lesson',
+        title: entry.title,
+        moduleId: ctx.mod.id,
+        moduleTitle: ctx.mod.title,
+        unitId: ctx.unit?.id,
+        unitTitle: ctx.unit?.title,
+        file: path.posix
+          .join(ctx.mod.path, ...(ctx.unit ? [ctx.unit.id, entry.file] : [entry.file]))
+          .replace(/\\/g, '/'),
+        index: ctx.nextIndex(),
+      });
+      continue;
+    }
+
+    if (entry.type === 'quiz') {
+      ctx.items.push({
+        key: `quiz:${entry.id}`,
+        type: 'quiz',
+        title: entry.title,
+        moduleId: ctx.mod.id,
+        moduleTitle: ctx.mod.title,
+        unitId: ctx.unit?.id,
+        unitTitle: ctx.unit?.title,
+        activityId: entry.id,
+        index: ctx.nextIndex(),
+      });
+      continue;
+    }
+
+    ctx.items.push({
+      key: `lab:${entry.id}`,
+      type: 'lab',
+      title: entry.title,
+      moduleId: ctx.mod.id,
+      moduleTitle: ctx.mod.title,
+      unitId: ctx.unit?.id,
+      unitTitle: ctx.unit?.title,
+      activityId: entry.id,
+      index: ctx.nextIndex(),
+    });
+  }
+}
+
+/**
+ * Expand a unit into ordered sequence entries.
+ * Prefer `unit.items`; fall back to legacy lessons + quizAfter/labAfter.
+ */
+function unitEntries(unit: CourseUnit): CourseSequenceEntry[] {
+  if (unit.items && unit.items.length > 0) return unit.items;
+
+  const legacy: CourseSequenceEntry[] = [];
+  for (const lesson of unit.lessons ?? []) {
+    legacy.push({
+      type: 'lesson',
+      id: lesson.id,
+      title: lesson.title,
+      file: lesson.file,
+      durationMinutes: lesson.durationMinutes,
+    });
+  }
+  if (unit.quizAfter) {
+    legacy.push({
+      type: 'quiz',
+      id: unit.quizAfter,
+      title: `Quiz · ${unit.title}`,
+    });
+  }
+  if (unit.labAfter) {
+    legacy.push({
+      type: 'lab',
+      id: unit.labAfter,
+      title: `Lab · ${unit.title}`,
+    });
+  }
+  return legacy;
+}
+
+function moduleTrailingEntries(mod: CourseModule): CourseSequenceEntry[] {
+  if (mod.items && mod.items.length > 0) return mod.items;
+
+  const legacy: CourseSequenceEntry[] = [];
+  if (mod.quizAfter) {
+    legacy.push({
+      type: 'quiz',
+      id: mod.quizAfter,
+      title: `Module Quiz · ${mod.title}`,
+    });
+  }
+  if (mod.labAfter) {
+    legacy.push({
+      type: 'lab',
+      id: mod.labAfter,
+      title: `Module Lab · ${mod.title}`,
+    });
+  }
+  return legacy;
+}
+
 export function buildSequence(manifest: CourseManifest): SequenceItem[] {
   const items: SequenceItem[] = [];
   let index = 0;
+  const nextIndex = () => index++;
 
   for (const mod of manifest.modules) {
     for (const unit of mod.units) {
-      for (const lesson of unit.lessons) {
-        items.push({
-          key: `${mod.id}/${unit.id}/${lesson.id}`,
-          type: 'lesson',
-          title: lesson.title,
-          moduleId: mod.id,
-          moduleTitle: mod.title,
-          unitId: unit.id,
-          unitTitle: unit.title,
-          file: path.posix.join(mod.path, unit.id, lesson.file).replace(/\\/g, '/'),
-          index: index++,
-        });
-      }
-      if (unit.quizAfter) {
-        items.push({
-          key: `quiz:${unit.quizAfter}`,
-          type: 'quiz',
-          title: `Quiz · ${unit.title}`,
-          moduleId: mod.id,
-          moduleTitle: mod.title,
-          unitId: unit.id,
-          unitTitle: unit.title,
-          activityId: unit.quizAfter,
-          index: index++,
-        });
-      }
-      if (unit.labAfter) {
-        items.push({
-          key: `lab:${unit.labAfter}`,
-          type: 'lab',
-          title: `Lab · ${unit.title}`,
-          moduleId: mod.id,
-          moduleTitle: mod.title,
-          unitId: unit.id,
-          unitTitle: unit.title,
-          activityId: unit.labAfter,
-          index: index++,
-        });
-      }
-    }
-    if (mod.quizAfter) {
-      items.push({
-        key: `quiz:${mod.quizAfter}`,
-        type: 'quiz',
-        title: `Module Quiz · ${mod.title}`,
-        moduleId: mod.id,
-        moduleTitle: mod.title,
-        activityId: mod.quizAfter,
-        index: index++,
+      pushSequenceEntries(unitEntries(unit), {
+        mod,
+        unit,
+        items,
+        nextIndex,
       });
     }
-    if (mod.labAfter) {
-      items.push({
-        key: `lab:${mod.labAfter}`,
-        type: 'lab',
-        title: `Module Lab · ${mod.title}`,
-        moduleId: mod.id,
-        moduleTitle: mod.title,
-        activityId: mod.labAfter,
-        index: index++,
-      });
-    }
+    pushSequenceEntries(moduleTrailingEntries(mod), {
+      mod,
+      items,
+      nextIndex,
+    });
   }
 
   return items;

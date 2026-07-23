@@ -145,13 +145,16 @@ export function StageZoomFrame({
   }, [isFit, children]);
 
   const scale = Math.max(0.1, presetScale);
+  // Inner lesson/quiz/lab already scroll. Only allow outer scroll when zoomed in
+  // (CSS zoom expands layout). Avoid scrollbar-gutter — it left a permanent empty strip.
+  const needsOuterScroll = !isFullWidth && scale > 1.001;
 
   return (
     <div
       ref={viewportRef}
-      className={`stage-zoom-viewport h-full w-full overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable] ${
-        isFullWidth ? 'stage-zoom-full-width' : ''
-      }`}
+      className={`stage-zoom-viewport h-full w-full overflow-x-hidden ${
+        needsOuterScroll ? 'overflow-y-auto' : 'overflow-y-hidden'
+      } ${isFullWidth ? 'stage-zoom-full-width' : ''}`}
     >
       <div
         ref={scalerRef}

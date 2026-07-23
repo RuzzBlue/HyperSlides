@@ -148,11 +148,44 @@ export interface CourseLessonRef {
   durationMinutes?: number;
 }
 
+/** Lesson in an ordered unit/module `items` list (course.json). */
+export interface CourseLessonEntry {
+  type: 'lesson';
+  id: string;
+  title: string;
+  file: string;
+  durationMinutes?: number;
+}
+
+/** Quiz display slot — `title` is the navigator/toolbar name (edit in course.json). */
+export interface CourseQuizEntry {
+  type: 'quiz';
+  id: string;
+  title: string;
+}
+
+/** Lab display slot — `title` is the navigator/toolbar name (edit in course.json). */
+export interface CourseLabEntry {
+  type: 'lab';
+  id: string;
+  title: string;
+}
+
+export type CourseSequenceEntry = CourseLessonEntry | CourseQuizEntry | CourseLabEntry;
+
 export interface CourseUnit {
   id: string;
   title: string;
-  lessons: CourseLessonRef[];
+  /**
+   * Preferred: ordered mix of lessons, quizzes, and labs.
+   * Place a quiz/lab anywhere in the list (e.g. after the first lesson).
+   */
+  items?: CourseSequenceEntry[];
+  /** @deprecated Prefer `items`. Still supported by buildSequence. */
+  lessons?: CourseLessonRef[];
+  /** @deprecated Prefer a quiz entry inside `items`. */
   quizAfter?: string | null;
+  /** @deprecated Prefer a lab entry inside `items`. */
   labAfter?: string | null;
 }
 
@@ -162,7 +195,11 @@ export interface CourseModule {
   description?: string;
   path: string;
   units: CourseUnit[];
+  /** Module-level items after all units (preferred). */
+  items?: CourseSequenceEntry[];
+  /** @deprecated Prefer module `items`. */
   quizAfter?: string | null;
+  /** @deprecated Prefer module `items`. */
   labAfter?: string | null;
 }
 
@@ -367,6 +404,8 @@ export interface AppPrefs {
   contentZoom: ContentZoomPreset;
   /** Where the presenter chrome appears while presenting. */
   presenterMenu: PresenterMenuMode;
+  /** Course navigator sidebar width in px (capped at default; drag to shrink). */
+  navigatorSidebarWidth: number;
 }
 
 export interface UserState {

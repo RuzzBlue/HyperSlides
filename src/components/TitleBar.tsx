@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Home, Hexagon, Settings, UserRound } from 'lucide-react';
 import { usePrefs } from '../prefs/PrefsProvider';
 
@@ -7,6 +8,9 @@ export function TitleBar({
   mode = 'library',
   onOpenSettings,
   onOpenProfile,
+  sidebarOpen,
+  onToggleSidebar,
+  onResetSidebar,
 }: {
   courseTitle?: string;
   onHome: () => void;
@@ -14,8 +18,24 @@ export function TitleBar({
   mode?: 'library' | 'course';
   onOpenSettings: () => void;
   onOpenProfile: () => void;
+  sidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
+  onResetSidebar?: () => void;
 }) {
   const { tr } = usePrefs();
+  const [viewOpen, setViewOpen] = useState(false);
+  const viewRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!viewOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!viewRef.current?.contains(e.target as Node)) setViewOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [viewOpen]);
+
+  const courseMenus = mode === 'course';
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-[var(--line)] bg-[linear-gradient(180deg,var(--chrome-top),var(--chrome))] px-4">
@@ -49,7 +69,43 @@ export function TitleBar({
       <nav className="flex items-center gap-1 text-[12px] text-[var(--ink-muted)]">
         <span className="cursor-pointer rounded px-2 py-1 hover:bg-black/5">File</span>
         <span className="cursor-pointer rounded px-2 py-1 hover:bg-black/5">Edit</span>
-        <span className="cursor-pointer rounded px-2 py-1 hover:bg-black/5">View</span>
+
+        <div ref={viewRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setViewOpen((v) => !v)}
+            className={`cursor-pointer rounded px-2 py-1 hover:bg-black/5 ${
+              viewOpen ? 'bg-black/5 text-[var(--ink)]' : ''
+            }`}
+          >
+            {tr('viewMenu')}
+          </button>
+          {viewOpen && (
+            <div className="absolute left-0 top-full z-50 mt-1 min-w-[13rem] rounded-lg border border-[var(--line)] bg-[var(--stage)] py-1 text-[var(--ink)] shadow-lg">
+              <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+                {tr('viewLeftSidebar')}
+              </div>
+              <MenuItem
+                label={tr('toggleNavigator')}
+                disabled={!courseMenus || !onToggleSidebar}
+                hint={sidebarOpen ? '✓' : undefined}
+                onClick={() => {
+                  onToggleSidebar?.();
+                  setViewOpen(false);
+                }}
+              />
+              <MenuItem
+                label={tr('resetSidebar')}
+                disabled={!courseMenus || !onResetSidebar}
+                onClick={() => {
+                  onResetSidebar?.();
+                  setViewOpen(false);
+                }}
+              />
+            </div>
+          )}
+        </div>
+
         <span className="cursor-pointer rounded px-2 py-1 hover:bg-black/5">Play</span>
         <span className="cursor-pointer rounded px-2 py-1 hover:bg-black/5">Help</span>
       </nav>
@@ -80,5 +136,29 @@ export function TitleBar({
         </button>
       </div>
     </header>
+  );
+}
+
+function MenuItem({
+  label,
+  onClick,
+  disabled,
+  hint,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  hint?: string;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-1.5 text-left text-[12px] enabled:hover:bg-[var(--panel)] disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      <span>{label}</span>
+      {hint && <span className="text-[11px] text-[var(--accent)]">{hint}</span>}
+    </button>
   );
 }

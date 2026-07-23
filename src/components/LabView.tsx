@@ -156,28 +156,28 @@ export function LabView({
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-[linear-gradient(180deg,#faf8fc_0%,#f3eef8_100%)] dark:bg-[linear-gradient(180deg,#1a1624_0%,#12151b_100%)]">
-      <header className="border-b border-[color-mix(in_srgb,var(--lab)_28%,transparent)] bg-[var(--lab-soft)] px-6 py-4">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--lab)] text-white shadow-sm">
-            <FlaskConical className="h-6 w-6" />
+      <header className="border-b border-[color-mix(in_srgb,var(--lab)_28%,transparent)] bg-[var(--lab-soft)] px-5 py-2">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--lab)] text-white shadow-sm">
+            <FlaskConical className="h-4 w-4" />
           </div>
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2
-                className="text-2xl font-semibold text-[var(--ink)]"
+                className="truncate text-lg font-semibold leading-tight text-[var(--ink)]"
                 style={{ fontFamily: 'var(--font-display)' }}
               >
                 {payload.activity.title}
               </h2>
               {payload.activity.estimatedMinutes != null && (
-                <span className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--lab)_35%,transparent)] bg-white/70 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[var(--lab)] dark:bg-slate-900/50 dark:text-violet-200">
+                <span className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--lab)_35%,transparent)] bg-white/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--lab)] dark:bg-slate-900/50 dark:text-violet-200">
                   ~{payload.activity.estimatedMinutes} min
                 </span>
               )}
             </div>
             {payload.activity.description && (
-              <p className="mt-1 max-w-3xl text-sm text-[var(--ink-muted)]">
+              <p className="mt-0.5 line-clamp-1 max-w-3xl text-[12px] text-[var(--ink-muted)]">
                 {payload.activity.description}
               </p>
             )}
@@ -186,7 +186,7 @@ export function LabView({
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--lab)] px-3 py-2 text-[12px] font-semibold text-white shadow-sm hover:brightness-110"
+            className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md bg-[var(--lab)] px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:brightness-110"
           >
             <ClipboardCheck className="h-3.5 w-3.5" />
             {labDone ? tr('labReviewSubmission') : tr('labSubmit')}
@@ -236,8 +236,8 @@ export function LabView({
         </section>
       </div>
 
-      <footer className="flex items-center gap-3 border-t border-[color-mix(in_srgb,var(--lab)_22%,transparent)] bg-[var(--lab-soft)] px-6 py-2">
-        <span className="text-[12px] text-[var(--ink-muted)]">
+      <footer className="flex items-center gap-3 border-t border-[color-mix(in_srgb,var(--lab)_22%,transparent)] bg-[var(--lab-soft)] px-5 py-1.5">
+        <span className="text-[11px] text-[var(--ink-muted)]">
           {labDone
             ? tr('labMarkedComplete')
             : trf('labRubricChecks', {
@@ -249,7 +249,7 @@ export function LabView({
           type="button"
           onClick={onContinue}
           disabled={!labDone}
-          className="ml-auto rounded-lg bg-[var(--lab)] px-4 py-2 text-[13px] font-semibold text-white shadow-sm enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+          className="ml-auto rounded-md bg-[var(--lab)] px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {tr('continueNextSlide')}
         </button>

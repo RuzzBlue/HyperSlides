@@ -138,32 +138,32 @@ export function QuizView({
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-[linear-gradient(180deg,#f7f9fc_0%,#eef2f8_100%)] dark:bg-[linear-gradient(180deg,#1a1d24_0%,#12151b_100%)]">
-      <header className="border-b border-[color-mix(in_srgb,var(--quiz)_28%,transparent)] bg-[var(--quiz-soft)] px-8 py-4">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--quiz)] text-white shadow-sm">
-            <CircleHelp className="h-6 w-6" />
+      <header className="border-b border-[color-mix(in_srgb,var(--quiz)_28%,transparent)] bg-[var(--quiz-soft)] px-6 py-2">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--quiz)] text-white shadow-sm">
+            <CircleHelp className="h-4 w-4" />
           </div>
 
           <div className="min-w-0 flex-1">
             <h2
-              className="text-2xl font-semibold text-[var(--ink)]"
+              className="truncate text-lg font-semibold leading-tight text-[var(--ink)]"
               style={{ fontFamily: 'var(--font-display)' }}
             >
               {payload.activity.title}
             </h2>
             {payload.activity.description && (
-              <p className="mt-1 max-w-2xl text-sm text-[var(--ink-muted)]">
+              <p className="mt-0.5 line-clamp-1 max-w-2xl text-[12px] text-[var(--ink-muted)]">
                 {payload.activity.description}
               </p>
             )}
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-3">
-            <div className="flex flex-wrap justify-end gap-2">
-              <span className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--quiz)_35%,transparent)] bg-white/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[var(--quiz)] dark:bg-slate-900/50 dark:text-sky-200">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-1.5">
+              <span className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--quiz)_35%,transparent)] bg-white/70 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--quiz)] dark:bg-slate-900/50 dark:text-sky-200">
                 {trf('quizPassAt', { score: passingScore })}
               </span>
-              <span className="inline-flex items-center rounded-full border border-slate-200/80 bg-white/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
+              <span className="inline-flex items-center rounded-full border border-slate-200/80 bg-white/70 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
                 {allowedRetries === 0
                   ? tr('quizUnlimitedRetries')
                   : trf('quizAttemptsCount', {
@@ -175,21 +175,21 @@ export function QuizView({
 
             {showGrade ? (
               <div
-                className={`rounded-xl px-4 py-2 text-right shadow-sm ring-2 ${
+                className={`rounded-lg px-3 py-1 text-right shadow-sm ring-1 ${
                   displayPassed
                     ? 'bg-emerald-100 text-emerald-900 ring-emerald-400/60 dark:bg-emerald-950 dark:text-emerald-200 dark:ring-emerald-500/40'
                     : 'bg-rose-100 text-rose-900 ring-rose-400/60 dark:bg-rose-950 dark:text-rose-200 dark:ring-rose-500/40'
                 }`}
               >
-                <div className="text-2xl font-semibold tabular-nums">{displayPercent}%</div>
-                <div className="text-[11px] font-medium uppercase tracking-wide">
+                <div className="text-lg font-semibold leading-none tabular-nums">{displayPercent}%</div>
+                <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wide">
                   {displayPassed ? tr('quizPassed') : tr('quizNotPassed')}
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-slate-300/80 bg-white/50 px-4 py-2 text-right dark:border-slate-600 dark:bg-slate-900/40">
-                <div className="text-2xl font-semibold tabular-nums text-slate-400">—</div>
-                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+              <div className="rounded-lg border border-dashed border-slate-300/80 bg-white/50 px-3 py-1 text-right dark:border-slate-600 dark:bg-slate-900/40">
+                <div className="text-lg font-semibold leading-none tabular-nums text-slate-400">—</div>
+                <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
                   {tr('quizNotGraded')}
                 </div>
               </div>
@@ -282,8 +282,8 @@ export function QuizView({
         })}
       </div>
 
-      <footer className="flex flex-wrap items-center gap-3 border-t border-[color-mix(in_srgb,var(--quiz)_22%,transparent)] bg-[var(--quiz-soft)] px-8 py-2">
-        <span className="text-[12px] text-[var(--ink-muted)]">
+      <footer className="flex flex-wrap items-center gap-2 border-t border-[color-mix(in_srgb,var(--quiz)_22%,transparent)] bg-[var(--quiz-soft)] px-6 py-1.5">
+        <span className="text-[11px] text-[var(--ink-muted)]">
           {trf('quizAnsweredCount', {
             answered: answeredCount,
             total: payload.questions.length,
@@ -294,14 +294,14 @@ export function QuizView({
                 count: retriesLeft,
               })}`}
         </span>
-        {error && <span className="text-[12px] font-medium text-rose-600">{error}</span>}
-        <div className="ml-auto flex flex-wrap gap-2">
+        {error && <span className="text-[11px] font-medium text-rose-600">{error}</span>}
+        <div className="ml-auto flex flex-wrap gap-1.5">
           {!result ? (
             <button
               type="button"
               disabled={submitting || answeredCount === 0}
               onClick={() => void submit()}
-              className="rounded-lg bg-[var(--quiz)] px-4 py-2 text-[13px] font-semibold text-white shadow-sm enabled:hover:brightness-110 disabled:opacity-40"
+              className="rounded-md bg-[var(--quiz)] px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm enabled:hover:brightness-110 disabled:opacity-40"
             >
               {submitting ? tr('quizGrading') : tr('quizSubmitGrade')}
             </button>
@@ -311,7 +311,7 @@ export function QuizView({
                 <button
                   type="button"
                   onClick={startRetry}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-[13px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                   {tr('quizRetry')}
@@ -320,7 +320,7 @@ export function QuizView({
               <button
                 type="button"
                 onClick={onContinue}
-                className="rounded-lg bg-[var(--accent)] px-4 py-2 text-[13px] font-semibold text-white shadow-sm hover:brightness-110"
+                className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:brightness-110"
               >
                 {tr('continueNextSlide')}
               </button>
