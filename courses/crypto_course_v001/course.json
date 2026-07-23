@@ -22,19 +22,22 @@
               "id": "lesson-01",
               "title": "Welcome to Crypto",
               "file": "lesson-01.html",
-              "durationMinutes": 3
+              "durationMinutes": 3,
+              "notes": "m01_u01_l01.md"
             },
             {
               "type": "quiz",
               "id": "quiz-01",
-              "title": "Quiz · Foundations check"
+              "title": "Quiz · Foundations check",
+              "notes": "m01_u01_q01.md"
             },
             {
               "type": "lesson",
               "id": "lesson-02",
               "title": "Keys, Addresses & Ownership",
               "file": "lesson-02.html",
-              "durationMinutes": 4
+              "durationMinutes": 4,
+              "notes": "m01_u01_l02.md"
             },
             {
               "type": "lesson",
@@ -54,7 +57,8 @@
               "id": "lesson-01",
               "title": "The Shared Ledger",
               "file": "lesson-01.html",
-              "durationMinutes": 5
+              "durationMinutes": 5,
+              "notes": "m01_u02_l01.md"
             },
             {
               "type": "lesson",
@@ -75,7 +79,8 @@
         {
           "type": "lab",
           "id": "lab-01",
-          "title": "Lab · Create your first hot wallet"
+          "title": "Lab · Create your first hot wallet",
+          "notes": "m01_lab01.md"
         }
       ]
     },

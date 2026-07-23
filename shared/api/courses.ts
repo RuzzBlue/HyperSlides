@@ -117,6 +117,7 @@ function pushSequenceEntries(
         file: path.posix
           .join(ctx.mod.path, ...(ctx.unit ? [ctx.unit.id, entry.file] : [entry.file]))
           .replace(/\\/g, '/'),
+        notesFile: entry.notes,
         index: ctx.nextIndex(),
       });
       continue;
@@ -132,6 +133,7 @@ function pushSequenceEntries(
         unitId: ctx.unit?.id,
         unitTitle: ctx.unit?.title,
         activityId: entry.id,
+        notesFile: entry.notes,
         index: ctx.nextIndex(),
       });
       continue;
@@ -146,6 +148,7 @@ function pushSequenceEntries(
       unitId: ctx.unit?.id,
       unitTitle: ctx.unit?.title,
       activityId: entry.id,
+      notesFile: entry.notes,
       index: ctx.nextIndex(),
     });
   }
@@ -473,3 +476,145 @@ export function resolveCourseAsset(
   if (!abs.startsWith(course.rootPath) || !fs.existsSync(abs)) return null;
   return abs;
 }
+
+function shortPart(id: string, letter: string): string {
+  const m = id.match(/^(?:module|unit|lesson)-(\d+)$/i);
+  if (m) return `${letter}${m[1].padStart(2, '0')}`;
+  return id.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+}
+
+/** Default notes filename for a sequence item (e.g. m01_u01_l01.md). */
+export function defaultNotesFilename(item: SequenceItem): string {
+  const m = shortPart(item.moduleId, 'm');
+  const u = item.unitId ? `${shortPart(item.unitId, 'u')}_` : '';
+  if (item.type === 'lesson') {
+    const lessonId = item.key.split('/').pop() ?? 'lesson';
+    return `${m}_${u}${shortPart(lessonId, 'l')}.md`;
+  }
+  if (item.type === 'quiz') {
+    const q = (item.activityId ?? 'quiz').replace(/^quiz-/, 'q');
+    return `${m}_${u}${q}.md`;
+  }
+  const lab = (item.activityId ?? 'lab').replace(/^lab-/, 'lab');
+  return `${m}_${u}${lab}.md`;
+}
+
+export interface SlideNotesPayload {
+  slideKey: string;
+  notesFile: string | null;
+  markdown: string;
+}
+
+export function readSlideNotes(
+  appRoot: string,
+  courseId: string,
+  slideKey: string,
+): SlideNotesPayload | null {
+  const course = loadCourse(appRoot, courseId);
+  if (!course) return null;
+  const item = course.sequence.find((s) => s.key === slideKey);
+  if (!item) return null;
+  const notesFile = item.notesFile ?? null;
+  if (!notesFile) {
+    return { slideKey, notesFile: null, markdown: '' };
+  }
+  const abs = path.join(course.rootPath, 'notes', path.basename(notesFile));
+  const markdown = fs.existsSync(abs) ? fs.readFileSync(abs, 'utf-8') : '';
+  return { slideKey, notesFile: path.basename(notesFile), markdown };
+}
+
+/**
+ * Write presenter notes for a slide. Creates `notes/<file>.md` and binds
+ * `notes` on the matching course.json item when missing.
+ */
+export function writeSlideNotes(
+  appRoot: string,
+  courseId: string,
+  slideKey: string,
+  markdown: string,
+): (SlideNotesPayload & { sequence: SequenceItem[] }) | null {
+  const course = loadCourse(appRoot, courseId);
+  if (!course) return null;
+  const item = course.sequence.find((s) => s.key === slideKey);
+  if (!item) return null;
+
+  const notesDir = path.join(course.rootPath, 'notes');
+  ensureDir(notesDir);
+
+  let notesFile = item.notesFile ? path.basename(item.notesFile) : null;
+  if (!notesFile) {
+    notesFile = defaultNotesFilename(item);
+    bindNotesInCourseJson(course.rootPath, item, notesFile);
+  }
+
+  const abs = path.join(notesDir, notesFile);
+  fs.writeFileSync(abs, markdown, 'utf-8');
+
+  const reloaded = loadCourse(appRoot, courseId);
+  return {
+    slideKey,
+    notesFile,
+    markdown,
+    sequence: reloaded?.sequence ?? course.sequence.map((s) =>
+      s.key === slideKey ? { ...s, notesFile } : s,
+    ),
+  };
+}
+
+function bindNotesInCourseJson(
+  rootPath: string,
+  item: SequenceItem,
+  notesFile: string,
+): void {
+  const manifestPath = path.join(rootPath, 'course.json');
+  const manifest = readJson<CourseManifest>(manifestPath);
+
+  const apply = (entries: CourseSequenceEntry[] | undefined) => {
+    if (!entries) return false;
+    for (const entry of entries) {
+      if (item.type === 'lesson' && entry.type === 'lesson') {
+        const key = item.unitId
+          ? `${item.moduleId}/${item.unitId}/${entry.id}`
+          : `${item.moduleId}/${entry.id}`;
+        if (key === item.key) {
+          entry.notes = notesFile;
+          return true;
+        }
+      }
+      if (item.type === 'quiz' && entry.type === 'quiz' && `quiz:${entry.id}` === item.key) {
+        entry.notes = notesFile;
+        return true;
+      }
+      if (item.type === 'lab' && entry.type === 'lab' && `lab:${entry.id}` === item.key) {
+        entry.notes = notesFile;
+        return true;
+      }
+    }
+    return false;
+  };
+
+  for (const mod of manifest.modules) {
+    if (mod.id !== item.moduleId) continue;
+    for (const unit of mod.units) {
+      if (item.unitId && unit.id !== item.unitId) continue;
+      if (apply(unit.items)) {
+        fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf-8');
+        return;
+      }
+    }
+    if (!item.unitId && apply(mod.items)) {
+      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf-8');
+      return;
+    }
+  }
+
+  // Unit-scoped item but unit loop missed (e.g. trailing) — try module items too
+  for (const mod of manifest.modules) {
+    if (mod.id !== item.moduleId) continue;
+    if (apply(mod.items)) {
+      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf-8');
+      return;
+    }
+  }
+}
+

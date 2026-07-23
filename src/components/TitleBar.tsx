@@ -11,6 +11,11 @@ export function TitleBar({
   sidebarOpen,
   onToggleSidebar,
   onResetSidebar,
+  inspectorOpen,
+  inspectorMode,
+  onInspectorClose,
+  onInspectorShow,
+  onInspectorTogglePin,
 }: {
   courseTitle?: string;
   onHome: () => void;
@@ -21,6 +26,11 @@ export function TitleBar({
   sidebarOpen?: boolean;
   onToggleSidebar?: () => void;
   onResetSidebar?: () => void;
+  inspectorOpen?: boolean;
+  inspectorMode?: 'docked' | 'floating';
+  onInspectorClose?: () => void;
+  onInspectorShow?: () => void;
+  onInspectorTogglePin?: () => void;
 }) {
   const { tr } = usePrefs();
   const [viewOpen, setViewOpen] = useState(false);
@@ -99,6 +109,36 @@ export function TitleBar({
                 disabled={!courseMenus || !onResetSidebar}
                 onClick={() => {
                   onResetSidebar?.();
+                  setViewOpen(false);
+                }}
+              />
+              <div className="my-1 border-t border-[var(--line)]" />
+              <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+                {tr('viewInspectorSidebar')}
+              </div>
+              <MenuItem
+                label={tr('inspectorClose')}
+                disabled={!courseMenus || !inspectorOpen || !onInspectorClose}
+                onClick={() => {
+                  onInspectorClose?.();
+                  setViewOpen(false);
+                }}
+              />
+              <MenuItem
+                label={tr('inspectorShow')}
+                disabled={!courseMenus || !onInspectorShow}
+                onClick={() => {
+                  onInspectorShow?.();
+                  setViewOpen(false);
+                }}
+              />
+              <MenuItem
+                label={
+                  inspectorMode === 'floating' ? tr('inspectorPin') : tr('inspectorFloat')
+                }
+                disabled={!courseMenus || !inspectorOpen || !onInspectorTogglePin}
+                onClick={() => {
+                  onInspectorTogglePin?.();
                   setViewOpen(false);
                 }}
               />

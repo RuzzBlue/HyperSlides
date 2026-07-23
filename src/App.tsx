@@ -23,6 +23,11 @@ import {
   NAVIGATOR_SIDEBAR_DEFAULT_WIDTH,
   SlideSidebar,
 } from './components/SlideSidebar';
+import {
+  Inspector,
+  type InspectorMode,
+  type InspectorTool,
+} from './components/inspector/Inspector';
 import { StatusBar } from './components/StatusBar';
 import { TitleBar } from './components/TitleBar';
 import { Toolbar } from './components/Toolbar';
@@ -47,6 +52,11 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(NAVIGATOR_SIDEBAR_DEFAULT_WIDTH);
+  const [inspectorTool, setInspectorTool] = useState<InspectorTool | null>(null);
+  const [inspectorMode, setInspectorMode] = useState<InspectorMode>('docked');
+  const [lastInspectorTool, setLastInspectorTool] = useState<InspectorTool>('notes');
+  const [floatResetToken, setFloatResetToken] = useState(0);
+  const [zoomBeforeInspector, setZoomBeforeInspector] = useState<ContentZoomPreset | null>(null);
   const [fullscreenStage, setFullscreenStage] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('appearance');
@@ -213,6 +223,100 @@ export default function App() {
     [course, current?.key, persistIndex],
   );
 
+  const closeInspector = useCallback(() => {
+    setInspectorTool(null);
+    setZoomBeforeInspector((prev) => {
+      if (prev) setContentZoom(prev);
+      return null;
+    });
+  }, [setContentZoom]);
+
+  const handleInspectorTool = useCallback(
+    (tool: InspectorTool | null) => {
+      if (!tool) {
+        closeInspector();
+        return;
+      }
+      setLastInspectorTool(tool);
+      setInspectorTool(tool);
+      // Docked insert tools push the stage; notes can stay at current zoom unless docked insert tools need space.
+      if (inspectorMode === 'docked' && tool !== 'notes') {
+        setZoomBeforeInspector((prev) => {
+          if (prev) return prev;
+          if (contentZoom !== 'full-width') {
+            setContentZoom('full-width');
+            return contentZoom;
+          }
+          return null;
+        });
+      }
+    },
+    [closeInspector, contentZoom, inspectorMode, setContentZoom],
+  );
+
+  const handleInspectorMode = useCallback(
+    (mode: InspectorMode) => {
+      setInspectorMode(mode);
+      if (mode === 'docked' && inspectorTool && inspectorTool !== 'notes') {
+        setZoomBeforeInspector((prev) => {
+          if (prev) {
+            setContentZoom('full-width');
+            return prev;
+          }
+          if (contentZoom !== 'full-width') {
+            setContentZoom('full-width');
+            return contentZoom;
+          }
+          return null;
+        });
+      }
+      if (mode === 'floating') {
+        setZoomBeforeInspector((prev) => {
+          if (prev) setContentZoom(prev);
+          return prev;
+        });
+      }
+    },
+    [contentZoom, inspectorTool, setContentZoom],
+  );
+
+  const showInspector = useCallback(() => {
+    const tool = inspectorTool ?? lastInspectorTool;
+    setInspectorTool(tool);
+    setLastInspectorTool(tool);
+    if (inspectorMode === 'floating') {
+      setFloatResetToken((n) => n + 1);
+    } else {
+      setInspectorMode('floating');
+      setFloatResetToken((n) => n + 1);
+    }
+  }, [inspectorMode, inspectorTool, lastInspectorTool]);
+
+  const toggleInspectorPin = useCallback(() => {
+    handleInspectorMode(inspectorMode === 'floating' ? 'docked' : 'floating');
+  }, [handleInspectorMode, inspectorMode]);
+
+  const onNotesBound = useCallback(
+    (slideKey: string, notesFile: string, sequence: SequenceItem[]) => {
+      setCourse((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          sequence: sequence.length ? sequence : prev.sequence.map((s) =>
+            s.key === slideKey ? { ...s, notesFile } : s,
+          ),
+        };
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (current && current.type !== 'lesson' && inspectorTool && inspectorTool !== 'notes') {
+      closeInspector();
+    }
+  }, [current, inspectorTool, closeInspector]);
+
   useEffect(() => {
     if (!course || !current) return;
     let cancelled = false;
@@ -360,6 +464,11 @@ export default function App() {
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen((v) => !v)}
           onResetSidebar={resetSidebarWidth}
+          inspectorOpen={Boolean(inspectorTool)}
+          inspectorMode={inspectorMode}
+          onInspectorClose={closeInspector}
+          onInspectorShow={showInspector}
+          onInspectorTogglePin={toggleInspectorPin}
         />
       )}
       {!fullscreenStage && (
@@ -375,9 +484,12 @@ export default function App() {
           onPresent={() => {
             setSidebarOpen(false);
             setFullscreenStage(true);
+            if (inspectorTool && inspectorTool !== 'notes') closeInspector();
           }}
           zoom={contentZoom}
           onZoomChange={setContentZoom}
+          inspectorTool={inspectorTool}
+          onInspectorTool={handleInspectorTool}
         />
       )}
 
@@ -413,6 +525,8 @@ export default function App() {
                 onPrev={() => goTo(index - 1)}
                 onNext={() => goTo(index + 1)}
                 onGoTo={goTo}
+                notesOpen={inspectorTool === 'notes'}
+                onToggleNotes={() => handleInspectorTool(inspectorTool === 'notes' ? null : 'notes')}
               />
             )}
 
@@ -495,6 +609,8 @@ export default function App() {
                     onPrev={() => goTo(index - 1)}
                     onNext={() => goTo(index + 1)}
                     onGoTo={goTo}
+                    notesOpen={inspectorTool === 'notes'}
+                    onToggleNotes={() => handleInspectorTool(inspectorTool === 'notes' ? null : 'notes')}
                   />
                 )}
             </div>
@@ -516,6 +632,8 @@ export default function App() {
                 onPrev={() => goTo(index - 1)}
                 onNext={() => goTo(index + 1)}
                 onGoTo={goTo}
+                notesOpen={inspectorTool === 'notes'}
+                onToggleNotes={() => handleInspectorTool(inspectorTool === 'notes' ? null : 'notes')}
               />
             )}
 
@@ -531,7 +649,47 @@ export default function App() {
             />
           )}
         </main>
+
+        {inspectorTool && inspectorMode === 'docked' && (
+          <Inspector
+            tool={inspectorTool}
+            mode="docked"
+            onModeChange={handleInspectorMode}
+            onClose={closeInspector}
+            notesContext={
+              course && current
+                ? {
+                    courseId: course.summary.id,
+                    slideKey: current.key,
+                    notesFile: current.notesFile,
+                  }
+                : null
+            }
+            onNotesBound={onNotesBound}
+          />
+        )}
       </div>
+
+      {inspectorTool && inspectorMode === 'floating' && (
+        <Inspector
+          tool={inspectorTool}
+          mode="floating"
+          onModeChange={handleInspectorMode}
+          onClose={closeInspector}
+          floatResetToken={floatResetToken}
+          notesContext={
+            course && current
+              ? {
+                  courseId: course.summary.id,
+                  slideKey: current.key,
+                  notesFile: current.notesFile,
+                }
+              : null
+          }
+          onNotesBound={onNotesBound}
+        />
+      )}
+
       <SettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

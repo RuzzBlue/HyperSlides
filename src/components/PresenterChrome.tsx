@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, PanelLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, NotebookPen, PanelLeft } from 'lucide-react';
 import type { ContentZoomPreset, PresenterMenuMode, SequenceItem } from '@shared/types';
 import { usePrefs } from '../prefs/PrefsProvider';
 import { ZoomControl } from './ZoomControl';
@@ -16,6 +16,8 @@ export function PresenterChrome({
   onPrev,
   onNext,
   onGoTo,
+  notesOpen,
+  onToggleNotes,
 }: {
   mode: PresenterMenuMode;
   index: number;
@@ -28,6 +30,8 @@ export function PresenterChrome({
   onPrev: () => void;
   onNext: () => void;
   onGoTo: (i: number) => void;
+  notesOpen?: boolean;
+  onToggleNotes?: () => void;
 }) {
   const { tr } = usePrefs();
   const isHeader = mode === 'fixed-header' || mode === 'floating-header';
@@ -128,6 +132,19 @@ export function PresenterChrome({
       </div>
 
       <div className={`flex items-center gap-3 ${isHeader ? 'pr-28' : ''}`}>
+        <button
+          type="button"
+          title={tr('toolNotes')}
+          onClick={onToggleNotes}
+          className={`inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold ${
+            notesOpen
+              ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+              : 'text-[var(--ink-muted)] hover:bg-black/5 dark:hover:bg-white/10'
+          }`}
+        >
+          <NotebookPen className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{tr('toolNotes')}</span>
+        </button>
         <ZoomControl
           value={zoom}
           onChange={onZoomChange}

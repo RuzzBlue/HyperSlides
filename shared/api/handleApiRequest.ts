@@ -7,9 +7,11 @@ import {
   loadLesson,
   loadQuiz,
   readProgress,
+  readSlideNotes,
   resetAllCourseProgress,
   resolveCourseAsset,
   writeProgress,
+  writeSlideNotes,
 } from './courses.ts';
 import { readUserState, updateUserState } from './userSettings.ts';
 
@@ -146,6 +148,23 @@ export async function handleApiRequest(
     if (method === 'POST' && segments[0] === 'progress' && segments[1] === 'reset') {
       const result = resetAllCourseProgress(ctx.appRoot);
       return { ok: true, status: 200, data: result };
+    }
+
+    if (method === 'GET' && segments[0] === 'courses' && segments[2] === 'notes') {
+      const slideKey = params?.slideKey;
+      if (!slideKey) return { ok: false, status: 400, error: 'Missing slideKey' };
+      const notes = readSlideNotes(ctx.appRoot, segments[1], slideKey);
+      if (!notes) return { ok: false, status: 404, error: 'Slide not found' };
+      return { ok: true, status: 200, data: notes };
+    }
+
+    if (method === 'PUT' && segments[0] === 'courses' && segments[2] === 'notes') {
+      const slideKey = (body as { slideKey?: string })?.slideKey;
+      const markdown = (body as { markdown?: string })?.markdown ?? '';
+      if (!slideKey) return { ok: false, status: 400, error: 'Missing slideKey' };
+      const saved = writeSlideNotes(ctx.appRoot, segments[1], slideKey, markdown);
+      if (!saved) return { ok: false, status: 404, error: 'Slide not found' };
+      return { ok: true, status: 200, data: saved };
     }
 
     if (method === 'GET' && segments[0] === 'courses' && segments[2] === 'asset') {

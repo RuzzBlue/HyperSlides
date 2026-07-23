@@ -155,6 +155,8 @@ export interface CourseLessonEntry {
   title: string;
   file: string;
   durationMinutes?: number;
+  /** Filename under course `notes/` (e.g. m01_u01_l01.md). */
+  notes?: string;
 }
 
 /** Quiz display slot — `title` is the navigator/toolbar name (edit in course.json). */
@@ -162,6 +164,7 @@ export interface CourseQuizEntry {
   type: 'quiz';
   id: string;
   title: string;
+  notes?: string;
 }
 
 /** Lab display slot — `title` is the navigator/toolbar name (edit in course.json). */
@@ -169,6 +172,7 @@ export interface CourseLabEntry {
   type: 'lab';
   id: string;
   title: string;
+  notes?: string;
 }
 
 export type CourseSequenceEntry = CourseLessonEntry | CourseQuizEntry | CourseLabEntry;
@@ -228,6 +232,8 @@ export interface SequenceItem {
   file?: string;
   /** Quiz or lab id */
   activityId?: string;
+  /** Presenter notes filename under course `notes/` */
+  notesFile?: string;
   index: number;
 }
 

@@ -4,7 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Film,
-  MessageSquareText,
+  NotebookPen,
   PanelLeft,
   Play,
   Shapes,
@@ -15,7 +15,17 @@ import {
 import type { ContentZoomPreset, SequenceItem } from '@shared/types';
 import { usePrefs } from '../prefs/PrefsProvider';
 import type { StringKey } from '../i18n/strings';
+import type { InspectorTool } from './inspector/Inspector';
 import { ZoomControl } from './ZoomControl';
+
+const INSERT_TOOLS: Array<{ id: Exclude<InspectorTool, 'notes'>; key: StringKey; icon: ReactNode }> = [
+  { id: 'graphs', key: 'toolGraphs', icon: <BarChart3 className="h-3.5 w-3.5" /> },
+  { id: 'tables', key: 'toolTables', icon: <Table2 className="h-3.5 w-3.5" /> },
+  { id: 'text', key: 'toolText', icon: <Type className="h-3.5 w-3.5" /> },
+  { id: 'shape', key: 'toolShape', icon: <Shapes className="h-3.5 w-3.5" /> },
+  { id: 'media', key: 'toolMedia', icon: <Film className="h-3.5 w-3.5" /> },
+  { id: 'animations', key: 'toolAnimations', icon: <Sparkles className="h-3.5 w-3.5" /> },
+];
 
 export function Toolbar({
   index,
@@ -29,6 +39,8 @@ export function Toolbar({
   onPresent,
   zoom,
   onZoomChange,
+  inspectorTool,
+  onInspectorTool,
 }: {
   index: number;
   total: number;
@@ -41,6 +53,8 @@ export function Toolbar({
   onPresent: () => void;
   zoom: ContentZoomPreset;
   onZoomChange: (z: ContentZoomPreset) => void;
+  inspectorTool: InspectorTool | null;
+  onInspectorTool: (tool: InspectorTool | null) => void;
 }) {
   const { tr } = usePrefs();
   const typeLabel =
@@ -50,6 +64,7 @@ export function Toolbar({
         ? tr('typeLab')
         : tr('typeLesson');
 
+  const insertEnabled = current?.type === 'lesson';
   const [draft, setDraft] = useState(String(total ? index + 1 : 0));
 
   useEffect(() => {
@@ -64,16 +79,6 @@ export function Toolbar({
     }
     onGoTo(n - 1);
   };
-
-  const insertTools: Array<{ key: StringKey; icon: ReactNode }> = [
-    { key: 'toolGraphs', icon: <BarChart3 className="h-3.5 w-3.5" /> },
-    { key: 'toolTables', icon: <Table2 className="h-3.5 w-3.5" /> },
-    { key: 'toolText', icon: <Type className="h-3.5 w-3.5" /> },
-    { key: 'toolShape', icon: <Shapes className="h-3.5 w-3.5" /> },
-    { key: 'toolMedia', icon: <Film className="h-3.5 w-3.5" /> },
-    { key: 'toolAnimations', icon: <Sparkles className="h-3.5 w-3.5" /> },
-    { key: 'toolComments', icon: <MessageSquareText className="h-3.5 w-3.5" /> },
-  ];
 
   return (
     <div className="relative flex h-11 shrink-0 items-center gap-2 border-b border-[var(--line)] bg-[var(--panel)] px-3">
@@ -110,10 +115,46 @@ export function Toolbar({
       </div>
 
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="pointer-events-auto flex items-center gap-0.5 rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 px-1 py-0.5 shadow-sm backdrop-blur-sm">
-          {insertTools.map((tool) => (
-            <ToolGhost key={tool.key} icon={tool.icon} label={tr(tool.key)} />
-          ))}
+        <div className="pointer-events-auto flex items-center gap-1.5">
+          <div
+            className="flex items-center gap-0.5 rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 px-1 py-0.5 shadow-sm backdrop-blur-sm"
+            title={insertEnabled ? undefined : tr('inspectorToolsDisabled')}
+          >
+            {INSERT_TOOLS.map((tool) => {
+              const active = inspectorTool === tool.id;
+              return (
+                <button
+                  key={tool.id}
+                  type="button"
+                  disabled={!insertEnabled}
+                  title={insertEnabled ? tr(tool.key) : tr('inspectorToolsDisabled')}
+                  onClick={() => onInspectorTool(active ? null : tool.id)}
+                  className={`inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition disabled:cursor-not-allowed disabled:opacity-35 ${
+                    active
+                      ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+                      : 'text-[var(--ink-muted)] enabled:hover:bg-[var(--panel)] enabled:hover:text-[var(--ink)]'
+                  }`}
+                >
+                  {tool.icon}
+                  <span className="hidden xl:inline">{tr(tool.key)}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            title={tr('toolNotes')}
+            onClick={() => onInspectorTool(inspectorTool === 'notes' ? null : 'notes')}
+            className={`inline-flex cursor-pointer items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-semibold shadow-sm backdrop-blur-sm transition ${
+              inspectorTool === 'notes'
+                ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                : 'border-[var(--line)] bg-[var(--stage)]/95 text-[var(--ink-muted)] hover:bg-[var(--panel)] hover:text-[var(--ink)]'
+            }`}
+          >
+            <NotebookPen className="h-3.5 w-3.5" />
+            <span className="hidden xl:inline">{tr('toolNotes')}</span>
+          </button>
         </div>
       </div>
 
@@ -168,24 +209,5 @@ export function Toolbar({
         </button>
       </div>
     </div>
-  );
-}
-
-function ToolGhost({
-  icon,
-  label,
-}: {
-  icon: ReactNode;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-[var(--ink-muted)] hover:bg-[var(--panel)] hover:text-[var(--ink)]"
-    >
-      {icon}
-      <span className="hidden xl:inline">{label}</span>
-    </button>
   );
 }
