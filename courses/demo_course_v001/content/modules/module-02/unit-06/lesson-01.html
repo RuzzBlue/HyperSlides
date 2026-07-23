@@ -1,0 +1,43 @@
+<div class="space-y-10 text-left">
+  <div>
+    <span class="text-xs font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-400">Hover · Tooltips</span>
+    <h2 class="mt-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Tooltip positions</h2>
+    <p class="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
+      Hover or focus the triggers — tips appear on top, bottom, left, and right.
+    </p>
+  </div>
+
+  <div class="hc-tip-row">
+    <button type="button" class="hc-tip hc-tip--top">
+      Top
+      <span class="hc-tip__bubble" role="tooltip">Appears above the trigger</span>
+    </button>
+    <button type="button" class="hc-tip hc-tip--bottom">
+      Bottom
+      <span class="hc-tip__bubble" role="tooltip">Appears below the trigger</span>
+    </button>
+    <button type="button" class="hc-tip hc-tip--left">
+      Left
+      <span class="hc-tip__bubble" role="tooltip">Appears to the left</span>
+    </button>
+    <button type="button" class="hc-tip hc-tip--right">
+      Right
+      <span class="hc-tip__bubble" role="tooltip">Appears to the right</span>
+    </button>
+  </div>
+
+  <div class="hc-tip-row">
+    <span class="hc-tip hc-tip--top hc-tip--badge" tabindex="0">
+      New
+      <span class="hc-tip__bubble" role="tooltip">Badge with a top tip</span>
+    </span>
+    <span class="hc-tip hc-tip--bottom hc-tip--badge is-accent" tabindex="0">
+      2026
+      <span class="hc-tip__bubble" role="tooltip">Release year badge</span>
+    </span>
+    <a href="#" class="hc-tip hc-tip--top hc-tip--link">
+      underlined term
+      <span class="hc-tip__bubble" role="tooltip">Inline text can carry a tip too</span>
+    </a>
+  </div>
+</div>

@@ -1,0 +1,410 @@
+{
+  "id": "demo_course_v001",
+  "title": "HyperClass Demo",
+  "subtitle": "Slides, components, quiz & lab — lorem ipsum showcase",
+  "version": "1.0.0",
+  "author": "RuzzBlue",
+  "description": "A clean white demo course that orderly shows every layout and interactive component available in HyperClass. All copy is placeholder; media may intentionally fail to load.",
+  "coverAccent": "#0e6e6a",
+  "modules": [
+    {
+      "id": "module-01",
+      "title": "Slides Layout",
+      "description": "PowerPoint-style text and image slide patterns.",
+      "path": "content/modules/module-01",
+      "units": [
+        {
+          "id": "unit-01",
+          "title": "Text layouts",
+          "items": [
+            {
+              "type": "lesson",
+              "id": "lesson-01",
+              "title": "Title + body",
+              "file": "lesson-01.html",
+              "durationMinutes": 3,
+              "notes": "m01_u01_l01.md"
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-02",
+              "title": "Two columns",
+              "file": "lesson-02.html",
+              "durationMinutes": 3,
+              "notes": "m01_u01_l02.md"
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-03",
+              "title": "Three columns",
+              "file": "lesson-03.html",
+              "durationMinutes": 3
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-04",
+              "title": "3 concepts",
+              "file": "lesson-04.html",
+              "durationMinutes": 3
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-05",
+              "title": "Four cards (2×2)",
+              "file": "lesson-05.html",
+              "durationMinutes": 3
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-06",
+              "title": "Six cards (3×2)",
+              "file": "lesson-06.html",
+              "durationMinutes": 3
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-07",
+              "title": "Cards + images",
+              "file": "lesson-07.html",
+              "durationMinutes": 4
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-08",
+              "title": "Cards & icons",
+              "file": "lesson-08.html",
+              "durationMinutes": 4
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-09",
+              "title": "Full sections",
+              "file": "lesson-09.html",
+              "durationMinutes": 6
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-10",
+              "title": "Callouts & contrast",
+              "file": "lesson-10.html",
+              "durationMinutes": 4
+            }
+          ]
+        },
+        {
+          "id": "unit-02",
+          "title": "Image layouts",
+          "items": [
+            {
+              "type": "lesson",
+              "id": "lesson-01",
+              "title": "Split: image left & right",
+              "file": "lesson-01.html",
+              "durationMinutes": 4,
+              "notes": "m01_u02_l01.md"
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-02",
+              "title": "Full-height image splits",
+              "file": "lesson-02.html",
+              "durationMinutes": 4
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-03",
+              "title": "Grid & hero image",
+              "file": "lesson-03.html",
+              "durationMinutes": 4
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-04",
+              "title": "Image carousel",
+              "file": "lesson-04.html",
+              "durationMinutes": 3
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-05",
+              "title": "Auto marquee carousel",
+              "file": "lesson-05.html",
+              "durationMinutes": 3
+            }
+          ]
+        },
+        {
+          "id": "unit-03",
+          "title": "Media embeds",
+          "items": [
+            {
+              "type": "lesson",
+              "id": "lesson-01",
+              "title": "Video, PDF & assets",
+              "file": "lesson-01.html",
+              "durationMinutes": 5
+            }
+          ]
+        },
+        {
+          "id": "unit-04",
+          "title": "Image tools",
+          "items": [
+            {
+              "type": "lesson",
+              "id": "lesson-01",
+              "title": "Image comparison",
+              "file": "lesson-01.html",
+              "durationMinutes": 4
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-02",
+              "title": "Image masks",
+              "file": "lesson-02.html",
+              "durationMinutes": 4
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-03",
+              "title": "Badges on media",
+              "file": "lesson-03.html",
+              "durationMinutes": 4
+            }
+          ]
+        },
+        {
+          "id": "unit-05",
+          "title": "Dividers",
+          "items": [
+            {
+              "type": "lesson",
+              "id": "lesson-01",
+              "title": "OR dividers",
+              "file": "lesson-01.html",
+              "durationMinutes": 3
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-02",
+              "title": "Decorative dividers",
+              "file": "lesson-02.html",
+              "durationMinutes": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "module-02",
+      "title": "Interactive Components",
+      "description": "Bootstrap-style gallery of every data-component portal.",
+      "path": "content/modules/module-02",
+      "units": [
+        {
+          "id": "unit-01",
+          "title": "Navigation & reveal",
+          "items": [
+            {
+              "type": "lesson",
+              "id": "lesson-01",
+              "title": "Accordions",
+              "file": "lesson-01.html",
+              "durationMinutes": 6,
+              "notes": "m02_u01_l01.md"
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-02",
+              "title": "Tabs",
+              "file": "lesson-02.html",
+              "durationMinutes": 5
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-03",
+              "title": "Flip cards",
+              "file": "lesson-03.html",
+              "durationMinutes": 6
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-04",
+              "title": "Steps",
+              "file": "lesson-04.html",
+              "durationMinutes": 7
+            }
+          ]
+        },
+        {
+          "id": "unit-02",
+          "title": "Timelines & charts",
+          "items": [
+            {
+              "type": "lesson",
+              "id": "lesson-01",
+              "title": "Timelines",
+              "file": "lesson-01.html",
+              "durationMinutes": 5
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-02",
+              "title": "Charts",
+              "file": "lesson-02.html",
+              "durationMinutes": 6
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-03",
+              "title": "Diagrams",
+              "file": "lesson-03.html",
+              "durationMinutes": 5
+            }
+          ]
+        },
+        {
+          "id": "unit-03",
+          "title": "Widgets",
+          "items": [
+            {
+              "type": "lesson",
+              "id": "lesson-01",
+              "title": "Course widgets",
+              "file": "lesson-01.html",
+              "durationMinutes": 5
+            }
+          ]
+        },
+        {
+          "id": "unit-04",
+          "title": "Metrics",
+          "items": [
+            {
+              "type": "lesson",
+              "id": "lesson-01",
+              "title": "Triple stats (count-up)",
+              "file": "lesson-01.html",
+              "durationMinutes": 3
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-02",
+              "title": "Featured metric",
+              "file": "lesson-02.html",
+              "durationMinutes": 3
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-03",
+              "title": "Metric cards grid",
+              "file": "lesson-03.html",
+              "durationMinutes": 3
+            }
+          ]
+        },
+        {
+          "id": "unit-05",
+          "title": "Tables",
+          "items": [
+            {
+              "type": "lesson",
+              "id": "lesson-01",
+              "title": "Filterable table",
+              "file": "lesson-01.html",
+              "durationMinutes": 4
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-02",
+              "title": "Plan comparison matrix",
+              "file": "lesson-02.html",
+              "durationMinutes": 4
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-03",
+              "title": "Sticky plan comparison",
+              "file": "lesson-03.html",
+              "durationMinutes": 4
+            }
+          ]
+        },
+        {
+          "id": "unit-06",
+          "title": "Hover & pointers",
+          "items": [
+            {
+              "type": "lesson",
+              "id": "lesson-01",
+              "title": "Tooltips",
+              "file": "lesson-01.html",
+              "durationMinutes": 4
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-02",
+              "title": "Rich tooltips",
+              "file": "lesson-02.html",
+              "durationMinutes": 5
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-03",
+              "title": "Cursor styles",
+              "file": "lesson-03.html",
+              "durationMinutes": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "module-03",
+      "title": "Assessment Demo",
+      "description": "One kitchen-sink quiz and one lab with placeholder data.",
+      "path": "content/modules/module-03",
+      "units": [
+        {
+          "id": "unit-01",
+          "title": "Checks & practice",
+          "items": [
+            {
+              "type": "quiz",
+              "id": "quiz-01",
+              "title": "Quiz · All question types",
+              "notes": "m03_u01_q01.md"
+            },
+            {
+              "type": "lab",
+              "id": "lab-01",
+              "title": "Lab · Demo walkthrough",
+              "notes": "m03_u01_lab01.md"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "module-04",
+      "title": "Future ideas",
+      "description": "Backlog concepts for later HyperClass presentation features.",
+      "path": "content/modules/module-04",
+      "units": [
+        {
+          "id": "unit-01",
+          "title": "Ideas board",
+          "items": [
+            {
+              "type": "lesson",
+              "id": "lesson-01",
+              "title": "Possible next features",
+              "file": "lesson-01.html",
+              "durationMinutes": 3
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

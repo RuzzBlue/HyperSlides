@@ -1,0 +1,33 @@
+{
+  "id": "lab-01",
+  "title": "Demo lab walkthrough",
+  "description": "A placeholder lab with lorem ipsum sections, mixed resources, and every submission method — not tied to a real subject.",
+  "learningObjective": "Practice opening a lab, scrolling sections, and submitting demo evidence.",
+  "rubricFile": "lab-01.json",
+  "estimatedMinutes": 15,
+  "resources": [
+    {
+      "label": "Example external link",
+      "url": "https://example.com/"
+    },
+    {
+      "label": "Sample diagram (course image)",
+      "asset": "assets/images/sample-diagram.svg"
+    },
+    {
+      "label": "Sample notes (download)",
+      "asset": "assets/others/sample-notes.txt"
+    },
+    "Quiet workspace with paper for demo notes"
+  ],
+  "sections": [
+    { "id": "overview", "title": "Overview", "file": "sections/01-overview.html" },
+    { "id": "prepare", "title": "Prepare", "file": "sections/02-prepare.html" },
+    { "id": "execute", "title": "Execute", "file": "sections/03-execute.html" },
+    { "id": "submit", "title": "Submit", "file": "sections/04-submit.html" }
+  ],
+  "submission": {
+    "methods": ["screenshot", "url", "written", "confirmation"],
+    "allowEvidence": true
+  }
+}

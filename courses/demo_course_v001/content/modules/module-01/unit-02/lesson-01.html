@@ -1,0 +1,45 @@
+<div class="space-y-10 text-left">
+  <div>
+    <span class="text-xs font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-400">Layout · Split panels</span>
+    <h2 class="mt-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Image right, then image left</h2>
+    <p class="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-400">Same lesson, two classic presenter layouts stacked — cats via Unsplash query for random-looking demo art.</p>
+  </div>
+
+  <!-- Image on the right · title + text on the left -->
+  <div class="grid grid-cols-1 items-center gap-6 md:grid-cols-2">
+    <div>
+      <h3 class="text-xl font-bold text-slate-900 dark:text-white">Textus sinistrae</h3>
+      <p class="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Image sits on the right on wide screens.
+        Vivamus sagittis lacus vel augue laoreet rutrum faucibus dolor auctor.
+      </p>
+    </div>
+    <div class="overflow-hidden rounded-2xl border border-slate-200 shadow-sm dark:border-slate-800">
+      <img
+        src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=900&amp;h=700&amp;fit=crop&amp;q=80"
+        alt="Demo cat — Unsplash"
+        class="h-56 w-full object-cover md:h-64"
+        loading="lazy"
+      />
+    </div>
+  </div>
+
+  <!-- Image on the left · title + text on the right -->
+  <div class="grid grid-cols-1 items-center gap-6 md:grid-cols-2">
+    <div class="overflow-hidden rounded-2xl border border-slate-200 shadow-sm md:order-1 dark:border-slate-800">
+      <img
+        src="https://images.unsplash.com/photo-1574158622682-e40e69881006?w=900&amp;h=700&amp;fit=crop&amp;q=80"
+        alt="Demo cat two — Unsplash"
+        class="h-56 w-full object-cover md:h-64"
+        loading="lazy"
+      />
+    </div>
+    <div class="md:order-2">
+      <h3 class="text-xl font-bold text-slate-900 dark:text-white">Textus dextrae</h3>
+      <p class="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+        Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium.
+        Image sits on the left; copy on the right.
+      </p>
+    </div>
+  </div>
+</div>

@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { ExpandableShell, PanZoomSurface } from '../ExpandableShell';
+import { ExpandableShell } from '../ExpandableShell';
 
 const SLIDES = [
   {
-    src: 'https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=1200&q=80',
+    src: 'https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=1200&h=675&fit=crop&q=80',
     caption: 'Hardware wallets keep keys offline for larger balances.',
   },
   {
-    src: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=1200&q=80',
+    src: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=1200&h=675&fit=crop&q=80',
     caption: 'Public ledgers make settlement transparent without revealing private keys.',
   },
   {
-    src: 'https://images.unsplash.com/photo-1642104704074-907c0698cbd9?w=1200&q=80',
+    src: 'https://images.unsplash.com/photo-1642104704074-907c0698cbd9?w=1200&h=675&fit=crop&q=80',
     caption: 'Mobile hot wallets are convenient for learning — start with tiny amounts.',
   },
 ];
@@ -22,19 +22,20 @@ export function ImageCarouselWidget() {
   const slide = SLIDES[i];
 
   return (
-    <ExpandableShell title="Visual walkthrough" bodyClassName="relative aspect-[16/9] bg-slate-950">
-      <PanZoomSurface className="absolute inset-0">
-        <img
-          src={slide.src}
-          alt={slide.caption}
-          className="h-full w-full max-h-none object-cover"
-          style={{ width: 'min(100%, 960px)', maxHeight: '100%' }}
-          loading="lazy"
-          draggable={false}
-        />
-      </PanZoomSurface>
+    <ExpandableShell
+      title="Visual walkthrough"
+      bodyClassName="relative aspect-[16/9] overflow-hidden bg-slate-950"
+      expandedBodyClassName="relative min-h-0 flex-1 overflow-hidden bg-slate-950"
+    >
+      {/* Fixed frame — every slide crops to the same 16:9 box */}
+      <img
+        src={slide.src}
+        alt={slide.caption}
+        className="absolute inset-0 h-full w-full object-cover"
+        loading="lazy"
+        draggable={false}
+      />
 
-      {/* Subtitle bar — always white text on dark frosted plate */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/90 via-black/55 to-transparent px-4 pb-4 pt-10">
         <p
           className="mx-auto max-w-2xl rounded-md bg-black/70 px-3 py-2 text-center text-sm font-semibold leading-snug shadow-lg backdrop-blur-sm"

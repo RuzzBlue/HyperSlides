@@ -3,14 +3,27 @@ import { createPortal } from 'react-dom';
 import { FlipCardsWidget } from './FlipCards';
 import { AccordionWidget } from './Accordion';
 import { CarouselWidget } from './Carousel';
-import { TimelineWidget, DetailTimelineWidget, HorizontalTimelineWidget } from './Timelines';
+import {
+  TimelineWidget,
+  DetailTimelineWidget,
+  HorizontalTimelineWidget,
+  TrailTimelineWidget,
+} from './Timelines';
 import { TabsWidget } from './Tabs';
 import { ChecklistWidget } from './Checklist';
 import { ImageCarouselWidget } from './ImageCarousel';
+import { MarqueeCarouselWidget } from './MarqueeCarousel';
+import { FeatureTabsWidget } from './FeatureTabs';
+import { MetricsStatsWidget } from './MetricsStats';
+import { ComparePlansWidget } from './ComparePlans';
 import { CompareStepsWidget } from './CompareSteps';
+import { ProcessStepsWidget } from './ProcessSteps';
+import { StepShowcaseWidget } from './StepShowcase';
 import { FilterTableWidget } from './FilterTable';
 import { MermaidWidget } from './Mermaid';
 import { PieChartWidget } from './PieChart';
+import { DemoChartWidget } from './DemoCharts';
+import { ImageCompareWidget } from './ImageCompare';
 import { YTVideoWidget } from './YTVideo';
 import { CourseWidgetFrame } from './CourseWidget';
 import { RevealStepsWidget } from './RevealSteps';
@@ -93,7 +106,7 @@ export function PortalsRenderer({
         let node: ReactNode = null;
         switch (p.type) {
           case 'flipcards':
-            node = <FlipCardsWidget />;
+            node = <FlipCardsWidget preset={p.preset} />;
             break;
           case 'accordion':
             node = <AccordionWidget preset={p.preset} />;
@@ -104,6 +117,18 @@ export function PortalsRenderer({
           case 'image-carousel':
             node = <ImageCarouselWidget />;
             break;
+          case 'marquee-carousel':
+            node = <MarqueeCarouselWidget />;
+            break;
+          case 'feature-tabs':
+            node = <FeatureTabsWidget />;
+            break;
+          case 'metrics-stats':
+            node = <MetricsStatsWidget preset={p.preset} />;
+            break;
+          case 'compare-plans':
+            node = <ComparePlansWidget preset={p.preset} />;
+            break;
           case 'timeline':
             node = <TimelineWidget preset={p.preset} />;
             break;
@@ -112,6 +137,9 @@ export function PortalsRenderer({
             break;
           case 'timeline-horizontal':
             node = <HorizontalTimelineWidget preset={p.preset} />;
+            break;
+          case 'timeline-trail':
+            node = <TrailTimelineWidget />;
             break;
           case 'tabs':
             node = (
@@ -131,7 +159,13 @@ export function PortalsRenderer({
             node = <ChecklistWidget preset={p.preset} />;
             break;
           case 'compare-steps':
-            node = <CompareStepsWidget />;
+            node = <CompareStepsWidget preset={p.preset} />;
+            break;
+          case 'process-steps':
+            node = <ProcessStepsWidget />;
+            break;
+          case 'step-showcase':
+            node = <StepShowcaseWidget preset={p.preset} />;
             break;
           case 'filter-table':
             node = <FilterTableWidget />;
@@ -141,6 +175,12 @@ export function PortalsRenderer({
             break;
           case 'pie-chart':
             node = <PieChartWidget />;
+            break;
+          case 'demo-chart':
+            node = <DemoChartWidget preset={p.preset} />;
+            break;
+          case 'image-compare':
+            node = <ImageCompareWidget />;
             break;
           case 'yt-video':
             node = <YTVideoWidget videoId={p.videoId} />;

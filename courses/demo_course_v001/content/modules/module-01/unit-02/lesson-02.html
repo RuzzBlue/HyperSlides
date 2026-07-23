@@ -1,0 +1,117 @@
+<div class="space-y-6 text-left">
+  <div>
+    <span class="text-xs font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-400">Layout · Full-height splits</span>
+    <h2 class="mt-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Bleed panels · image fills the viewport</h2>
+    <p class="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
+      Same left/right idea as the previous slide, but each panel is a full viewport tall — the image crops to fill its half.
+    </p>
+  </div>
+</div>
+
+<!-- Image on the right · copy on the left · full viewport height -->
+<section class="hc-split-full mt-8">
+  <div class="hc-split-full__copy">
+    <span class="text-[10px] font-black uppercase tracking-[0.18em] text-teal-700 dark:text-teal-400">Panel A · text left</span>
+    <h3>Magna aliqua viewport</h3>
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Scroll to the next panel for the mirrored layout —
+      image left, copy right — also full viewport height.
+    </p>
+  </div>
+  <div class="hc-split-full__media">
+    <img
+      src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=1400&amp;h=1600&amp;fit=crop&amp;q=80"
+      alt="Full-height demo cat"
+      loading="lazy"
+    />
+  </div>
+</section>
+
+<!-- Image on the left · copy on the right · full viewport height -->
+<section class="hc-split-full mt-6" style="grid-template-columns: 1fr 1fr;">
+  <div class="hc-split-full__media">
+    <img
+      src="https://images.unsplash.com/photo-1574158622682-e40e69881006?w=1400&amp;h=1600&amp;fit=crop&amp;q=80"
+      alt="Full-height demo cat two"
+      loading="lazy"
+    />
+  </div>
+  <div class="hc-split-full__copy">
+    <span class="text-[10px] font-black uppercase tracking-[0.18em] text-teal-700 dark:text-teal-400">Panel B · text right</span>
+    <h3>Ut enim ad minim</h3>
+    <p>
+      Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium.
+      The media column still occupies the entire vertical space of the panel.
+    </p>
+  </div>
+</section>
+
+<div class="mt-14 space-y-3 text-left">
+  <span class="block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700 dark:text-teal-400">Section · Sticky image + long copy</span>
+  <h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-3xl">Workflow with sticky screenshot</h2>
+  <p class="max-w-2xl text-sm text-slate-600 dark:text-slate-400">
+    Long-form copy on the left; the product image sticks while you scroll the features.
+  </p>
+</div>
+
+<section class="hc-sticky-doc mt-8">
+  <div class="hc-sticky-doc__pattern" aria-hidden="true"></div>
+
+  <div class="hc-sticky-doc__grid">
+    <div class="hc-sticky-doc__intro">
+      <p class="hc-sticky-doc__eyebrow">Deploy faster</p>
+      <h3>A better workflow</h3>
+      <p class="hc-sticky-doc__lead">
+        Aliquet nec orci mattis amet quisque ullamcorper neque, nibh sem. At arcu, sit dui mi, nibh dui, diam eget aliquam.
+      </p>
+    </div>
+
+    <div class="hc-sticky-doc__media">
+      <img
+        src="https://images.unsplash.com/photo-1551650975-87deedd944c3?w=1600&amp;h=1000&amp;fit=crop&amp;q=80"
+        alt="Product workflow screenshot"
+        loading="lazy"
+      />
+    </div>
+
+    <div class="hc-sticky-doc__body">
+      <p>
+        Faucibus commodo massa rhoncus, volutpat. Dignissim sed eget risus enim. Mattis mauris semper sed amet vitae sed turpis id.
+        Id dolor praesent donec est. Odio penatibus risus viverra tellus varius sit neque erat velit.
+      </p>
+
+      <ul class="hc-sticky-doc__list">
+        <li>
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M5.5 17a4.5 4.5 0 0 1-1.44-8.765 4.5 4.5 0 0 1 8.302-3.046 3.5 3.5 0 0 1 4.504 4.272A4 4 0 0 1 15 17H5.5Zm3.75-2.75a.75.75 0 0 0 1.5 0V9.66l1.95 2.1a.75.75 0 1 0 1.1-1.02l-3.25-3.5a.75.75 0 0 0-1.1 0l-3.25 3.5a.75.75 0 1 0 1.1 1.02l1.95-2.1v4.59Z" />
+          </svg>
+          <span><strong>Push to deploy.</strong> Lorem ipsum, dolor sit amet consectetur adipisicing elit. Maiores impedit perferendis suscipit eaque, iste dolor cupiditate blanditiis ratione.</span>
+        </li>
+        <li>
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" />
+          </svg>
+          <span><strong>SSL certificates.</strong> Anim aute id magna aliqua ad ad non deserunt sunt. Qui irure qui lorem cupidatat commodo.</span>
+        </li>
+        <li>
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path d="M4.632 3.533A2 2 0 0 1 6.577 2h6.846a2 2 0 0 1 1.945 1.533l1.976 8.234A3.489 3.489 0 0 0 16 11.5H4c-.476 0-.93.095-1.344.267l1.976-8.234Z" />
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M4 13a2 2 0 1 0 0 4h12a2 2 0 1 0 0-4H4Zm11.24 2a.75.75 0 0 1 .75-.75H16a.75.75 0 0 1 .75.75v.01a.75.75 0 0 1-.75.75h-.01a.75.75 0 0 1-.75-.75V15Zm-2.25-.75a.75.75 0 0 0-.75.75v.01c0 .414.336.75.75.75H13a.75.75 0 0 0 .75-.75V15a.75.75 0 0 0-.75-.75h-.01Z" />
+          </svg>
+          <span><strong>Database backups.</strong> Ac tincidunt sapien vehicula erat auctor pellentesque rhoncus. Et magna sit morbi lobortis.</span>
+        </li>
+      </ul>
+
+      <p>
+        Et vitae blandit facilisi magna lacus commodo. Vitae sapien duis odio id et. Id blandit molestie auctor fermentum dignissim.
+        Lacus diam tincidunt ac cursus in vel. Mauris varius vulputate et ultrices hac adipiscing egestas.
+      </p>
+
+      <h4>No server? No problem.</h4>
+      <p>
+        Id orci tellus laoreet id ac. Dolor, aenean leo, ac etiam consequat in. Convallis arcu ipsum urna nibh.
+        Pharetra, euismod vitae interdum mauris enim, consequat vulputate nibh. Maecenas pellentesque id sed tellus mauris, ultrices mauris.
+      </p>
+    </div>
+  </div>
+</section>

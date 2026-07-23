@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { Check, Lock, Play } from 'lucide-react';
 
 export type TimelineDetail = {
   y: string;
@@ -57,12 +58,86 @@ const STEP_PRESETS: Record<string, { y: string; t: string; d: string }[]> = {
   ],
 };
 
+type TrailStep = {
+  id: string;
+  title: string;
+  tipTitle: string;
+  tipSub: string;
+  tipBody: string;
+  tipItems: string[];
+};
+
+const TRAIL_STEPS: TrailStep[] = [
+  {
+    id: 'discover',
+    title: 'Discover',
+    tipTitle: 'Start from a trusted entry',
+    tipSub: 'Step 1 of the trail',
+    tipBody: 'Open the wallet from a bookmark you created yourself — never from a cold search result or DM link.',
+    tipItems: ['Official store / vendor', 'Bookmark the real URL', 'Ignore lookalike domains'],
+  },
+  {
+    id: 'verify',
+    title: 'Verify',
+    tipTitle: 'Confirm network & asset',
+    tipSub: 'Step 2 of the trail',
+    tipBody: 'Match the network badge and ticker before you touch amounts. Wrong chain = stuck or lost funds.',
+    tipItems: ['Network badge visible', 'Asset ticker matches', 'Cancel if anything feels off'],
+  },
+  {
+    id: 'address',
+    title: 'Address',
+    tipTitle: 'Paste, then re-check',
+    tipSub: 'Step 3 of the trail',
+    tipBody: 'Paste the destination once, then compare the first and last characters against your notes.',
+    tipItems: ['Prefer paste over typing', 'Check first 4 + last 4', 'No address from strangers'],
+  },
+  {
+    id: 'amount',
+    title: 'Amount',
+    tipTitle: 'Start tiny on new paths',
+    tipSub: 'Step 4 of the trail',
+    tipBody: 'Send a dust-sized test first when the destination is new. Scale up only after confirmation.',
+    tipItems: ['Leave room for fees', 'Test before large sends', 'Note the tx hash'],
+  },
+  {
+    id: 'review',
+    title: 'Review',
+    tipTitle: 'Read the preview twice',
+    tipSub: 'Step 5 of the trail',
+    tipBody: 'Asset, network, amount, fee, and recipient must match your intent. Anything odd → cancel.',
+    tipItems: ['Recipient matches', 'Fee understood', 'No seed phrase fields'],
+  },
+  {
+    id: 'sign',
+    title: 'Sign',
+    tipTitle: 'Approve only when sure',
+    tipSub: 'Step 6 of the trail',
+    tipBody: 'Signing proves authority. After broadcast, watch the explorer until you trust the confirmation depth.',
+    tipItems: ['Hardware confirm if used', 'Save the hash', 'Wait for confirmations'],
+  },
+];
+
+/** Circle is h-10 w-10 (2.5rem). Line must sit at horizontal center = 1.25rem from column start. */
 const yearBase =
   'relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-black shadow-sm transition cursor-pointer';
 const yearIdle =
-  'border-slate-200 bg-white text-slate-700 hover:border-[var(--lesson-accent,#4f46e5)] hover:bg-[var(--lesson-accent,#4f46e5)] hover:text-white dark:border-slate-600 dark:bg-slate-950 dark:text-slate-200';
+  'border-slate-200 bg-white text-slate-700 hover:border-[var(--lesson-accent,#0e6e6a)] hover:bg-[var(--lesson-accent,#0e6e6a)] hover:text-white dark:border-slate-600 dark:bg-slate-950 dark:text-slate-200';
 const yearActive =
-  'border-[var(--lesson-accent,#4f46e5)] bg-[var(--lesson-accent,#4f46e5)] text-white shadow-md';
+  'border-[var(--lesson-accent,#0e6e6a)] bg-[var(--lesson-accent,#0e6e6a)] text-white shadow-md';
+
+function VerticalRail({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative">
+      {/* Center of 2.5rem circle = left 1.25rem; 2px line half-shifted */}
+      <div
+        className="absolute left-5 top-5 bottom-5 w-0.5 -translate-x-1/2 rounded-full bg-gradient-to-b from-[var(--lesson-accent,#0e6e6a)] via-teal-400 to-emerald-400"
+        aria-hidden
+      />
+      <div className="relative">{children}</div>
+    </div>
+  );
+}
 
 export function DetailTimelineWidget({ preset }: { preset?: string }) {
   const events = DETAIL_TIMELINES[preset || 'blockchain'] || DETAIL_TIMELINES.blockchain;
@@ -71,41 +146,34 @@ export function DetailTimelineWidget({ preset }: { preset?: string }) {
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_1.1fr]">
-      <div className="relative pl-2">
-        {/* Line centered through the 40px year badges (left-2 + 20px = center) */}
-        <div
-          className="absolute left-[1.25rem] top-5 bottom-5 w-0.5 -translate-x-1/2 rounded-full bg-gradient-to-b from-[var(--lesson-accent,#6366f1)] via-violet-400 to-emerald-400"
-          aria-hidden
-        />
-        <div className="relative space-y-0">
-          {events.map((ev, i) => (
-            <button
-              key={ev.y}
-              type="button"
-              onClick={() => setActive(i)}
-              className="relative mb-4 flex w-full cursor-pointer gap-4 text-left last:mb-0"
+      <VerticalRail>
+        {events.map((ev, i) => (
+          <button
+            key={ev.y}
+            type="button"
+            onClick={() => setActive(i)}
+            className="relative mb-4 flex w-full cursor-pointer gap-4 text-left last:mb-0"
+          >
+            <div className={`${yearBase} ${i === active ? yearActive : yearIdle}`}>{ev.y}</div>
+            <div
+              className={`min-w-0 flex-1 rounded-2xl border p-3 transition ${
+                i === active
+                  ? 'border-[color-mix(in_srgb,var(--lesson-accent,#0e6e6a)_40%,transparent)] bg-[color-mix(in_srgb,var(--lesson-accent,#0e6e6a)_10%,white)] shadow-md dark:bg-[color-mix(in_srgb,var(--lesson-accent,#0e6e6a)_18%,#0f172a)]'
+                  : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900'
+              }`}
             >
-              <div className={`${yearBase} ${i === active ? yearActive : yearIdle}`}>{ev.y}</div>
-              <div
-                className={`min-w-0 flex-1 rounded-2xl border p-3 transition ${
-                  i === active
-                    ? 'border-[color-mix(in_srgb,var(--lesson-accent,#4f46e5)_40%,transparent)] bg-[color-mix(in_srgb,var(--lesson-accent,#4f46e5)_10%,white)] shadow-md dark:bg-[color-mix(in_srgb,var(--lesson-accent,#4f46e5)_18%,#0f172a)]'
-                    : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900'
-                }`}
-              >
-                <div className="text-sm font-black text-slate-900 dark:text-white">{ev.t}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
+              <div className="text-sm font-black text-slate-900 dark:text-white">{ev.t}</div>
+            </div>
+          </button>
+        ))}
+      </VerticalRail>
 
       <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-lg dark:border-slate-800 dark:from-slate-900 dark:to-slate-950">
-        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--lesson-accent,#4f46e5)]">
+        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--lesson-accent,#0e6e6a)]">
           Historical timeline detail
         </span>
         <h3 className="mt-2 text-2xl font-black tracking-tight text-slate-900 dark:text-white">{e.t}</h3>
-        <p className="mt-1 text-sm font-semibold text-[var(--lesson-accent,#4f46e5)]">{e.subtitle}</p>
+        <p className="mt-1 text-sm font-semibold text-[var(--lesson-accent,#0e6e6a)]">{e.subtitle}</p>
         <p className="mt-4 text-sm leading-relaxed text-slate-700 dark:text-slate-300">{e.body}</p>
         {e.extra && (
           <p className="mt-3 border-t border-slate-100 pt-3 text-sm leading-relaxed text-slate-600 dark:border-slate-800 dark:text-slate-400">
@@ -125,9 +193,9 @@ export function HorizontalTimelineWidget({ preset }: { preset?: string }) {
   return (
     <div className="space-y-5">
       <div className="relative overflow-x-auto pt-3 pb-2">
-        {/* Line through vertical center of year circles (pt-3 + 20px) */}
+        {/* pt-3 (0.75rem) + half circle (1.25rem) = 2rem */}
         <div
-          className="absolute left-6 right-6 top-[2.125rem] h-0.5 -translate-y-1/2 rounded-full bg-gradient-to-r from-[var(--lesson-accent,#6366f1)] via-violet-400 to-emerald-400"
+          className="absolute left-6 right-6 top-8 h-0.5 -translate-y-1/2 rounded-full bg-gradient-to-r from-[var(--lesson-accent,#0e6e6a)] via-teal-400 to-emerald-400"
           aria-hidden
         />
         <div className="relative flex min-w-max gap-2 px-2">
@@ -142,7 +210,7 @@ export function HorizontalTimelineWidget({ preset }: { preset?: string }) {
               <span
                 className={`text-center text-[11px] font-bold leading-tight transition ${
                   i === active
-                    ? 'text-[var(--lesson-accent,#4f46e5)]'
+                    ? 'text-[var(--lesson-accent,#0e6e6a)]'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
@@ -153,11 +221,11 @@ export function HorizontalTimelineWidget({ preset }: { preset?: string }) {
         </div>
       </div>
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--lesson-accent,#4f46e5)]">
+        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--lesson-accent,#0e6e6a)]">
           Timeline focus
         </span>
         <h4 className="mt-1 text-lg font-black text-slate-900 dark:text-white">{e.t}</h4>
-        <p className="mt-1 text-xs font-semibold text-[var(--lesson-accent,#4f46e5)]">{e.subtitle}</p>
+        <p className="mt-1 text-xs font-semibold text-[var(--lesson-accent,#0e6e6a)]">{e.subtitle}</p>
         <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{e.body}</p>
       </div>
     </div>
@@ -170,21 +238,124 @@ export function TimelineWidget({ preset }: { preset?: string }) {
   }
   const events = STEP_PRESETS[preset] || STEP_PRESETS['wallet-setup'];
   return (
-    <div className="relative pl-2">
-      <div
-        className="absolute left-[1.25rem] top-5 bottom-5 w-0.5 -translate-x-1/2 rounded-full bg-gradient-to-b from-[var(--lesson-accent,#6366f1)] via-violet-400 to-emerald-400"
-        aria-hidden
-      />
-      <div className="relative">
-        {events.map((e) => (
-          <div key={`${e.y}-${e.t}`} className="relative mb-6 flex gap-4 last:mb-0">
-            <div className={`${yearBase} ${yearIdle} pointer-events-none`}>{e.y}</div>
-            <div className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <div className="text-sm font-black text-slate-900 dark:text-white">{e.t}</div>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-400">{e.d}</p>
-            </div>
+    <VerticalRail>
+      {events.map((e) => (
+        <div key={`${e.y}-${e.t}`} className="relative mb-6 flex gap-4 last:mb-0">
+          <div className={`${yearBase} ${yearIdle} pointer-events-none`}>{e.y}</div>
+          <div className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="text-sm font-black text-slate-900 dark:text-white">{e.t}</div>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-400">{e.d}</p>
           </div>
-        ))}
+        </div>
+      ))}
+    </VerticalRail>
+  );
+}
+
+/** Snake trail: left→right, down, right→left, … Click to complete; unlocks next. Rich tip on hover. */
+export function TrailTimelineWidget() {
+  const [completed, setCompleted] = useState(0);
+  const [active, setActive] = useState(0);
+
+  const onActivate = (i: number) => {
+    if (i > completed) return;
+    setActive(i);
+    if (i === completed) {
+      setCompleted((c) => Math.min(c + 1, TRAIL_STEPS.length));
+    }
+  };
+
+  const reset = () => {
+    setCompleted(0);
+    setActive(0);
+  };
+
+  return (
+    <div className="hc-trail">
+      <div className="hc-trail__header">
+        <div>
+          <p className="hc-trail__eyebrow">Unlock trail</p>
+          <p className="hc-trail__status">
+            {completed >= TRAIL_STEPS.length
+              ? 'Trail complete — every step unlocked'
+              : `Click step ${completed + 1} to unlock the next`}
+          </p>
+        </div>
+        <button type="button" className="hc-trail__reset" onClick={reset}>
+          Reset trail
+        </button>
+      </div>
+
+      <div className="hc-trail__board" role="list">
+        <svg className="hc-trail__path" viewBox="0 0 100 48" preserveAspectRatio="none" aria-hidden>
+          <path
+            d="M 12 12 H 50 H 88 V 36 H 50 H 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+
+        {TRAIL_STEPS.map((step, i) => {
+          const unlocked = i <= completed;
+          const done = i < completed;
+          const current = i === completed && completed < TRAIL_STEPS.length;
+          const tipSide = i % 3 === 0 ? 'hc-tip--right' : i % 3 === 2 ? 'hc-tip--left' : 'hc-tip--top';
+
+          return (
+            <div
+              key={step.id}
+              role="listitem"
+              className={`hc-trail__node hc-trail__node--${i} ${done ? 'is-done' : ''} ${
+                current ? 'is-current' : ''
+              } ${!unlocked ? 'is-locked' : ''}`}
+            >
+              <button
+                type="button"
+                className={`hc-tip ${tipSide} hc-tip--rich hc-trail__btn`}
+                aria-disabled={!unlocked}
+                onClick={() => onActivate(i)}
+                aria-label={
+                  !unlocked
+                    ? `${step.title} locked — complete earlier steps first`
+                    : done
+                      ? `${step.title} completed — view again`
+                      : `Start ${step.title}`
+                }
+              >
+                <span className="hc-trail__badge" aria-hidden>
+                  {done ? <Check className="h-4 w-4" strokeWidth={3} /> : !unlocked ? <Lock className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                </span>
+                <span className="hc-trail__label">
+                  <span className="hc-trail__num">0{i + 1}</span>
+                  <span className="hc-trail__title">{step.title}</span>
+                </span>
+                <span className="hc-tip__bubble hc-tip__bubble--rich" role="tooltip">
+                  <strong className="hc-tip__title">{step.tipTitle}</strong>
+                  <span className="hc-tip__sub">{step.tipSub}</span>
+                  <span className="hc-tip__desc">{step.tipBody}</span>
+                  <span className="hc-tip__bold">Checklist</span>
+                  <ul>
+                    {step.tipItems.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </span>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="hc-trail__focus">
+        <span className="hc-trail__focus-eyebrow">
+          {active < completed ? 'Completed step' : active === completed ? 'Active step' : 'Locked'}
+        </span>
+        <h4>{TRAIL_STEPS[Math.min(active, TRAIL_STEPS.length - 1)].tipTitle}</h4>
+        <p>{TRAIL_STEPS[Math.min(active, TRAIL_STEPS.length - 1)].tipBody}</p>
       </div>
     </div>
   );

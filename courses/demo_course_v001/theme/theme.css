@@ -1,0 +1,23 @@
+/* Course-local presentation polish — respects app dark/light via [data-theme] */
+.lesson-stage {
+  --hc-accent: var(--lesson-accent, #0e6e6a);
+}
+
+.lesson-stage h2 {
+  letter-spacing: -0.02em;
+}
+
+.lesson-theme-root .lesson-stage a,
+.lesson-theme-root .lesson-stage button:not([class*='bg-']) {
+  accent-color: var(--lesson-accent, #0e6e6a);
+}
+
+/* Thin scrollbars inside scrollable lesson cards */
+.lesson-stage .overflow-y-auto {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--lesson-accent, #0e6e6a) 45%, transparent) transparent;
+}
+
+html[data-theme='dark'] .lesson-stage {
+  color-scheme: dark;
+}

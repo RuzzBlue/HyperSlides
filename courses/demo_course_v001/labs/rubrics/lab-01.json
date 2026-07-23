@@ -1,0 +1,31 @@
+{
+  "id": "rubric-lab-01",
+  "labId": "lab-01",
+  "title": "Demo lab rubric",
+  "steps": [
+    {
+      "id": "step-1",
+      "title": "Read the overview",
+      "instructions": "Skim the lorem ipsum overview and note the safety callout.",
+      "expectedResult": "Learner acknowledges placeholder / non-production content."
+    },
+    {
+      "id": "step-2",
+      "title": "Prepare materials",
+      "instructions": "Open listed resources or pretend to gather demo materials.",
+      "expectedResult": "At least one resource is opened or noted."
+    },
+    {
+      "id": "step-3",
+      "title": "Execute the steps",
+      "instructions": "Follow the execute section checklist with placeholder actions.",
+      "expectedResult": "Checklist items are marked mentally or on paper."
+    },
+    {
+      "id": "step-4",
+      "title": "Submit evidence",
+      "instructions": "Use any submission method with fake demo evidence (no secrets).",
+      "expectedResult": "A screenshot, URL, written note, or confirmation is recorded."
+    }
+  ]
+}
