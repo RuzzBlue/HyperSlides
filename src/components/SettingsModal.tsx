@@ -25,12 +25,15 @@ const ACCENTS = ['#0e6e6a', '#2f5aa8', '#c45c26', '#6b4f9a', '#1f7a4c', '#b42318
 export function SettingsModal({
   open,
   onClose,
-  initialTab = 'profile',
+  initialTab = 'appearance',
+  onTabChange,
   onProgressReset,
 }: {
   open: boolean;
   onClose: () => void;
   initialTab?: TabId;
+  /** Persist the active tab so reopen / save keep the same panel. */
+  onTabChange?: (tab: TabId) => void;
   /** Called after all course progress files are wiped (testing helper). */
   onProgressReset?: () => void;
 }) {
@@ -50,9 +53,20 @@ export function SettingsModal({
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const selectTab = (next: TabId) => {
+    setTab(next);
+    onTabChange?.(next);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    setTab(initialTab);
+    setStatus(null);
+    setError(null);
+  }, [open, initialTab]);
+
   useEffect(() => {
     if (!open || !profile) return;
-    setTab(initialTab);
     setDraftProfile({
       firstName: profile.firstName,
       lastName: profile.lastName,
@@ -61,9 +75,7 @@ export function SettingsModal({
     });
     setDraftAppearance(appearance);
     setDraftSettings(settings);
-    setStatus(null);
-    setError(null);
-  }, [open, profile, appearance, settings, initialTab]);
+  }, [open, profile, appearance, settings]);
 
   useEffect(() => {
     if (open) return;
@@ -177,25 +189,25 @@ export function SettingsModal({
                   active={tab === 'profile'}
                   icon={<UserRound className="h-4 w-4" />}
                   label={tr('profile')}
-                  onClick={() => setTab('profile')}
+                  onClick={() => selectTab('profile')}
                 />
                 <TabBtn
                   active={tab === 'appearance'}
                   icon={<Palette className="h-4 w-4" />}
                   label={tr('appearance')}
-                  onClick={() => setTab('appearance')}
+                  onClick={() => selectTab('appearance')}
                 />
                 <TabBtn
                   active={tab === 'settings'}
                   icon={<SettingsIcon className="h-4 w-4" />}
                   label={tr('appSettings')}
-                  onClick={() => setTab('settings')}
+                  onClick={() => selectTab('settings')}
                 />
                 <TabBtn
                   active={tab === 'presenter'}
                   icon={<Presentation className="h-4 w-4" />}
                   label={tr('presenterSettings')}
-                  onClick={() => setTab('presenter')}
+                  onClick={() => selectTab('presenter')}
                 />
               </nav>
             </aside>

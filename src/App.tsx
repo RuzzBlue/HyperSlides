@@ -103,8 +103,8 @@ export default function App() {
     setSidebarOpen(true);
   }, []);
 
-  const openSettings = (tab: SettingsTab) => {
-    setSettingsTab(tab);
+  const openSettings = (tab?: SettingsTab) => {
+    if (tab) setSettingsTab(tab);
     setSettingsOpen(true);
   };
 
@@ -296,20 +296,17 @@ export default function App() {
     handleInspectorMode(inspectorMode === 'floating' ? 'docked' : 'floating');
   }, [handleInspectorMode, inspectorMode]);
 
-  const onNotesBound = useCallback(
-    (slideKey: string, notesFile: string, sequence: SequenceItem[]) => {
-      setCourse((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          sequence: sequence.length ? sequence : prev.sequence.map((s) =>
-            s.key === slideKey ? { ...s, notesFile } : s,
-          ),
-        };
-      });
-    },
-    [],
-  );
+  const onNotesBound = useCallback((slideKey: string, notesFile: string) => {
+    setCourse((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        sequence: prev.sequence.map((s) =>
+          s.key === slideKey ? { ...s, notesFile } : s,
+        ),
+      };
+    });
+  }, []);
 
   useEffect(() => {
     if (current && current.type !== 'lesson' && inspectorTool && inspectorTool !== 'notes') {
@@ -428,7 +425,7 @@ export default function App() {
         <TitleBar
           onHome={() => setView('home')}
           mode="library"
-          onOpenSettings={() => openSettings('appearance')}
+          onOpenSettings={() => openSettings()}
           onOpenProfile={() => openSettings('profile')}
         />
         <HomeView
@@ -442,6 +439,7 @@ export default function App() {
           open={settingsOpen}
           onClose={() => setSettingsOpen(false)}
           initialTab={settingsTab}
+          onTabChange={setSettingsTab}
           onProgressReset={() => void handleProgressReset()}
         />
       </AppShell>
@@ -459,7 +457,7 @@ export default function App() {
             setCourse(null);
           }}
           mode="course"
-          onOpenSettings={() => openSettings('appearance')}
+          onOpenSettings={() => openSettings()}
           onOpenProfile={() => openSettings('profile')}
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen((v) => !v)}
@@ -694,6 +692,7 @@ export default function App() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         initialTab={settingsTab}
+        onTabChange={setSettingsTab}
         onProgressReset={() => void handleProgressReset()}
       />
     </AppShell>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, NotebookPen, PanelLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, StickyNote, PanelLeft } from 'lucide-react';
 import type { ContentZoomPreset, PresenterMenuMode, SequenceItem } from '@shared/types';
 import { usePrefs } from '../prefs/PrefsProvider';
 import { ZoomControl } from './ZoomControl';
@@ -142,7 +142,7 @@ export function PresenterChrome({
               : 'text-[var(--ink-muted)] hover:bg-black/5 dark:hover:bg-white/10'
           }`}
         >
-          <NotebookPen className="h-3.5 w-3.5" />
+          <StickyNote className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">{tr('toolNotes')}</span>
         </button>
         <ZoomControl

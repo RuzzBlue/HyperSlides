@@ -519,7 +519,9 @@ export function readSlideNotes(
     return { slideKey, notesFile: null, markdown: '' };
   }
   const abs = path.join(course.rootPath, 'notes', path.basename(notesFile));
-  const markdown = fs.existsSync(abs) ? fs.readFileSync(abs, 'utf-8') : '';
+  const markdown = fs.existsSync(abs)
+    ? fs.readFileSync(abs, 'utf-8').replace(/^\uFEFF/, '')
+    : '';
   return { slideKey, notesFile: path.basename(notesFile), markdown };
 }
 

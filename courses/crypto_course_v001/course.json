@@ -44,7 +44,8 @@
               "id": "lesson-03",
               "title": "Hot Wallets vs Cold Storage",
               "file": "lesson-03.html",
-              "durationMinutes": 4
+              "durationMinutes": 4,
+              "notes": "m01_u01_l03.md"
             }
           ]
         },
@@ -104,7 +105,8 @@
             {
               "type": "lab",
               "id": "lab-02",
-              "title": "Lab · Send a test transaction"
+              "title": "Lab · Send a test transaction",
+              "notes": "m02_u01_lab02.md"
             },
             {
               "type": "lesson",

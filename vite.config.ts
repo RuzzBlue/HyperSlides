@@ -15,5 +15,9 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    // Notes save writes under courses/ — don't full-reload the presenter UI.
+    watch: {
+      ignored: ['**/courses/**/notes/**', '**/courses/**/course.json', '**/data/**'],
+    },
   },
 });

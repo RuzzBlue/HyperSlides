@@ -155,6 +155,79 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb {
   width: 100%;
 }
 
+/* Presenter notes markdown preview */
+.notes-md-preview h1,
+.notes-md-preview h2,
+.notes-md-preview h3 {
+  font-family: var(--font-display);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0.75em 0 0.4em;
+  color: var(--ink);
+}
+
+.notes-md-preview h1 {
+  font-size: 1.35rem;
+}
+
+.notes-md-preview h2 {
+  font-size: 1.15rem;
+}
+
+.notes-md-preview h3 {
+  font-size: 1.05rem;
+}
+
+.notes-md-preview p {
+  margin: 0.45em 0;
+}
+
+.notes-md-preview ul,
+.notes-md-preview ol {
+  margin: 0.45em 0;
+  padding-left: 1.25rem;
+}
+
+.notes-md-preview ul {
+  list-style: disc;
+}
+
+.notes-md-preview ol {
+  list-style: decimal;
+}
+
+.notes-md-preview li {
+  margin: 0.2em 0;
+}
+
+.notes-md-preview strong {
+  font-weight: 700;
+}
+
+.notes-md-preview em {
+  font-style: italic;
+}
+
+.notes-md-preview code {
+  border-radius: 4px;
+  background: var(--panel);
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+}
+
+.notes-md-preview blockquote {
+  margin: 0.55em 0;
+  border-left: 3px solid var(--accent);
+  padding-left: 0.75rem;
+  color: var(--ink-muted);
+}
+
+.notes-md-preview .notes-md-empty::before {
+  content: '…';
+  color: var(--ink-muted);
+}
+
 /* Lab section HTML — semantic tags (Tailwind preflight strips list/heading defaults) */
 .lab-html {
   color: var(--ink);

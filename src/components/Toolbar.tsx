@@ -4,7 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Film,
-  NotebookPen,
+  StickyNote,
   PanelLeft,
   Play,
   Shapes,
@@ -152,7 +152,7 @@ export function Toolbar({
                 : 'border-[var(--line)] bg-[var(--stage)]/95 text-[var(--ink-muted)] hover:bg-[var(--panel)] hover:text-[var(--ink)]'
             }`}
           >
-            <NotebookPen className="h-3.5 w-3.5" />
+            <StickyNote className="h-3.5 w-3.5" />
             <span className="hidden xl:inline">{tr('toolNotes')}</span>
           </button>
         </div>
