@@ -173,7 +173,7 @@ function bgDefaultsFromAccent(accent: string) {
 
 function parseCssSize(size: string): { num: string; unit: (typeof SIZE_UNITS)[number] } {
   const m = String(size).trim().match(/^(-?[\d.]+)\s*([a-z%]+)?$/i);
-  if (!m) return { num: '14', unit: 'vmin' };
+  if (!m) return { num: '15', unit: 'vmin' };
   const unitRaw = (m[2] || 'px').toLowerCase();
   const unit = (SIZE_UNITS as readonly string[]).includes(unitRaw)
     ? (unitRaw as (typeof SIZE_UNITS)[number])
@@ -228,8 +228,9 @@ function Field({
   );
 }
 
-const inputClass =
-  'w-full rounded-md border border-[var(--line)] bg-[var(--panel)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)]';
+const inputShell =
+  'rounded-md border border-[var(--line)] bg-[var(--panel)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)]';
+const inputClass = `w-full ${inputShell}`;
 
 function OpacityControl({
   label,
@@ -246,7 +247,7 @@ function OpacityControl({
   };
   return (
     <Field label={label}>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         <input
           type="range"
           min={0}
@@ -254,14 +255,14 @@ function OpacityControl({
           step={0.01}
           value={value}
           onChange={(e) => setClamped(Number(e.target.value))}
-          className="h-1.5 flex-1 cursor-pointer accent-[var(--accent)]"
+          className="h-1.5 min-w-0 flex-1 cursor-pointer accent-[var(--accent)]"
         />
         <input
           type="number"
           min={0}
           max={1}
           step={0.01}
-          className={`${inputClass} w-[4.25rem] shrink-0`}
+          className={`${inputShell} w-14 shrink-0 px-1 text-center`}
           value={value}
           onChange={(e) => setClamped(Number(e.target.value))}
         />
@@ -282,15 +283,15 @@ function SizeWithUnit({
   const { num, unit } = parseCssSize(value);
   return (
     <Field label={label}>
-      <div className="flex gap-1.5">
+      <div className="flex min-w-0 gap-1.5">
         <input
           type="number"
-          className={`${inputClass} min-w-0 flex-1`}
+          className={`${inputShell} min-w-0 flex-1 px-1.5`}
           value={num}
           onChange={(e) => onChange(`${e.target.value || '0'}${unit}`)}
         />
         <select
-          className={`${inputClass} w-[5.25rem] shrink-0`}
+          className={`${inputShell} w-[4.25rem] shrink-0 px-1`}
           value={unit}
           onChange={(e) => onChange(`${num}${e.target.value}`)}
         >
@@ -388,7 +389,7 @@ function RotationKnob({
         <div className="flex items-center gap-1">
           <input
             type="number"
-            className={`${inputClass} w-[4.5rem]`}
+            className={`${inputShell} w-[4.5rem]`}
             value={value}
             onChange={(e) => onChange(Number(e.target.value) || 0)}
           />
@@ -754,7 +755,7 @@ export function CourseSettingsModal({
     dataBase64: string;
   } | null>(null);
   const [wmOpacity, setWmOpacity] = useState(0.08);
-  const [wmSize, setWmSize] = useState('14vmin');
+  const [wmSize, setWmSize] = useState('15vmin');
   const [wmRotate, setWmRotate] = useState(-24);
   const [wmPosition, setWmPosition] = useState<(typeof WM_POSITIONS)[number]>('center');
   const [wmRepeat, setWmRepeat] = useState<(typeof WM_REPEATS)[number]>('single');
@@ -814,7 +815,7 @@ export function CourseSettingsModal({
       setWmValue(wm?.value ?? 'DRAFT');
       setWmPendingImage(null);
       setWmOpacity(wm?.opacity ?? 0.08);
-      setWmSize(wm?.size ?? '14vmin');
+      setWmSize(wm?.size ?? '15vmin');
       setWmRotate(wm?.rotateDeg ?? -24);
       setWmPosition(wm?.position ?? 'center');
       setWmRepeat(wm?.repeat ?? 'single');
@@ -861,7 +862,7 @@ export function CourseSettingsModal({
       setWmValue('DRAFT');
       setWmPendingImage(null);
       setWmOpacity(0.08);
-      setWmSize('14vmin');
+      setWmSize('15vmin');
       setWmRotate(-24);
       setWmPosition('center');
       setWmRepeat('single');
