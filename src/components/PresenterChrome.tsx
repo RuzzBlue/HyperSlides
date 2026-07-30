@@ -66,32 +66,34 @@ export function PresenterChrome({
 
   const bar = (
     <div
-      className={`flex h-11 w-full items-center gap-3 border-[var(--line)] bg-[var(--chrome-top)]/95 px-3 text-[var(--ink)] shadow-sm backdrop-blur-md ${
+      className={`relative flex h-11 w-full items-center gap-3 border-[var(--line)] bg-[var(--chrome-top)]/95 px-3 text-[var(--ink)] shadow-sm backdrop-blur-md ${
         isHeader ? 'border-b' : 'border-t'
       }`}
     >
-      <button
-        type="button"
-        onClick={onToggleSidebar}
-        title={tr('toggleNavigator')}
-        className={`cursor-pointer rounded-md p-1.5 ${
-          sidebarOpen
-            ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
-            : 'text-[var(--ink-muted)] hover:bg-black/5 dark:hover:bg-white/10'
-        }`}
-      >
-        <PanelLeft className="h-4 w-4" />
-      </button>
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <button
+          type="button"
+          onClick={onToggleSidebar}
+          title={tr('toggleNavigator')}
+          className={`cursor-pointer rounded-md p-1.5 ${
+            sidebarOpen
+              ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+              : 'text-[var(--ink-muted)] hover:bg-black/5 dark:hover:bg-white/10'
+          }`}
+        >
+          <PanelLeft className="h-4 w-4" />
+        </button>
 
-      <div className="min-w-0 max-w-[28%] shrink">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-          {typeLabel}
+        <div className="min-w-0 max-w-full">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            {typeLabel}
+          </div>
+          <div className="truncate text-[12px] font-medium text-[var(--ink)]">{current?.title}</div>
         </div>
-        <div className="truncate text-[12px] font-medium text-[var(--ink)]">{current?.title}</div>
       </div>
 
-      <div className="flex flex-1 items-center justify-center">
-        <div className="flex items-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--stage)] p-0.5 shadow-sm">
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--stage)] p-0.5 shadow-sm">
           <button
             type="button"
             onClick={onPrev}
@@ -131,7 +133,7 @@ export function PresenterChrome({
         </div>
       </div>
 
-      <div className={`flex items-center gap-3 ${isHeader ? 'pr-28' : ''}`}>
+      <div className={`flex flex-1 items-center justify-end gap-3 ${isHeader ? 'pr-28' : ''}`}>
         <button
           type="button"
           title={tr('toolNotes')}
