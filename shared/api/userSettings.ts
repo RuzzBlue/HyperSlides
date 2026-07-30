@@ -13,6 +13,7 @@ const DEFAULT_APPEARANCE: AppearancePrefs = {
   accentColor: '#0e6e6a',
   theme: 'light',
   locale: 'en',
+  libraryView: 'cards',
 };
 
 const DEFAULT_SETTINGS: AppPrefs = {
@@ -53,6 +54,12 @@ function createDefaultUser(): UserState {
   };
 }
 
+function normalizeAppearance(raw: Partial<AppearancePrefs> | undefined): AppearancePrefs {
+  const merged: AppearancePrefs = { ...DEFAULT_APPEARANCE, ...(raw ?? {}) };
+  merged.libraryView = raw?.libraryView === 'list' ? 'list' : 'cards';
+  return merged;
+}
+
 /** Merge stored settings and migrate the old showNavigatorHeader flag. */
 function normalizeSettings(raw: Partial<AppPrefs> | undefined): AppPrefs {
   const legacy = raw as Partial<AppPrefs> & { showNavigatorHeader?: boolean };
@@ -89,7 +96,7 @@ export function readUserState(appRoot: string): UserState {
     };
     return {
       profile,
-      appearance: { ...DEFAULT_APPEARANCE, ...(raw.appearance ?? {}) },
+      appearance: normalizeAppearance(raw.appearance),
       settings: normalizeSettings(raw.settings),
     };
   } catch {

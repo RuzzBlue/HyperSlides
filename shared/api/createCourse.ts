@@ -89,8 +89,8 @@ export function listThemeTemplates(appRoot: string): ThemeTemplateInfo[] {
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function slugifyFolder(title: string, coursesRoot: string): string {
-  const base =
+function slugifyBase(title: string): string {
+  return (
     title
       .toLowerCase()
       .normalize('NFKD')
@@ -98,14 +98,50 @@ function slugifyFolder(title: string, coursesRoot: string): string {
       .trim()
       .replace(/[\s-]+/g, '_')
       .replace(/^_+|_+$/g, '')
-      .slice(0, 40) || 'course';
+      .slice(0, 40) || 'course'
+  );
+}
+
+/** Pick a free courses/<base>_vNNN folder. Pass `reserve` to ignore that existing folder (for renames). */
+function slugifyFolder(title: string, coursesRoot: string, reserve?: string): string {
+  const base = slugifyBase(title);
   let n = 1;
   let folder = `${base}_v${String(n).padStart(3, '0')}`;
-  while (fs.existsSync(path.join(coursesRoot, folder))) {
+  while (fs.existsSync(path.join(coursesRoot, folder)) && folder !== reserve) {
     n += 1;
     folder = `${base}_v${String(n).padStart(3, '0')}`;
   }
   return folder;
+}
+
+/** Keep current folder when the title still maps to the same slug base; otherwise allocate a new one. */
+function folderForTitle(title: string, currentFolder: string, coursesRoot: string): string {
+  const base = slugifyBase(title);
+  const m = currentFolder.match(/^(.*)_v\d+$/);
+  if (m && m[1] === base) return currentFolder;
+  if (currentFolder === base) return currentFolder;
+  return slugifyFolder(title, coursesRoot, currentFolder);
+}
+
+function renameProgressFile(appRoot: string, oldId: string, newId: string) {
+  if (!oldId || !newId || oldId === newId) return;
+  const dir = path.join(appRoot, 'data', 'progress');
+  const from = path.join(dir, `${oldId}.json`);
+  const to = path.join(dir, `${newId}.json`);
+  if (!fs.existsSync(from)) return;
+  try {
+    const raw = JSON.parse(fs.readFileSync(from, 'utf-8')) as { courseId?: string };
+    raw.courseId = newId;
+    if (fs.existsSync(to)) {
+      // Prefer keeping destination if somehow present; drop the old file.
+      fs.unlinkSync(from);
+      return;
+    }
+    fs.writeFileSync(to, `${JSON.stringify(raw, null, 2)}\n`, 'utf-8');
+    fs.unlinkSync(from);
+  } catch {
+    // best-effort
+  }
 }
 
 function writeJson(filePath: string, data: unknown) {
@@ -483,6 +519,7 @@ export function createCourse(appRoot: string, input: CreateCourseInput): CourseS
 
 /**
  * Update an existing course's metadata, theme, and security flags.
+ * When the title changes, renames the courses/ folder (and course id) to match.
  * Returns the reloaded course package (same shape as GET /api/courses/:id).
  */
 export function updateCourse(
@@ -492,15 +529,22 @@ export function updateCourse(
 ): Omit<import('../types.ts').LoadedCourse, 'rootPath'> {
   const loaded = loadCourse(appRoot, courseId);
   if (!loaded) throw new Error('Course not found');
-  const rootPath = loaded.rootPath;
+  let rootPath = loaded.rootPath;
+  const oldFolder = loaded.summary.folder;
+  const oldId = loaded.manifest.id || oldFolder;
   const title = input.title?.trim() || loaded.manifest.title;
   const subtitle = input.subtitle?.trim() ?? loaded.manifest.subtitle ?? '';
   const description = input.description?.trim() ?? loaded.manifest.description ?? '';
   const coverAccent = input.coverAccent?.trim() || loaded.manifest.coverAccent || '#0e6e6a';
   const author = input.author?.trim() || loaded.manifest.author || 'Author';
 
+  const coursesRoot = getCoursesRoot(appRoot);
+  const newFolder = folderForTitle(title, oldFolder, coursesRoot);
+  const newId = newFolder;
+
   const manifestPath = path.join(rootPath, 'course.json');
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as CourseManifest;
+  manifest.id = newId;
   manifest.title = title;
   manifest.subtitle = subtitle;
   manifest.description = description;
@@ -511,6 +555,7 @@ export function updateCourse(
   const packagePath = path.join(rootPath, 'manifest.json');
   if (fs.existsSync(packagePath)) {
     const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf-8')) as CoursePackageManifest;
+    pkg.id = newId;
     pkg.name = title;
     pkg.author = author;
     pkg.description = description;
@@ -567,7 +612,20 @@ export function updateCourse(
     });
   }
 
-  const refreshed = loadCourse(appRoot, courseId);
+  if (newFolder !== oldFolder) {
+    const dest = path.join(coursesRoot, newFolder);
+    if (fs.existsSync(dest)) {
+      throw new Error(`Course folder already exists: ${newFolder}`);
+    }
+    fs.renameSync(rootPath, dest);
+    rootPath = dest;
+    renameProgressFile(appRoot, oldId, newId);
+  } else if (oldId !== newId) {
+    // Folder kept, but id was out of sync with folder — still migrate progress.
+    renameProgressFile(appRoot, oldId, newId);
+  }
+
+  const refreshed = loadCourse(appRoot, newId);
   if (!refreshed) throw new Error('Course reload failed');
   const { rootPath: _, ...safe } = refreshed;
   return safe;

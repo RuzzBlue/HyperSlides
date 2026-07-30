@@ -159,8 +159,22 @@ const DEMO_DEFAULTS = {
   subtitle: 'Demo subtitle',
   description: 'Demo description — you can change this later inside the presentation.',
   coverAccent: '#0e6e6a',
-  author: 'Author',
 };
+
+function defaultAuthorFromProfile(profile: {
+  displayName?: string;
+  firstName?: string;
+  lastName?: string;
+} | null): string {
+  const display = profile?.displayName?.trim();
+  if (display) return display;
+  const first = profile?.firstName?.trim() ?? '';
+  const last = profile?.lastName?.trim() ?? '';
+  if (first && last) return `${first} ${last}`;
+  if (first) return first;
+  if (last) return last;
+  return 'Author';
+}
 
 function bgDefaultsFromAccent(accent: string) {
   return {
@@ -247,7 +261,7 @@ function OpacityControl({
   };
   return (
     <Field label={label}>
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center gap-1.5">
         <input
           type="range"
           min={0}
@@ -255,14 +269,14 @@ function OpacityControl({
           step={0.01}
           value={value}
           onChange={(e) => setClamped(Number(e.target.value))}
-          className="h-1.5 min-w-0 flex-1 cursor-pointer accent-[var(--accent)]"
+          className="h-1.5 min-w-0 basis-0 flex-[2] cursor-pointer accent-[var(--accent)]"
         />
         <input
           type="number"
           min={0}
           max={1}
           step={0.01}
-          className={`${inputShell} w-14 shrink-0 px-1 text-center`}
+          className={`${inputShell} min-w-0 basis-0 flex-[1] px-1 text-center`}
           value={value}
           onChange={(e) => setClamped(Number(e.target.value))}
         />
@@ -286,12 +300,12 @@ function SizeWithUnit({
       <div className="flex min-w-0 gap-1.5">
         <input
           type="number"
-          className={`${inputShell} min-w-0 flex-1 px-1.5`}
+          className={`${inputShell} min-w-0 basis-0 flex-[2] px-1.5`}
           value={num}
           onChange={(e) => onChange(`${e.target.value || '0'}${unit}`)}
         />
         <select
-          className={`${inputShell} w-[4.25rem] shrink-0 px-1`}
+          className={`${inputShell} min-w-0 basis-0 flex-[1] px-1`}
           value={unit}
           onChange={(e) => onChange(`${num}${e.target.value}`)}
         >
@@ -716,8 +730,9 @@ export function CourseSettingsModal({
   course?: Omit<LoadedCourse, 'rootPath'> | null;
   onSaved?: (course: Omit<LoadedCourse, 'rootPath'>) => void;
 }) {
-  const { tr } = usePrefs();
+  const { tr, profile } = usePrefs();
   const isEdit = mode === 'edit';
+  const defaultAuthor = defaultAuthorFromProfile(profile);
   const [tab, setTab] = useState<Tab>('info');
   const [templates, setTemplates] = useState<TemplateInfo[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -727,7 +742,7 @@ export function CourseSettingsModal({
   const [subtitle, setSubtitle] = useState(DEMO_DEFAULTS.subtitle);
   const [description, setDescription] = useState(DEMO_DEFAULTS.description);
   const [coverAccent, setCoverAccent] = useState(DEMO_DEFAULTS.coverAccent);
-  const [author, setAuthor] = useState(DEMO_DEFAULTS.author);
+  const [author, setAuthor] = useState(defaultAuthor);
 
   const [themeSource, setThemeSource] = useState<ThemeSource>('template');
   const [themeTemplateId, setThemeTemplateId] = useState('crypto-teal');
@@ -791,7 +806,7 @@ export function CourseSettingsModal({
       setSubtitle(m.subtitle ?? course.summary.subtitle ?? '');
       setDescription(m.description ?? course.summary.description ?? '');
       setCoverAccent(m.coverAccent ?? course.summary.coverAccent ?? DEMO_DEFAULTS.coverAccent);
-      setAuthor(m.author ?? course.summary.author ?? DEMO_DEFAULTS.author);
+      setAuthor(m.author ?? course.summary.author ?? defaultAuthor);
 
       setThemeSource(isCustom ? 'custom' : 'template');
       setThemeTemplateId(isCustom ? 'crypto-teal' : (course.theme?.id ?? 'crypto-teal'));
@@ -840,7 +855,7 @@ export function CourseSettingsModal({
       setSubtitle(DEMO_DEFAULTS.subtitle);
       setDescription(DEMO_DEFAULTS.description);
       setCoverAccent(DEMO_DEFAULTS.coverAccent);
-      setAuthor(DEMO_DEFAULTS.author);
+      setAuthor(defaultAuthor);
       setThemeSource('template');
       setThemeTemplateId(initialTemplateId || 'crypto-teal');
       setAccent(DEMO_DEFAULTS.coverAccent);
@@ -903,7 +918,7 @@ export function CourseSettingsModal({
         }
       }
     })();
-  }, [open, isEdit, course, initialTemplateId]);
+  }, [open, isEdit, course, initialTemplateId, defaultAuthor]);
 
   useEffect(() => {
     if (!open) return;
@@ -1347,6 +1362,14 @@ export function CourseSettingsModal({
                       )}
                       {bgMode === 'css' && (
                         <div className="space-y-2">
+                          <a
+                            href="https://www.magicpattern.design/tools/css-backgrounds"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex text-[11px] font-medium text-[var(--accent)] hover:underline"
+                          >
+                            {tr('newCourseBgCssPatterns')} ↗
+                          </a>
                           <Field label={tr('newCourseBgLight')} hint={tr('newCourseBgCssHint')}>
                             <textarea
                               rows={4}

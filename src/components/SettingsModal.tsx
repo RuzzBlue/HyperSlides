@@ -537,6 +537,30 @@ function AppearanceTab({
           ))}
         </div>
       </Field>
+
+      <Field label={tr('libraryView')} hint={tr('libraryViewHint')}>
+        <div className="flex gap-2">
+          {(
+            [
+              ['cards', tr('layoutCards')],
+              ['list', tr('layoutList')],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setDraft({ ...draft, libraryView: value })}
+              className={`rounded-lg border px-3 py-2 text-[12px] font-medium ${
+                (draft.libraryView ?? 'cards') === value
+                  ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                  : 'border-[var(--line)] text-[var(--ink)] hover:bg-[var(--panel)]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </Field>
     </div>
   );
 }

@@ -43,8 +43,11 @@ export function HomeView({
   onOpen: (id: string) => void;
   onRefresh: () => void | Promise<void>;
 }) {
-  const { tr, trf, appearance } = usePrefs();
-  const [layout, setLayout] = useState<LayoutMode>('cards');
+  const { tr, trf, appearance, save } = usePrefs();
+  const layout: LayoutMode = appearance.libraryView === 'list' ? 'list' : 'cards';
+  const setLayout = (next: LayoutMode) => {
+    void save({ appearance: { libraryView: next } });
+  };
   const [importOpen, setImportOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [newTemplateId, setNewTemplateId] = useState<string | undefined>();
@@ -192,7 +195,7 @@ export function HomeView({
               </button>
               <button
                 type="button"
-                onClick={() => setLayout((m) => (m === 'cards' ? 'list' : 'cards'))}
+                onClick={() => setLayout(layout === 'cards' ? 'list' : 'cards')}
                 title={layout === 'cards' ? tr('layoutList') : tr('layoutCards')}
                 className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1 text-[12px] font-medium shadow-sm hover:bg-[var(--panel)]"
               >

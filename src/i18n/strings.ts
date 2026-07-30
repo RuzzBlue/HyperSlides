@@ -202,6 +202,7 @@ const en = {
   newCourseLabColor: 'Lab color',
   newCourseBgCssHint:
     'Paste CSS declarations (one per line or semicolon-separated): background-color, background-image, background-size, etc.',
+  newCourseBgCssPatterns: 'Browse CSS background patterns',
   newCourseWatermark: 'Watermark',
   newCoursePageNumber: 'Page number',
   newCourseEnabled: 'Enabled',
@@ -253,6 +254,8 @@ const en = {
   selectCourse: 'Select course',
   layoutCards: 'Cards',
   layoutList: 'List',
+  libraryView: 'Course library',
+  libraryViewHint: 'Default layout for the course library home screen.',
   comingSoon: 'Coming soon',
   blankTheme: 'Blank',
   workshopTheme: 'Workshop',
@@ -523,6 +526,7 @@ const es: Record<keyof typeof en, string> = {
   newCourseLabColor: 'Color de lab',
   newCourseBgCssHint:
     'Pega declaraciones CSS (una por línea o separadas por punto y coma): background-color, background-image, background-size, etc.',
+  newCourseBgCssPatterns: 'Explorar patrones CSS de fondo',
   newCourseWatermark: 'Marca de agua',
   newCoursePageNumber: 'Número de página',
   newCourseEnabled: 'Activado',
@@ -574,6 +578,8 @@ const es: Record<keyof typeof en, string> = {
   selectCourse: 'Seleccionar curso',
   layoutCards: 'Tarjetas',
   layoutList: 'Lista',
+  libraryView: 'Biblioteca de cursos',
+  libraryViewHint: 'Diseño predeterminado de la pantalla de biblioteca.',
   comingSoon: 'Próximamente',
   blankTheme: 'En blanco',
   workshopTheme: 'Taller',

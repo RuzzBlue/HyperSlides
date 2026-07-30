@@ -98,6 +98,7 @@ const fallbackAppearance: AppearancePrefs = {
   accentColor: '#0e6e6a',
   theme: 'light',
   locale: 'en',
+  libraryView: 'cards',
 };
 
 const fallbackSettings: AppPrefs = {

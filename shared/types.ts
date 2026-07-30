@@ -466,6 +466,8 @@ export interface AppearancePrefs {
   accentColor: string;
   theme: ThemeMode;
   locale: AppLocale;
+  /** Default course library layout on the home screen. */
+  libraryView?: 'cards' | 'list';
 }
 
 export type ContentZoomPreset =
