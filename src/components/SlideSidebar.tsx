@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BookOpen,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
   FlaskConical,
+  Folder,
+  FolderOpen,
   GripVertical,
   HelpCircle,
   Pencil,
@@ -236,6 +239,11 @@ export function SlideSidebar({
   }, [onWidthChange, onWidthCommit]);
 
   const [expandPendingKey, setExpandPendingKey] = useState<string | null>(null);
+  const [dragPreview, setDragPreview] = useState<{
+    x: number;
+    y: number;
+    target: StructureTarget;
+  } | null>(null);
   const dragOriginRef = useRef<{ x: number; y: number } | null>(null);
   const dragMovedRef = useRef(false);
 
@@ -255,6 +263,7 @@ export function SlideSidebar({
       setExpandPendingKey(null);
       editor.setDropHint(null);
       editor.setDragging(target);
+      setDragPreview({ x: clientX, y: clientY, target });
     },
     onMove: editor.move,
     onRename: editor.openRename,
@@ -267,7 +276,7 @@ export function SlideSidebar({
     ensureUnitOpen: expansion.ensureUnitOpen,
   };
 
-  useStructurePointerDrag(actions, dragOriginRef, dragMovedRef);
+  useStructurePointerDrag(actions, dragOriginRef, dragMovedRef, setDragPreview);
 
   return (
     <aside
@@ -383,6 +392,11 @@ export function SlideSidebar({
         error={editor.error}
         onClose={() => editor.setDeleteNode(null)}
         onConfirm={() => void editor.confirmDelete()}
+      />
+      <StructureDragPreview
+        preview={dragPreview}
+        tree={tree}
+        sequence={sequence}
       />
     </aside>
   );
@@ -727,9 +741,14 @@ function useStructurePointerDrag(
   actions: StructureActions,
   originRef: MutableRefObject<{ x: number; y: number } | null>,
   movedRef: MutableRefObject<boolean>,
+  setDragPreview: (
+    preview: { x: number; y: number; target: StructureTarget } | null,
+  ) => void,
 ) {
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
+  const setPreviewRef = useRef(setDragPreview);
+  setPreviewRef.current = setDragPreview;
   const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expandKeyRef = useRef<string | null>(null);
 
@@ -738,6 +757,7 @@ function useStructurePointerDrag(
       if (expandTimerRef.current) clearTimeout(expandTimerRef.current);
       expandTimerRef.current = null;
       expandKeyRef.current = null;
+      setPreviewRef.current(null);
       return;
     }
 
@@ -759,9 +779,14 @@ function useStructurePointerDrag(
       if (origin && !movedRef.current) {
         const dx = e.clientX - origin.x;
         const dy = e.clientY - origin.y;
-        if (dx * dx + dy * dy < 25) return;
+        if (dx * dx + dy * dy < 25) {
+          setPreviewRef.current({ x: e.clientX, y: e.clientY, target: a.dragging });
+          return;
+        }
         movedRef.current = true;
       }
+
+      setPreviewRef.current({ x: e.clientX, y: e.clientY, target: a.dragging });
 
       const expandKey =
         a.dragging.kind === 'item' ? readExpandKeyFromPoint(e.clientX, e.clientY) : null;
@@ -796,6 +821,7 @@ function useStructurePointerDrag(
           ? readDropDestFromPoint(e.clientX, e.clientY, source, a.sequence)
           : null;
       clearExpand();
+      setPreviewRef.current(null);
       a.setDropHint(null);
       a.setDragging(null);
       originRef.current = null;
@@ -816,8 +842,88 @@ function useStructurePointerDrag(
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
       clearExpand();
+      setPreviewRef.current(null);
     };
   }, [actions.dragging, originRef, movedRef]);
+}
+
+function resolveDragPreviewMeta(
+  target: StructureTarget,
+  tree: OverviewModule[],
+  sequence: SequenceItem[],
+): { title: string; kind: 'module' | 'unit' | SequenceItem['type'] } {
+  if (target.kind === 'module') {
+    const mod = tree.find((m) => m.id === target.moduleId);
+    return { title: mod?.title ?? 'Module', kind: 'module' };
+  }
+  if (target.kind === 'unit') {
+    const mod = tree.find((m) => m.id === target.moduleId);
+    const unit = mod?.units.find((u) => u.id === target.unitId);
+    return { title: unit?.title ?? 'Unit', kind: 'unit' };
+  }
+  const item = sequence.find((s) => s.key === target.itemKey);
+  return {
+    title: item?.title ?? 'Item',
+    kind: item?.type ?? 'lesson',
+  };
+}
+
+function StructureDragPreview({
+  preview,
+  tree,
+  sequence,
+}: {
+  preview: { x: number; y: number; target: StructureTarget } | null;
+  tree: OverviewModule[];
+  sequence: SequenceItem[];
+}) {
+  if (!preview || typeof document === 'undefined') return null;
+  const meta = resolveDragPreviewMeta(preview.target, tree, sequence);
+  const isSection = meta.kind === 'module' || meta.kind === 'unit';
+
+  return createPortal(
+    <div
+      className="pointer-events-none fixed z-[9999] opacity-75"
+      style={{ left: preview.x + 12, top: preview.y + 8 }}
+    >
+      {isSection ? (
+        <div className="flex max-w-[11rem] items-center gap-1.5 rounded-md border border-[var(--line)] bg-[var(--stage)] px-2 py-1 shadow-md">
+          {meta.kind === 'module' ? (
+            <FolderOpen className="h-3 w-3 shrink-0 text-[var(--ink-muted)]" />
+          ) : (
+            <Folder className="h-3 w-3 shrink-0 text-[var(--ink-muted)]" />
+          )}
+          <span className="truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+            {meta.title}
+          </span>
+        </div>
+      ) : (
+        <div className="w-[7.5rem] overflow-hidden rounded-md border border-[var(--line)] bg-[var(--stage)] shadow-md">
+          <div
+            className={`flex h-9 items-center justify-center border-b ${
+              meta.kind === 'quiz'
+                ? 'border-[#c9d7ef] bg-[linear-gradient(145deg,#eef3fb,#d9e4f6)]'
+                : meta.kind === 'lab'
+                  ? 'border-[#ddd0ef] bg-[linear-gradient(145deg,#f6f1fb,#e8ddf4)]'
+                  : 'border-[var(--line)] bg-[linear-gradient(160deg,#ffffff,#f3f5f8)]'
+            }`}
+          >
+            {meta.kind === 'quiz' ? (
+              <HelpCircle className="h-4 w-4 text-[var(--quiz)] opacity-80" />
+            ) : meta.kind === 'lab' ? (
+              <FlaskConical className="h-4 w-4 text-[var(--lab)] opacity-80" />
+            ) : (
+              <BookOpen className="h-4 w-4 text-[var(--accent)] opacity-80" />
+            )}
+          </div>
+          <div className="truncate px-1.5 py-1 text-[10px] font-medium text-[var(--ink)]">
+            {meta.title}
+          </div>
+        </div>
+      )}
+    </div>,
+    document.body,
+  );
 }
 
 /** Drop-at-end target when hovering a module/unit header during drag. */
