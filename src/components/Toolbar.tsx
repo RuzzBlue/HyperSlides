@@ -17,6 +17,7 @@ import { usePrefs } from '../prefs/PrefsProvider';
 import type { StringKey } from '../i18n/strings';
 import type { InspectorTool } from './inspector/Inspector';
 import { ZoomControl } from './ZoomControl';
+import { AddContentButton, type InsertKind } from './AddContentButton';
 
 const INSERT_TOOLS: Array<{ id: Exclude<InspectorTool, 'notes'>; key: StringKey; icon: ReactNode }> = [
   { id: 'graphs', key: 'toolGraphs', icon: <BarChart3 className="h-3.5 w-3.5" /> },
@@ -41,6 +42,7 @@ export function Toolbar({
   onZoomChange,
   inspectorTool,
   onInspectorTool,
+  onInsert,
 }: {
   index: number;
   total: number;
@@ -55,6 +57,7 @@ export function Toolbar({
   onZoomChange: (z: ContentZoomPreset) => void;
   inspectorTool: InspectorTool | null;
   onInspectorTool: (tool: InspectorTool | null) => void;
+  onInsert?: (kind: InsertKind) => void;
 }) {
   const { tr } = usePrefs();
   const typeLabel =
@@ -93,6 +96,11 @@ export function Toolbar({
         </button>
 
         <ZoomControl value={zoom} onChange={onZoomChange} menuPlacement="down" />
+
+        <AddContentButton
+          disabled={!current || !onInsert}
+          onAdd={(kind) => onInsert?.(kind)}
+        />
 
         <div className="mx-1 h-5 w-px bg-[var(--line)]" />
 

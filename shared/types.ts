@@ -138,7 +138,10 @@ export interface CoursePackageManifest {
   permissions?: string[];
   integrity?: { algorithm: string; hash?: string | null };
   updates?: { channel: string; feedUrl?: string };
+  /** Learner access gate (enforcement TBD). */
   passwordLock?: { enabled: boolean; hint?: string };
+  /** Author/edit lock (enforcement TBD). */
+  authorLock?: { enabled: boolean; hint?: string };
 }
 
 export interface CourseLessonRef {

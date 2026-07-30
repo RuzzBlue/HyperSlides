@@ -149,6 +149,55 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb {
   animation: pulse-ring 1.8s ease-out infinite;
 }
 
+/* Canonical empty/authorable slide shell (see shared/api/slideTemplate.ts) */
+.lesson-stage .hc-slide {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 12rem;
+}
+
+.lesson-stage .hc-slide__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--lesson-h1, 2.15rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--ink);
+  min-height: 1.2em;
+}
+
+.lesson-stage .hc-slide__title:empty::before {
+  content: '';
+  display: inline-block;
+  min-height: 1em;
+}
+
+.lesson-stage .hc-slide__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  color: var(--ink);
+  line-height: 1.65;
+}
+
+.lesson-stage .hc-slide__body > :first-child {
+  margin-top: 0;
+}
+
+.lesson-stage .hc-slide__body > :last-child {
+  margin-bottom: 0;
+}
+
+.lesson-stage .hc-slide__body p {
+  margin: 0;
+}
+
+.lesson-stage .hc-slide__body p:empty {
+  min-height: 1.5em;
+}
+
 /* Zoom: Full width — stretch the lesson reading column to the stage */
 .stage-zoom-full-width .lesson-stage {
   max-width: none;

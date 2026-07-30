@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { motion } from 'motion/react';
+import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   ArrowRight,
   ArrowLeftRight,
@@ -11,10 +11,14 @@ import {
   Plus,
   RefreshCw,
   Sparkles,
+  Trash2,
+  X,
 } from 'lucide-react';
 import type { CourseSummary } from '@shared/types';
+import { apiFetch } from '../api/client';
 import { usePrefs } from '../prefs/PrefsProvider';
 import { ImportExportModal } from './ImportExportModal';
+import { NewCourseModal } from './NewCourseModal';
 import type { StringKey } from '../i18n/strings';
 
 type LayoutMode = 'cards' | 'list';
@@ -37,11 +41,52 @@ export function HomeView({
   loading: boolean;
   error: string | null;
   onOpen: (id: string) => void;
-  onRefresh: () => void;
+  onRefresh: () => void | Promise<void>;
 }) {
-  const { tr, appearance } = usePrefs();
+  const { tr, trf, appearance } = usePrefs();
   const [layout, setLayout] = useState<LayoutMode>('cards');
   const [importOpen, setImportOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
+  const [newTemplateId, setNewTemplateId] = useState<string | undefined>();
+  const [pendingDelete, setPendingDelete] = useState<CourseSummary | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const openNew = (templateId?: string) => {
+    setNewTemplateId(templateId);
+    setNewOpen(true);
+  };
+
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    const started = Date.now();
+    try {
+      await onRefresh();
+    } finally {
+      const elapsed = Date.now() - started;
+      // Keep the spinner visible briefly so the action feels intentional.
+      window.setTimeout(() => setRefreshing(false), Math.max(0, 450 - elapsed));
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const res = await apiFetch<{ id: string; folder: string }>({
+      method: 'DELETE',
+      path: `/api/courses/${pendingDelete.id}`,
+    });
+    setDeleting(false);
+    if (!res.ok) {
+      setDeleteError(res.error ?? tr('deleteCourseFailed'));
+      return;
+    }
+    setPendingDelete(null);
+    onRefresh();
+  };
 
   return (
     <div className="relative min-h-0 flex-1 overflow-auto">
@@ -53,7 +98,6 @@ export function HomeView({
       />
 
       <div className="relative mx-auto max-w-6xl px-8 pb-16 pt-12">
-        {/* Hero: brand column + templates column */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -89,6 +133,7 @@ export function HomeView({
                   type="button"
                   className="group cursor-pointer text-left"
                   title={tr(theme.titleKey)}
+                  onClick={() => openNew()}
                 >
                   <div
                     className="aspect-[4/3] rounded-lg border border-[var(--line)] shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md"
@@ -104,6 +149,7 @@ export function HomeView({
             <div className="mt-3 flex justify-end">
               <button
                 type="button"
+                onClick={() => openNew()}
                 className="inline-flex cursor-pointer items-center gap-1 text-[12px] font-semibold text-[var(--accent)] hover:underline"
               >
                 {tr('moreThemes')}
@@ -113,7 +159,6 @@ export function HomeView({
           </div>
         </motion.div>
 
-        {/* Available courses toolbar with full-width rule */}
         <div className="mb-4">
           <div className="flex items-end justify-between gap-3">
             <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
@@ -122,6 +167,7 @@ export function HomeView({
             <div className="flex items-center gap-2">
               <button
                 type="button"
+                onClick={() => openNew()}
                 className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-[var(--accent)] px-2.5 py-1 text-[12px] font-semibold text-white shadow-sm hover:brightness-110"
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -137,10 +183,11 @@ export function HomeView({
               </button>
               <button
                 type="button"
-                onClick={onRefresh}
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1 text-[12px] font-medium shadow-sm hover:bg-[var(--panel)]"
+                onClick={() => void handleRefresh()}
+                disabled={refreshing}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1 text-[12px] font-medium shadow-sm hover:bg-[var(--panel)] disabled:cursor-wait disabled:opacity-70"
               >
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
                 {tr('refresh')}
               </button>
               <button
@@ -181,6 +228,10 @@ export function HomeView({
                 index={i}
                 accent={appearance.accentColor}
                 onOpen={onOpen}
+                onDelete={() => {
+                  setDeleteError(null);
+                  setPendingDelete(c);
+                }}
                 tr={tr}
               />
             ))}
@@ -192,45 +243,61 @@ export function HomeView({
           </div>
         ) : (
           <div>
-            <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_7rem_9rem] gap-3 px-1 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+            <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_7rem_minmax(7rem,9rem)_2.25rem] gap-3 px-1 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
               <span>{tr('colName')}</span>
               <span className="hidden sm:block">{tr('colDescription')}</span>
               <span>{tr('colVersion')}</span>
               <span className="text-right">{tr('colModified')}</span>
+              <span className="sr-only">{tr('deleteCourse')}</span>
             </div>
             <div className="h-px w-full bg-[var(--line)]/70" />
             {courses.map((c, i) => (
-              <motion.button
+              <motion.div
                 key={c.id}
-                type="button"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.04 * i }}
-                onClick={() => onOpen(c.id)}
-                className="grid w-full cursor-pointer grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_7rem_9rem] items-center gap-3 border-b border-[var(--line)]/50 px-1 py-3 text-left last:border-b-0 hover:bg-black/[0.03]"
+                className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_7rem_minmax(7rem,9rem)_2.25rem] items-center gap-3 border-b border-[var(--line)]/50 px-1 py-3 last:border-b-0 hover:bg-black/[0.03]"
               >
-                <div className="flex min-w-0 items-center gap-2">
-                  <span
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{ background: c.coverAccent ?? appearance.accentColor }}
-                  />
-                  <div className="min-w-0">
-                    <div className="truncate text-[13px] font-semibold text-[var(--ink)]">
-                      {c.title}
+                <button
+                  type="button"
+                  onClick={() => onOpen(c.id)}
+                  className="col-span-4 contents cursor-pointer text-left"
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ background: c.coverAccent ?? appearance.accentColor }}
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate text-[13px] font-semibold text-[var(--ink)]">
+                        {c.title}
+                      </div>
+                      {c.subtitle && (
+                        <div className="truncate text-[11px] text-[var(--ink-muted)]">{c.subtitle}</div>
+                      )}
                     </div>
-                    {c.subtitle && (
-                      <div className="truncate text-[11px] text-[var(--ink-muted)]">{c.subtitle}</div>
-                    )}
                   </div>
-                </div>
-                <div className="hidden truncate text-[12px] text-[var(--ink-muted)] sm:block">
-                  {c.description}
-                </div>
-                <span className="tabular-nums text-[12px] text-[var(--ink)]">v{c.version}</span>
-                <span className="text-right text-[12px] tabular-nums text-[var(--ink-muted)]">
-                  {formatModified(c.modifiedAt)}
-                </span>
-              </motion.button>
+                  <div className="hidden truncate text-[12px] text-[var(--ink-muted)] sm:block">
+                    {c.description}
+                  </div>
+                  <span className="tabular-nums text-[12px] text-[var(--ink)]">v{c.version}</span>
+                  <span className="text-right text-[12px] tabular-nums text-[var(--ink-muted)]">
+                    {formatModified(c.modifiedAt)}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  title={tr('deleteCourse')}
+                  onClick={() => {
+                    setDeleteError(null);
+                    setPendingDelete(c);
+                  }}
+                  className="inline-flex h-8 w-8 cursor-pointer items-center justify-center justify-self-end rounded-md text-[var(--ink-muted)] hover:bg-rose-500/10 hover:text-rose-600"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </motion.div>
             ))}
             {!courses.length && !error && (
               <div className="px-1 py-12 text-center text-[var(--ink-muted)]">
@@ -247,10 +314,129 @@ export function HomeView({
         courses={courses}
       />
 
+      <NewCourseModal
+        open={newOpen}
+        initialTemplateId={newTemplateId}
+        onClose={() => setNewOpen(false)}
+        onCreated={(course) => {
+          onRefresh();
+          onOpen(course.id);
+        }}
+      />
+
+      <DeleteCourseModal
+        course={pendingDelete}
+        deleting={deleting}
+        error={deleteError}
+        title={tr('deleteCourseTitle')}
+        body={
+          pendingDelete
+            ? trf('deleteCourseBody', { title: pendingDelete.title })
+            : ''
+        }
+        confirmLabel={deleting ? tr('deleteCourseDeleting') : tr('deleteCourseConfirm')}
+        cancelLabel={tr('deleteCourseCancel')}
+        onCancel={() => !deleting && setPendingDelete(null)}
+        onConfirm={() => void confirmDelete()}
+      />
+
       <footer className="relative px-8 pb-6 text-center text-[11px] text-[var(--ink-muted)]">
         {tr('createdBy')}
       </footer>
     </div>
+  );
+}
+
+function DeleteCourseModal({
+  course,
+  deleting,
+  error,
+  title,
+  body,
+  confirmLabel,
+  cancelLabel,
+  onCancel,
+  onConfirm,
+}: {
+  course: CourseSummary | null;
+  deleting: boolean;
+  error: string | null;
+  title: string;
+  body: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  useEffect(() => {
+    if (!course) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !deleting) onCancel();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [course, deleting, onCancel]);
+
+  return (
+    <AnimatePresence>
+      {course && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <button
+            type="button"
+            className="absolute inset-0 cursor-pointer bg-black/40 backdrop-blur-[2px]"
+            aria-label="Close"
+            onClick={() => !deleting && onCancel()}
+          />
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            initial={{ opacity: 0, y: 14, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            className="relative w-full max-w-md overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--stage)] shadow-[var(--shadow)]"
+          >
+            <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3">
+              <h2 className="text-[15px] font-semibold text-[var(--ink)]">{title}</h2>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={onCancel}
+                className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5 disabled:opacity-50"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-4 px-5 py-5">
+              <p className="text-[13px] leading-relaxed text-[var(--ink-muted)]">{body}</p>
+              {error && <p className="text-[12px] text-rose-600">{error}</p>}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={onCancel}
+                  className="cursor-pointer rounded-md border border-[var(--line)] px-3 py-1.5 text-[12px] font-medium text-[var(--ink-muted)] hover:bg-[var(--panel)] disabled:opacity-50"
+                >
+                  {cancelLabel}
+                </button>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={onConfirm}
+                  className="cursor-pointer rounded-md bg-rose-600 px-3 py-1.5 text-[12px] font-semibold text-white hover:brightness-110 disabled:opacity-50"
+                >
+                  {confirmLabel}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -271,63 +457,76 @@ function CourseCard({
   index: i,
   accent,
   onOpen,
+  onDelete,
   tr,
 }: {
   course: CourseSummary;
   index: number;
   accent: string;
   onOpen: (id: string) => void;
+  onDelete: () => void;
   tr: (key: StringKey) => string;
 }) {
   return (
-    <motion.button
-      type="button"
+    <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.08 * i, duration: 0.35 }}
-      onClick={() => onOpen(c.id)}
-      className="group cursor-pointer overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--stage)] text-left shadow-[0_10px_30px_rgba(28,31,38,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(28,31,38,0.12)]"
+      className="group relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--stage)] text-left shadow-[0_10px_30px_rgba(28,31,38,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(28,31,38,0.12)]"
     >
-      <div
-        className="h-28 px-5 pb-4 pt-5"
-        style={{
-          background: `linear-gradient(135deg, ${c.coverAccent ?? accent} 0%, #1c1f26 100%)`,
+      <button
+        type="button"
+        title={tr('deleteCourse')}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
         }}
+        className="absolute right-2.5 top-2.5 z-10 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md bg-black/25 text-white opacity-0 backdrop-blur-sm transition group-hover:opacity-100 hover:bg-rose-600"
       >
-        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">
-          v{c.version}
-        </div>
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+      <button type="button" onClick={() => onOpen(c.id)} className="w-full cursor-pointer text-left">
         <div
-          className="mt-1 text-2xl font-semibold text-white"
-          style={{ fontFamily: 'var(--font-display)' }}
+          className="h-28 px-5 pb-4 pt-5"
+          style={{
+            background: `linear-gradient(135deg, ${c.coverAccent ?? accent} 0%, #1c1f26 100%)`,
+          }}
         >
-          {c.title}
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">
+            v{c.version}
+          </div>
+          <div
+            className="mt-1 pr-8 text-2xl font-semibold text-white"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {c.title}
+          </div>
+          {c.subtitle && <div className="pr-8 text-sm text-white/75">{c.subtitle}</div>}
         </div>
-        {c.subtitle && <div className="text-sm text-white/75">{c.subtitle}</div>}
-      </div>
-      <div className="px-5 py-4">
-        <p className="line-clamp-2 text-[13px] leading-relaxed text-[var(--ink-muted)]">
-          {c.description}
-        </p>
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-[11px] font-medium text-[var(--ink-muted)]">
-          <span className="inline-flex items-center gap-1">
-            <BookOpen className="h-3.5 w-3.5" />
-            {c.lessonCount} {tr('lessons')}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <HelpCircle className="h-3.5 w-3.5" />
-            {c.quizCount} {tr('quizzes')}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <FlaskConical className="h-3.5 w-3.5" />
-            {c.labCount} {tr('labs')}
-          </span>
-          <span className="ml-auto inline-flex items-center gap-1 font-semibold text-[var(--accent)] opacity-0 transition group-hover:opacity-100">
-            {tr('open')}
-            <ArrowRight className="h-3.5 w-3.5" />
-          </span>
+        <div className="px-5 py-4">
+          <p className="line-clamp-2 text-[13px] leading-relaxed text-[var(--ink-muted)]">
+            {c.description}
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-[11px] font-medium text-[var(--ink-muted)]">
+            <span className="inline-flex items-center gap-1">
+              <BookOpen className="h-3.5 w-3.5" />
+              {c.lessonCount} {tr('lessons')}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <HelpCircle className="h-3.5 w-3.5" />
+              {c.quizCount} {tr('quizzes')}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <FlaskConical className="h-3.5 w-3.5" />
+              {c.labCount} {tr('labs')}
+            </span>
+            <span className="ml-auto inline-flex items-center gap-1 font-semibold text-[var(--accent)] opacity-0 transition group-hover:opacity-100">
+              {tr('open')}
+              <ArrowRight className="h-3.5 w-3.5" />
+            </span>
+          </div>
         </div>
-      </div>
-    </motion.button>
+      </button>
+    </motion.div>
   );
 }

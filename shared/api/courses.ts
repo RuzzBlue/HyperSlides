@@ -236,11 +236,91 @@ export function buildSequence(manifest: CourseManifest): SequenceItem[] {
   return items;
 }
 
+const DEFAULT_WATERMARK: NonNullable<CourseTheme['watermark']> = {
+  enabled: false,
+  kind: 'text',
+  value: 'HYPERCLASS',
+  opacity: 0.06,
+  size: '12vmin',
+  rotateDeg: -30,
+  position: 'center',
+  repeat: 'single',
+};
+
+const DEFAULT_PAGE_NUMBER: NonNullable<CourseTheme['pageNumber']> = {
+  enabled: true,
+  position: 'bottom-right',
+  format: '{n}',
+  opacity: 0.5,
+};
+
+/** Fill legacy / incomplete theme.json packages with the current schema defaults. */
+export function normalizeCourseTheme(raw: CourseTheme): CourseTheme {
+  const accent = raw.accent || '#0e6e6a';
+  const background = raw.background ?? {
+    light: {
+      type: 'gradient' as const,
+      value: `linear-gradient(180deg, color-mix(in srgb, ${accent} 12%, #ffffff) 0%, #ffffff 100%)`,
+    },
+    dark: {
+      type: 'gradient' as const,
+      value: `linear-gradient(180deg, color-mix(in srgb, ${accent} 22%, #0f172a) 0%, #0f172a 100%)`,
+    },
+  };
+
+  const backgrounds = {
+    ...(raw.backgrounds ?? {}),
+  };
+  if (!backgrounds.default) backgrounds.default = background;
+
+  return {
+    ...raw,
+    fontSizeBase: raw.fontSizeBase ?? '16px',
+    typeScale: {
+      h1: '2.15rem',
+      h2: '1.55rem',
+      h3: '1.2rem',
+      body: '16px',
+      ...raw.typeScale,
+    },
+    accent,
+    quiz: raw.quiz ?? '#2f5aa8',
+    lab: raw.lab ?? '#6b4f9a',
+    background,
+    backgrounds,
+    watermark: { ...DEFAULT_WATERMARK, ...raw.watermark },
+    pageNumber: { ...DEFAULT_PAGE_NUMBER, ...raw.pageNumber },
+    cssFile: raw.cssFile ?? 'theme.css',
+  };
+}
+
+function themeNeedsSchemaUpgrade(raw: CourseTheme): boolean {
+  return (
+    !raw.backgrounds?.default ||
+    !raw.watermark ||
+    !raw.pageNumber ||
+    !raw.typeScale ||
+    !raw.quiz ||
+    !raw.lab ||
+    !raw.fontSizeBase ||
+    !raw.cssFile
+  );
+}
+
 export function loadCourseTheme(rootPath: string): CourseTheme | null {
   const themePath = path.join(rootPath, 'theme', 'theme.json');
   if (!fs.existsSync(themePath)) return null;
   try {
-    return readJson<CourseTheme>(themePath);
+    const raw = readJson<CourseTheme>(themePath);
+    const normalized = normalizeCourseTheme(raw);
+    if (themeNeedsSchemaUpgrade(raw)) {
+      try {
+        fs.writeFileSync(themePath, `${JSON.stringify(normalized, null, 2)}\n`, 'utf-8');
+      } catch {
+        /* read-only packages still get in-memory defaults */
+      }
+    }
+    return normalized;
   } catch {
     return null;
   }

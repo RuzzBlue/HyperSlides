@@ -13,6 +13,7 @@ import type {
   AppLocale,
   AppPrefs,
   CoursePackageManifest,
+  CourseTheme,
   ThemeMode,
   UserProfile,
   UserState,
@@ -54,7 +55,10 @@ function normalizeCourseTheme(mode?: string): ThemeMode {
 export type AppearanceLocks = {
   theme: boolean;
   locale: boolean;
+  accent: boolean;
 };
+
+type CourseSessionOverride = Partial<Pick<AppearancePrefs, 'theme' | 'locale' | 'accentColor'>>;
 
 interface PrefsContextValue {
   ready: boolean;
@@ -76,8 +80,14 @@ interface PrefsContextValue {
     appearance?: Partial<AppearancePrefs>;
     settings?: Partial<AppPrefs>;
   }) => Promise<{ ok: boolean; error?: string }>;
-  /** Apply course defaults for this session (does not write course values into user.json). */
-  applyCourseSettings: (manifest: CoursePackageManifest | null | undefined) => void;
+  /**
+   * Apply course defaults for this session (does not write course values into user.json).
+   * When a theme accent is present, chrome accent follows the course and the accent picker is locked.
+   */
+  applyCourseSettings: (
+    manifest: CoursePackageManifest | null | undefined,
+    theme?: CourseTheme | null,
+  ) => void;
   /** Restore appearance from user.json after leaving a course. */
   clearCourseSettings: () => void;
 }
@@ -103,12 +113,11 @@ const fallbackSettings: AppPrefs = {
 export function PrefsProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [state, setState] = useState<UserState | null>(null);
-  const [sessionOverride, setSessionOverride] = useState<Partial<
-    Pick<AppearancePrefs, 'theme' | 'locale'>
-  > | null>(null);
+  const [sessionOverride, setSessionOverride] = useState<CourseSessionOverride | null>(null);
   const [appearanceLocks, setAppearanceLocks] = useState<AppearanceLocks>({
     theme: false,
     locale: false,
+    accent: false,
   });
 
   const refresh = useCallback(async () => {
@@ -161,19 +170,23 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
   }, [appearance]);
 
   const applyCourseSettings = useCallback(
-    (manifest: CoursePackageManifest | null | undefined) => {
+    (manifest: CoursePackageManifest | null | undefined, theme?: CourseTheme | null) => {
       if (!settings.useCourseSettings || !manifest) {
         setSessionOverride(null);
-        setAppearanceLocks({ theme: false, locale: false });
+        setAppearanceLocks({ theme: false, locale: false, accent: false });
         return;
       }
+      const courseAccent = theme?.accent?.trim();
       setSessionOverride({
         theme: normalizeCourseTheme(manifest.darkLightTheme),
         locale: normalizeCourseLocale(manifest.language),
+        ...(courseAccent ? { accentColor: courseAccent } : {}),
       });
       setAppearanceLocks({
         theme: !manifest.toggleDarkLightTheme,
         locale: !manifest.toggleLanguage,
+        // Course theme accent owns chrome accent while presenting.
+        accent: Boolean(courseAccent),
       });
     },
     [settings.useCourseSettings],
@@ -181,7 +194,7 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
 
   const clearCourseSettings = useCallback(() => {
     setSessionOverride(null);
-    setAppearanceLocks({ theme: false, locale: false });
+    setAppearanceLocks({ theme: false, locale: false, accent: false });
   }, []);
 
   const save = useCallback(
@@ -198,6 +211,7 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
       if (appearanceForFile && sessionOverride) {
         if (appearanceLocks.theme) delete appearanceForFile.theme;
         if (appearanceLocks.locale) delete appearanceForFile.locale;
+        if (appearanceLocks.accent) delete appearanceForFile.accentColor;
       }
 
       const res = await apiFetch<UserState>({
@@ -226,6 +240,9 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
           }
           if (!appearanceLocks.locale && patch.appearance?.locale !== undefined) {
             nextSession.locale = patch.appearance.locale;
+          }
+          if (!appearanceLocks.accent && patch.appearance?.accentColor !== undefined) {
+            nextSession.accentColor = patch.appearance.accentColor;
           }
           return nextSession;
         });

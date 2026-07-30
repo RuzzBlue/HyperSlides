@@ -13,6 +13,8 @@ import {
   writeProgress,
   writeSlideNotes,
 } from './courses.ts';
+import { createCourse, deleteCourse, listThemeTemplates, type CreateCourseInput } from './createCourse.ts';
+import { insertCourseItem, type InsertKind } from './insertCourseItem.ts';
 import { readUserState, updateUserState } from './userSettings.ts';
 
 export interface ApiContext {
@@ -55,6 +57,51 @@ export async function handleApiRequest(
 
     if (method === 'GET' && segments[0] === 'courses' && segments.length === 1) {
       return { ok: true, status: 200, data: listCourses(ctx.appRoot) };
+    }
+
+    if (method === 'POST' && segments[0] === 'courses' && segments.length === 1) {
+      try {
+        const created = createCourse(ctx.appRoot, (body ?? {}) as CreateCourseInput);
+        return { ok: true, status: 201, data: created };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to create course';
+        return { ok: false, status: 400, error: message };
+      }
+    }
+
+    if (method === 'GET' && segments[0] === 'theme-templates' && segments.length === 1) {
+      return { ok: true, status: 200, data: listThemeTemplates(ctx.appRoot) };
+    }
+
+    if (method === 'DELETE' && segments[0] === 'courses' && segments.length === 2) {
+      try {
+        const removed = deleteCourse(ctx.appRoot, segments[1]);
+        return { ok: true, status: 200, data: removed };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to delete course';
+        const status = message === 'Course not found' ? 404 : 400;
+        return { ok: false, status, error: message };
+      }
+    }
+
+    if (
+      method === 'POST' &&
+      segments[0] === 'courses' &&
+      segments.length === 3 &&
+      segments[2] === 'items'
+    ) {
+      try {
+        const kind = (body as { kind?: InsertKind })?.kind;
+        const afterKey = (body as { afterKey?: string })?.afterKey;
+        if (!kind || !afterKey) {
+          return { ok: false, status: 400, error: 'Missing kind or afterKey' };
+        }
+        const result = insertCourseItem(ctx.appRoot, segments[1], kind, afterKey);
+        return { ok: true, status: 201, data: result };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to insert item';
+        return { ok: false, status: 400, error: message };
+      }
     }
 
     if (method === 'GET' && segments[0] === 'courses' && segments.length === 2) {

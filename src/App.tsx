@@ -31,6 +31,7 @@ import {
 import { StatusBar } from './components/StatusBar';
 import { TitleBar } from './components/TitleBar';
 import { Toolbar } from './components/Toolbar';
+import type { InsertKind } from './components/AddContentButton';
 import { StageZoomFrame } from './components/ZoomControl';
 import { usePrefs } from './prefs/PrefsProvider';
 import type { ContentZoomPreset } from '@shared/types';
@@ -134,22 +135,18 @@ export default function App() {
     void loadCourses();
   }, [loadCourses]);
 
-  /** Apply course theme accent / quiz / lab colors while a course is open. */
+  /** Apply course quiz / lab chrome colors while a course is open (accent comes from prefs session). */
   useEffect(() => {
     const root = document.documentElement;
     const theme = course?.theme;
     if (!theme) return;
     const prev = {
-      accent: root.style.getPropertyValue('--accent'),
       quiz: root.style.getPropertyValue('--quiz'),
       lab: root.style.getPropertyValue('--lab'),
     };
-    if (theme.accent) root.style.setProperty('--accent', theme.accent);
     if (theme.quiz) root.style.setProperty('--quiz', theme.quiz);
     if (theme.lab) root.style.setProperty('--lab', theme.lab);
     return () => {
-      if (prev.accent) root.style.setProperty('--accent', prev.accent);
-      else root.style.removeProperty('--accent');
       if (prev.quiz) root.style.setProperty('--quiz', prev.quiz);
       else root.style.removeProperty('--quiz');
       if (prev.lab) root.style.setProperty('--lab', prev.lab);
@@ -159,13 +156,14 @@ export default function App() {
 
   useEffect(() => {
     if (view !== 'present' || !course) return;
-    if (settings.useCourseSettings) applyCourseSettings(course.packageManifest);
+    if (settings.useCourseSettings) applyCourseSettings(course.packageManifest, course.theme);
     else clearCourseSettings();
   }, [
     settings.useCourseSettings,
     view,
     course?.summary.id,
     course?.packageManifest,
+    course?.theme,
     applyCourseSettings,
     clearCourseSettings,
   ]);
@@ -189,7 +187,7 @@ export default function App() {
     setCourse(res.data);
     setProgress(prog.data ?? null);
     setIndex(settings.rememberLastCourse ? (prog.data?.currentIndex ?? 0) : 0);
-    applyCourseSettings(res.data.packageManifest);
+    applyCourseSettings(res.data.packageManifest, res.data.theme);
     setView('present');
     setLoading(false);
   };
@@ -221,6 +219,31 @@ export default function App() {
       void persistIndex(clamped, current?.key);
     },
     [course, current?.key, persistIndex],
+  );
+
+  const handleInsert = useCallback(
+    async (kind: InsertKind) => {
+      if (!course || !current) return;
+      const res = await apiFetch<{
+        course: Omit<LoadedCourse, 'rootPath'>;
+        focusKey: string;
+      }>({
+        method: 'POST',
+        path: `/api/courses/${course.summary.id}/items`,
+        body: { kind, afterKey: current.key },
+      });
+      if (!res.ok || !res.data) {
+        setError(res.error ?? 'Failed to add content');
+        return;
+      }
+      setCourse(res.data.course);
+      setQuizResult(null);
+      const focusIndex = res.data.course.sequence.findIndex((s) => s.key === res.data!.focusKey);
+      const nextIndex = focusIndex >= 0 ? focusIndex : Math.min(index + 1, res.data.course.sequence.length - 1);
+      setIndex(nextIndex);
+      void persistIndex(nextIndex);
+    },
+    [course, current, index, persistIndex],
   );
 
   const closeInspector = useCallback(() => {
@@ -488,6 +511,7 @@ export default function App() {
           onZoomChange={setContentZoom}
           inspectorTool={inspectorTool}
           onInspectorTool={handleInspectorTool}
+          onInsert={(kind) => void handleInsert(kind)}
         />
       )}
 

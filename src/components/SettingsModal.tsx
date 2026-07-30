@@ -437,23 +437,28 @@ function AppearanceTab({
   draft: AppearancePrefs;
   setDraft: (v: AppearancePrefs) => void;
   tr: (k: StringKey) => string;
-  locks: { theme: boolean; locale: boolean };
+  locks: { theme: boolean; locale: boolean; accent: boolean };
   courseSettingsActive: boolean;
 }) {
   const themeLocked = courseSettingsActive && locks.theme;
   const localeLocked = courseSettingsActive && locks.locale;
+  const accentLocked = courseSettingsActive && locks.accent;
 
   return (
     <div>
-      <Field label={tr('accentColor')}>
+      <Field
+        label={tr('accentColor')}
+        hint={accentLocked ? tr('appearanceLockedByCourse') : undefined}
+      >
         <div className="flex flex-wrap items-center gap-2">
           {ACCENTS.map((c) => (
             <button
               key={c}
               type="button"
               title={c}
+              disabled={accentLocked}
               onClick={() => setDraft({ ...draft, accentColor: c })}
-              className={`h-8 w-8 rounded-full border-2 ${
+              className={`h-8 w-8 rounded-full border-2 disabled:cursor-not-allowed disabled:opacity-45 ${
                 draft.accentColor.toLowerCase() === c ? 'border-[var(--ink)]' : 'border-transparent'
               }`}
               style={{ background: c }}
@@ -462,8 +467,9 @@ function AppearanceTab({
           <input
             type="color"
             value={draft.accentColor}
+            disabled={accentLocked}
             onChange={(e) => setDraft({ ...draft, accentColor: e.target.value })}
-            className="h-8 w-10 cursor-pointer rounded border border-[var(--line)] bg-transparent"
+            className="h-8 w-10 cursor-pointer rounded border border-[var(--line)] bg-transparent disabled:cursor-not-allowed disabled:opacity-45"
           />
         </div>
       </Field>
