@@ -113,7 +113,11 @@ function NegLineCard() {
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()}`,
+              label: (ctx) => {
+                const parsed = ctx.parsed as any;
+                const y = parsed && parsed.y != null ? parsed.y : parsed;
+                return `${ctx.dataset.label}: ${y == null ? '—' : Number(y).toLocaleString()}`;
+              },
             },
           },
         },
