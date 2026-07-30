@@ -467,9 +467,14 @@ export type PresenterMenuMode =
   | 'floating-footer'
   | 'floating-header';
 
+/** Thumbnail navigator vs compact outline in the left course sidebar. */
+export type SidebarViewMode = 'navigator' | 'overview';
+
 export interface AppPrefs {
   autoAdvanceAfterQuiz: boolean;
   rememberLastCourse: boolean;
+  /** Show the Navigator/Overview title card at the top of the left sidebar. */
+  showNavigatorHeader: boolean;
   showSlideNumbers: boolean;
   /**
    * When true, opening a course applies that course’s language / color defaults for the session
@@ -482,6 +487,8 @@ export interface AppPrefs {
   presenterMenu: PresenterMenuMode;
   /** Course navigator sidebar width in px (capped at default; drag to shrink). */
   navigatorSidebarWidth: number;
+  /** Left sidebar layout while presenting (navigator thumbnails vs overview outline). */
+  sidebarView: SidebarViewMode;
 }
 
 export interface UserState {

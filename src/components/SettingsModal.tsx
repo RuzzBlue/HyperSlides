@@ -14,7 +14,13 @@ import {
   X,
 } from 'lucide-react';
 import { apiFetch } from '../api/client';
-import type { AppearancePrefs, AppPrefs, PresenterMenuMode, UserProfile } from '@shared/types';
+import type {
+  AppearancePrefs,
+  AppPrefs,
+  PresenterMenuMode,
+  SidebarViewMode,
+  UserProfile,
+} from '@shared/types';
 import { usePrefs } from '../prefs/PrefsProvider';
 import type { StringKey } from '../i18n/strings';
 
@@ -551,16 +557,7 @@ function AppSettingsTab({
   onProgressReset?: () => void;
 }) {
   const [resetting, setResetting] = useState(false);
-
-  const rows: Array<{
-    key: 'useCourseSettings' | 'autoAdvanceAfterQuiz' | 'rememberLastCourse' | 'showSlideNumbers';
-    label: string;
-  }> = [
-    { key: 'useCourseSettings', label: tr('useCourseSettings') },
-    { key: 'autoAdvanceAfterQuiz', label: tr('autoAdvanceQuiz') },
-    { key: 'rememberLastCourse', label: tr('rememberLastCourse') },
-    { key: 'showSlideNumbers', label: tr('showSlideNumbers') },
-  ];
+  const sidebarView = draft.sidebarView ?? 'navigator';
 
   const wipeProgress = async () => {
     if (!window.confirm(tr('resetProgressConfirm'))) return;
@@ -611,35 +608,73 @@ function AppSettingsTab({
     setTimeout(() => onStatus(null), 2000);
   };
 
+  const toggleRow = (
+    key: 'useCourseSettings' | 'autoAdvanceAfterQuiz' | 'rememberLastCourse' | 'showNavigatorHeader' | 'showSlideNumbers',
+    label: string,
+  ) => (
+    <div key={key}>
+      <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-3">
+        <input
+          type="checkbox"
+          checked={Boolean(draft[key])}
+          onChange={(e) => setDraft({ ...draft, [key]: e.target.checked })}
+          className="h-4 w-4 accent-[var(--accent)]"
+        />
+        <span className="text-[13px] text-[var(--ink)]">{label}</span>
+      </label>
+      {key === 'useCourseSettings' && (
+        <p
+          className={`mt-1.5 px-1 text-[11px] leading-relaxed ${
+            draft.useCourseSettings
+              ? 'text-[var(--ink-muted)]'
+              : 'font-medium text-amber-700 dark:text-amber-300'
+          }`}
+        >
+          {draft.useCourseSettings ? tr('useCourseSettingsHint') : tr('useCourseSettingsWarning')}
+        </p>
+      )}
+    </div>
+  );
+
   return (
     <div>
       <div className="space-y-2">
-        {rows.map((row) => (
-          <div key={row.key}>
-            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-3">
-              <input
-                type="checkbox"
-                checked={draft[row.key]}
-                onChange={(e) => setDraft({ ...draft, [row.key]: e.target.checked })}
-                className="h-4 w-4 accent-[var(--accent)]"
-              />
-              <span className="text-[13px] text-[var(--ink)]">{row.label}</span>
-            </label>
-            {row.key === 'useCourseSettings' && (
-              <p
-                className={`mt-1.5 px-1 text-[11px] leading-relaxed ${
-                  draft.useCourseSettings
-                    ? 'text-[var(--ink-muted)]'
-                    : 'font-medium text-amber-700 dark:text-amber-300'
+        {toggleRow('useCourseSettings', tr('useCourseSettings'))}
+        {toggleRow('autoAdvanceAfterQuiz', tr('autoAdvanceQuiz'))}
+        {toggleRow('rememberLastCourse', tr('rememberLastCourse'))}
+
+        <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-3">
+          <div className="mb-2 text-[13px] text-[var(--ink)]">{tr('sidebarView')}</div>
+          <div
+            className="inline-grid grid-cols-2 rounded-lg border border-[var(--line)] bg-[var(--stage)] p-0.5"
+            role="group"
+            aria-label={tr('sidebarMode')}
+          >
+            {(
+              [
+                ['navigator', tr('navigator')],
+                ['overview', tr('overview')],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                title={label}
+                onClick={() => setDraft({ ...draft, sidebarView: value as SidebarViewMode })}
+                className={`cursor-pointer truncate rounded-md px-3 py-1.5 text-[12px] font-semibold leading-tight transition ${
+                  sidebarView === value
+                    ? 'bg-[var(--accent)] text-white shadow-sm'
+                    : 'text-[var(--ink-muted)] hover:bg-[var(--panel)] hover:text-[var(--ink)]'
                 }`}
               >
-                {draft.useCourseSettings
-                  ? tr('useCourseSettingsHint')
-                  : tr('useCourseSettingsWarning')}
-              </p>
-            )}
+                {label}
+              </button>
+            ))}
           </div>
-        ))}
+        </div>
+
+        {toggleRow('showNavigatorHeader', tr('showNavigatorHeader'))}
+        {toggleRow('showSlideNumbers', tr('showSlideNumbers'))}
       </div>
 
       <div className="mt-6 rounded-xl border border-rose-200/80 bg-rose-50/60 p-4 dark:border-rose-900/50 dark:bg-rose-950/30">

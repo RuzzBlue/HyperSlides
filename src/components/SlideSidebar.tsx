@@ -7,10 +7,8 @@ import {
   FlaskConical,
   HelpCircle,
 } from 'lucide-react';
-import type { ProgressState, SequenceItem } from '@shared/types';
+import type { ProgressState, SequenceItem, SidebarViewMode } from '@shared/types';
 import { usePrefs } from '../prefs/PrefsProvider';
-
-type SidebarMode = 'navigator' | 'overview';
 
 type OverviewUnit = {
   id: string;
@@ -81,6 +79,8 @@ export function SlideSidebar({
   progress,
   onSelect,
   showSlideNumbers = true,
+  showHeader = true,
+  mode = 'navigator',
   width = NAVIGATOR_SIDEBAR_DEFAULT_WIDTH,
   onWidthChange,
   onWidthCommit,
@@ -90,12 +90,13 @@ export function SlideSidebar({
   progress: ProgressState | null;
   onSelect: (i: number) => void;
   showSlideNumbers?: boolean;
+  showHeader?: boolean;
+  mode?: SidebarViewMode;
   width?: number;
   onWidthChange?: (width: number) => void;
   onWidthCommit?: (width: number) => void;
 }) {
   const { tr } = usePrefs();
-  const [mode, setMode] = useState<SidebarMode>('navigator');
   const tree = useMemo(() => buildOverviewTree(sequence), [sequence]);
   const counts = useMemo(() => {
     let lessons = 0;
@@ -143,42 +144,20 @@ export function SlideSidebar({
       className="relative flex shrink-0 flex-col border-r border-[var(--line)] bg-[var(--chrome-deep)]"
       style={{ width }}
     >
-      <div className="shrink-0 p-2">
-        <div className="rounded-xl border border-[var(--line)] bg-[var(--stage)] p-2 shadow-sm">
-          <div className={`flex items-center gap-2 ${compact ? '' : ''}`}>
+      {showHeader && (
+        <div className="shrink-0 p-2">
+          <div className="rounded-xl border border-[var(--line)] bg-[var(--stage)] px-3 py-2 shadow-sm">
+            <div className="truncate text-[12px] font-semibold tracking-tight text-[var(--ink)]">
+              {mode === 'navigator' ? tr('navigator') : tr('overview')}
+            </div>
             {!compact && (
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[12px] font-semibold tracking-tight text-[var(--ink)]">
-                  {mode === 'navigator' ? tr('navigator') : tr('overview')}
-                </div>
-                <div className="truncate text-[11px] tabular-nums text-[var(--ink-muted)]">
-                  {sequence.length} {tr('slides')}
-                </div>
+              <div className="truncate text-[11px] tabular-nums text-[var(--ink-muted)]">
+                {sequence.length} {tr('slides')}
               </div>
             )}
-            <div
-              className={`grid grid-cols-2 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-0.5 ${
-                compact ? 'w-full' : 'shrink-0'
-              }`}
-              role="group"
-              aria-label={tr('sidebarMode')}
-            >
-              <ModeButton
-                active={mode === 'navigator'}
-                label={tr('navigator')}
-                onClick={() => setMode('navigator')}
-                compact={compact}
-              />
-              <ModeButton
-                active={mode === 'overview'}
-                label={tr('overview')}
-                onClick={() => setMode('overview')}
-                compact={compact}
-              />
-            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {mode === 'navigator' ? (
         <NavigatorList
@@ -188,6 +167,7 @@ export function SlideSidebar({
           onSelect={onSelect}
           showSlideNumbers={showSlideNumbers}
           compact={compact}
+          paddedTop={!showHeader}
         />
       ) : (
         <OverviewList
@@ -195,6 +175,7 @@ export function SlideSidebar({
           index={index}
           onSelect={onSelect}
           compact={compact}
+          paddedTop={!showHeader}
         />
       )}
 
@@ -245,134 +226,12 @@ export function SlideSidebar({
   );
 }
 
-function ModeButton({
-  active,
-  label,
-  onClick,
-  compact,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-  compact?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      className={`cursor-pointer truncate rounded-md px-1.5 py-1 text-[10px] font-semibold leading-tight transition ${
-        compact ? 'px-1' : ''
-      } ${
-        active
-          ? 'bg-[var(--accent)] text-white shadow-sm'
-          : 'text-[var(--ink-muted)] hover:bg-[var(--panel)] hover:text-[var(--ink)]'
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-function NavigatorList({
-  sequence,
-  index,
-  progress,
-  onSelect,
-  showSlideNumbers,
-  compact,
-}: {
-  sequence: SequenceItem[];
-  index: number;
-  progress: ProgressState | null;
-  onSelect: (i: number) => void;
-  showSlideNumbers: boolean;
-  compact: boolean;
-}) {
-  const listRef = useRef<HTMLDivElement>(null);
-  let lastModule = '';
-
-  useLayoutEffect(() => {
-    const el = listRef.current?.querySelector<HTMLElement>(`[data-slide-index="${index}"]`);
-    el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [index, sequence]);
-
-  return (
-    <div ref={listRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 pb-2">
-      {sequence.map((item) => {
-        const showModule = item.moduleTitle !== lastModule;
-        lastModule = item.moduleTitle;
-        const active = item.index === index;
-        const done = progress?.completedKeys?.includes(item.key);
-        const quizDone = item.type === 'quiz' && progress?.quizScores?.[item.activityId!];
-
-        return (
-          <div key={item.key} data-slide-index={item.index}>
-            {showModule && (
-              <div className="mb-1.5 mt-1 truncate px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-                {item.moduleTitle}
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => onSelect(item.index)}
-              className={`group w-full rounded-lg p-1.5 text-left transition ${
-                active
-                  ? 'bg-white shadow-md ring-2 ring-[var(--accent)] dark:bg-slate-800'
-                  : 'hover:bg-white/70 dark:hover:bg-white/10'
-              }`}
-            >
-              <div
-                className={`relative mb-1.5 flex aspect-[16/10] items-center justify-center overflow-hidden rounded-md border ${
-                  item.type === 'quiz'
-                    ? 'border-[#c9d7ef] bg-[linear-gradient(145deg,#eef3fb,#d9e4f6)] dark:border-sky-800 dark:bg-[linear-gradient(145deg,#0f1a2e,#152238)]'
-                    : item.type === 'lab'
-                      ? 'border-[#ddd0ef] bg-[linear-gradient(145deg,#f6f1fb,#e8ddf4)] dark:border-violet-800 dark:bg-[linear-gradient(145deg,#1a1428,#221833)]'
-                      : 'border-[var(--line)] bg-[linear-gradient(160deg,#ffffff,#f3f5f8)] dark:bg-[linear-gradient(160deg,#1e2430,#161b24)]'
-                }`}
-              >
-                <ThumbIcon type={item.type} />
-                {showSlideNumbers && (
-                  <span className="absolute left-1.5 top-1.5 rounded bg-black/55 px-1.5 py-0.5 text-[9px] font-semibold text-white">
-                    {item.index + 1}
-                  </span>
-                )}
-                {(done || quizDone) && (
-                  <CheckCircle2 className="absolute bottom-1.5 right-1.5 h-3.5 w-3.5 text-[var(--success)]" />
-                )}
-              </div>
-              <div className="truncate whitespace-nowrap px-0.5 text-[11px] font-medium text-[var(--ink)]">
-                {item.title}
-              </div>
-              {!compact && (
-                <div className="truncate whitespace-nowrap px-0.5 text-[10px] text-[var(--ink-muted)]">
-                  {item.unitTitle ?? item.moduleTitle}
-                </div>
-              )}
-            </button>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function OverviewList({
-  tree,
-  index,
-  onSelect,
-  compact,
-}: {
-  tree: OverviewModule[];
-  index: number;
-  onSelect: (i: number) => void;
-  compact: boolean;
-}) {
+function useTreeExpansion(tree: OverviewModule[], index: number) {
   const current = useMemo(() => {
     for (const mod of tree) {
       for (const unit of mod.units) {
         if (unit.items.some((i) => i.index === index)) {
-          return { moduleId: mod.id, unitId: unit.id };
+          return { moduleId: mod.id, unitId: unit.id as string | null };
         }
       }
       if (mod.trailing.some((i) => i.index === index)) {
@@ -393,6 +252,45 @@ function OverviewList({
     }
   }, [current.moduleId, current.unitId]);
 
+  const toggleModule = (id: string) => {
+    setOpenModules((prev) => ({ ...prev, [id]: !(prev[id] ?? id === current.moduleId) }));
+  };
+
+  const toggleUnit = (moduleId: string, unitId: string) => {
+    const key = `${moduleId}/${unitId}`;
+    const defaultOpen = key === `${current.moduleId}/${current.unitId}`;
+    setOpenUnits((prev) => ({ ...prev, [key]: !(prev[key] ?? defaultOpen) }));
+  };
+
+  const isModuleOpen = (id: string) => openModules[id] ?? id === current.moduleId;
+  const isUnitOpen = (moduleId: string, unitId: string) => {
+    const key = `${moduleId}/${unitId}`;
+    return openUnits[key] ?? key === `${current.moduleId}/${current.unitId}`;
+  };
+
+  return { current, openModules, openUnits, toggleModule, toggleUnit, isModuleOpen, isUnitOpen };
+}
+
+function NavigatorList({
+  sequence,
+  index,
+  progress,
+  onSelect,
+  showSlideNumbers,
+  compact,
+  paddedTop,
+}: {
+  sequence: SequenceItem[];
+  index: number;
+  progress: ProgressState | null;
+  onSelect: (i: number) => void;
+  showSlideNumbers: boolean;
+  compact: boolean;
+  paddedTop?: boolean;
+}) {
+  const tree = useMemo(() => buildOverviewTree(sequence), [sequence]);
+  const { current, openModules, openUnits, toggleModule, toggleUnit, isModuleOpen, isUnitOpen } =
+    useTreeExpansion(tree, index);
   const listRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -400,61 +298,239 @@ function OverviewList({
     el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [index, current.moduleId, current.unitId, openModules, openUnits]);
 
-  const toggleModule = (id: string) => {
-    setOpenModules((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }));
-  };
+  return (
+    <div
+      ref={listRef}
+      className={`min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-2 ${paddedTop ? 'pt-2' : ''}`}
+    >
+      {tree.map((mod) => {
+        const moduleOpen = isModuleOpen(mod.id);
+        return (
+          <div key={mod.id} className="space-y-1">
+            <TreeHeader
+              level={0}
+              open={moduleOpen}
+              label={mod.title}
+              onToggle={() => toggleModule(mod.id)}
+            />
 
-  const toggleUnit = (moduleId: string, unitId: string) => {
-    const key = `${moduleId}/${unitId}`;
-    setOpenUnits((prev) => ({ ...prev, [key]: !(prev[key] ?? false) }));
-  };
+            {moduleOpen && (
+              <div className="space-y-1">
+                {mod.units.map((unit) => {
+                  const unitOpen = isUnitOpen(mod.id, unit.id);
+                  return (
+                    <div key={unit.id} className="space-y-1">
+                      <TreeHeader
+                        level={1}
+                        open={unitOpen}
+                        label={unit.title}
+                        onToggle={() => toggleUnit(mod.id, unit.id)}
+                      />
+                      {unitOpen && (
+                        <div className="space-y-1.5" style={{ paddingLeft: TREE_INDENT_PX * 2 }}>
+                          {unit.items.map((item) => (
+                            <NavigatorThumb
+                              key={item.key}
+                              item={item}
+                              active={item.index === index}
+                              progress={progress}
+                              onSelect={onSelect}
+                              showSlideNumbers={showSlideNumbers}
+                              compact={compact}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {mod.trailing.length > 0 && (
+                  <div className="space-y-1.5" style={{ paddingLeft: TREE_INDENT_PX }}>
+                    {mod.trailing.map((item) => (
+                      <NavigatorThumb
+                        key={item.key}
+                        item={item}
+                        active={item.index === index}
+                        progress={progress}
+                        onSelect={onSelect}
+                        showSlideNumbers={showSlideNumbers}
+                        compact={compact}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Horizontal indent per hierarchy level (module → unit → slide). */
+const TREE_INDENT_PX = 12;
+
+function TreeHeader({
+  level,
+  open,
+  label,
+  onToggle,
+  dense,
+}: {
+  level: 0 | 1;
+  open: boolean;
+  label: string;
+  onToggle: () => void;
+  /** Overview cards use a slightly larger module title. */
+  dense?: boolean;
+}) {
+  const Chevron = open ? ChevronDown : ChevronRight;
+  const moduleTitle =
+    dense && level === 0
+      ? 'text-[11px] font-semibold text-[var(--ink)]'
+      : level === 0
+        ? 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]'
+        : 'text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--ink-muted)]';
 
   return (
-    <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+    <button
+      type="button"
+      onClick={onToggle}
+      title={label}
+      className={`flex w-full cursor-pointer items-center gap-1 rounded-md text-left hover:bg-black/5 dark:hover:bg-white/5 ${
+        dense ? 'gap-1.5 px-2 py-1.5' : 'py-1'
+      }`}
+      style={dense ? undefined : { paddingLeft: 2 + level * TREE_INDENT_PX, paddingRight: 4 }}
+    >
+      <Chevron
+        className={`shrink-0 text-[var(--ink-muted)] ${level === 0 ? 'h-3.5 w-3.5' : 'h-3 w-3'}`}
+      />
+      <span className={`min-w-0 flex-1 truncate ${moduleTitle}`}>{label}</span>
+    </button>
+  );
+}
+
+function NavigatorThumb({
+  item,
+  active,
+  progress,
+  onSelect,
+  showSlideNumbers,
+  compact,
+}: {
+  item: SequenceItem;
+  active: boolean;
+  progress: ProgressState | null;
+  onSelect: (i: number) => void;
+  showSlideNumbers: boolean;
+  compact: boolean;
+}) {
+  const done = progress?.completedKeys?.includes(item.key);
+  const quizDone = item.type === 'quiz' && progress?.quizScores?.[item.activityId!];
+
+  return (
+    <button
+      type="button"
+      data-slide-index={item.index}
+      onClick={() => onSelect(item.index)}
+      className={`group w-full rounded-lg p-1.5 text-left transition ${
+        active
+          ? 'bg-white shadow-md ring-2 ring-[var(--accent)] dark:bg-slate-800'
+          : 'hover:bg-white/70 dark:hover:bg-white/10'
+      }`}
+    >
+      <div
+        className={`relative mb-1.5 flex aspect-[16/10] items-center justify-center overflow-hidden rounded-md border ${
+          item.type === 'quiz'
+            ? 'border-[#c9d7ef] bg-[linear-gradient(145deg,#eef3fb,#d9e4f6)] dark:border-sky-800 dark:bg-[linear-gradient(145deg,#0f1a2e,#152238)]'
+            : item.type === 'lab'
+              ? 'border-[#ddd0ef] bg-[linear-gradient(145deg,#f6f1fb,#e8ddf4)] dark:border-violet-800 dark:bg-[linear-gradient(145deg,#1a1428,#221833)]'
+              : 'border-[var(--line)] bg-[linear-gradient(160deg,#ffffff,#f3f5f8)] dark:bg-[linear-gradient(160deg,#1e2430,#161b24)]'
+        }`}
+      >
+        <ThumbIcon type={item.type} />
+        {showSlideNumbers && (
+          <span className="absolute left-1.5 top-1.5 rounded bg-black/55 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+            {item.index + 1}
+          </span>
+        )}
+        {(done || quizDone) && (
+          <CheckCircle2 className="absolute bottom-1.5 right-1.5 h-3.5 w-3.5 text-[var(--success)]" />
+        )}
+      </div>
+      <div className="truncate whitespace-nowrap px-0.5 text-[11px] font-medium text-[var(--ink)]">
+        {item.title}
+      </div>
+      {!compact && (
+        <div className="truncate whitespace-nowrap px-0.5 text-[10px] capitalize text-[var(--ink-muted)]">
+          {item.type}
+        </div>
+      )}
+    </button>
+  );
+}
+
+function OverviewList({
+  tree,
+  index,
+  onSelect,
+  compact,
+  paddedTop,
+}: {
+  tree: OverviewModule[];
+  index: number;
+  onSelect: (i: number) => void;
+  compact: boolean;
+  paddedTop?: boolean;
+}) {
+  const { current, openModules, openUnits, toggleModule, toggleUnit, isModuleOpen, isUnitOpen } =
+    useTreeExpansion(tree, index);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const el = listRef.current?.querySelector<HTMLElement>(`[data-slide-index="${index}"]`);
+    el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [index, current.moduleId, current.unitId, openModules, openUnits]);
+
+  return (
+    <div
+      ref={listRef}
+      className={`min-h-0 flex-1 overflow-y-auto px-2 pb-2 ${paddedTop ? 'pt-2' : ''}`}
+    >
       <div className="space-y-1">
         {tree.map((mod) => {
-          const moduleOpen = openModules[mod.id] ?? mod.id === current.moduleId;
+          const moduleOpen = isModuleOpen(mod.id);
           return (
             <div key={mod.id} className="rounded-lg border border-[var(--line)]/80 bg-[var(--panel)]/60">
-              <button
-                type="button"
-                onClick={() => toggleModule(mod.id)}
-                className="flex w-full cursor-pointer items-center gap-1.5 px-2 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/5"
-              >
-                {moduleOpen ? (
-                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--ink-muted)]" />
-                ) : (
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--ink-muted)]" />
-                )}
-                <span className="min-w-0 flex-1 truncate whitespace-nowrap text-[11px] font-semibold text-[var(--ink)]">
-                  {mod.title}
-                </span>
-              </button>
+              <TreeHeader
+                level={0}
+                open={moduleOpen}
+                label={mod.title}
+                onToggle={() => toggleModule(mod.id)}
+                dense
+              />
 
               {moduleOpen && (
                 <div className="space-y-0.5 px-1.5 pb-1.5">
                   {mod.units.map((unit) => {
-                    const unitKey = `${mod.id}/${unit.id}`;
-                    const unitOpen = openUnits[unitKey] ?? unitKey === `${current.moduleId}/${current.unitId}`;
+                    const unitOpen = isUnitOpen(mod.id, unit.id);
                     return (
                       <div key={unit.id}>
-                        <button
-                          type="button"
-                          onClick={() => toggleUnit(mod.id, unit.id)}
-                          className="flex w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-black/5 dark:hover:bg-white/5"
-                        >
-                          {unitOpen ? (
-                            <ChevronDown className="h-3 w-3 shrink-0 text-[var(--ink-muted)]" />
-                          ) : (
-                            <ChevronRight className="h-3 w-3 shrink-0 text-[var(--ink-muted)]" />
-                          )}
-                          <span className="min-w-0 flex-1 truncate whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--ink-muted)]">
-                            {unit.title}
-                          </span>
-                        </button>
+                        <TreeHeader
+                          level={1}
+                          open={unitOpen}
+                          label={unit.title}
+                          onToggle={() => toggleUnit(mod.id, unit.id)}
+                          dense
+                        />
 
                         {unitOpen && (
-                          <div className="ml-1 space-y-0.5 border-l border-[var(--line)] pl-1.5">
+                          <div
+                            className="space-y-0.5 border-l border-[var(--line)] pl-1.5"
+                            style={{ marginLeft: TREE_INDENT_PX }}
+                          >
                             {unit.items.map((item) => (
                               <OverviewItem
                                 key={item.key}

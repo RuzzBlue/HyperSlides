@@ -18,11 +18,13 @@ const DEFAULT_APPEARANCE: AppearancePrefs = {
 const DEFAULT_SETTINGS: AppPrefs = {
   autoAdvanceAfterQuiz: false,
   rememberLastCourse: true,
+  showNavigatorHeader: true,
   showSlideNumbers: true,
   useCourseSettings: true,
   contentZoom: '100',
   presenterMenu: 'fixed-footer',
   navigatorSidebarWidth: 260,
+  sidebarView: 'navigator',
 };
 
 function ensureDir(dir: string) {

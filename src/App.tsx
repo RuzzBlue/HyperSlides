@@ -450,6 +450,10 @@ export default function App() {
           mode="library"
           onOpenSettings={() => openSettings()}
           onOpenProfile={() => openSettings('profile')}
+          sidebarView={settings.sidebarView ?? 'navigator'}
+          onSidebarViewChange={(next) => {
+            void save({ settings: { sidebarView: next } });
+          }}
         />
         <HomeView
           courses={courses}
@@ -483,8 +487,12 @@ export default function App() {
           onOpenSettings={() => openSettings()}
           onOpenProfile={() => openSettings('profile')}
           sidebarOpen={sidebarOpen}
+          sidebarView={settings.sidebarView ?? 'navigator'}
           onToggleSidebar={() => setSidebarOpen((v) => !v)}
           onResetSidebar={resetSidebarWidth}
+          onSidebarViewChange={(next) => {
+            void save({ settings: { sidebarView: next } });
+          }}
           inspectorOpen={Boolean(inspectorTool)}
           inspectorMode={inspectorMode}
           onInspectorClose={closeInspector}
@@ -523,6 +531,8 @@ export default function App() {
             progress={progress}
             onSelect={goTo}
             showSlideNumbers={settings.showSlideNumbers}
+            showHeader={settings.showNavigatorHeader !== false}
+            mode={settings.sidebarView ?? 'navigator'}
             width={sidebarWidth}
             onWidthChange={setSidebarWidth}
             onWidthCommit={commitSidebarWidth}

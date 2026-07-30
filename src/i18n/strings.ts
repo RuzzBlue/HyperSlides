@@ -40,6 +40,8 @@ const en = {
   copied: 'Copied',
   autoAdvanceQuiz: 'Auto-advance after passing a quiz',
   rememberLastCourse: 'Remember last opened course',
+  sidebarView: 'Sidebar view',
+  showNavigatorHeader: 'Show header in navigator',
   showSlideNumbers: 'Show slide numbers in navigator',
   useCourseSettings: 'Use course settings',
   useCourseSettingsHint:
@@ -311,6 +313,8 @@ const es: Record<keyof typeof en, string> = {
   copied: 'Copiado',
   autoAdvanceQuiz: 'Avanzar automáticamente al aprobar un cuestionario',
   rememberLastCourse: 'Recordar el último curso abierto',
+  sidebarView: 'Vista de la barra',
+  showNavigatorHeader: 'Mostrar encabezado en el navegador',
   showSlideNumbers: 'Mostrar números de diapositiva en el navegador',
   useCourseSettings: 'Usar ajustes del curso',
   useCourseSettingsHint:

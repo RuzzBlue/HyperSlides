@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Home, Hexagon, Settings, UserRound } from 'lucide-react';
+import { ChevronRight, Home, Hexagon, Settings, UserRound } from 'lucide-react';
+import type { SidebarViewMode } from '@shared/types';
 import { usePrefs } from '../prefs/PrefsProvider';
 
 export function TitleBar({
@@ -9,8 +10,10 @@ export function TitleBar({
   onOpenSettings,
   onOpenProfile,
   sidebarOpen,
+  sidebarView = 'navigator',
   onToggleSidebar,
   onResetSidebar,
+  onSidebarViewChange,
   inspectorOpen,
   inspectorMode,
   onInspectorClose,
@@ -24,8 +27,10 @@ export function TitleBar({
   onOpenSettings: () => void;
   onOpenProfile: () => void;
   sidebarOpen?: boolean;
+  sidebarView?: SidebarViewMode;
   onToggleSidebar?: () => void;
   onResetSidebar?: () => void;
+  onSidebarViewChange?: (view: SidebarViewMode) => void;
   inspectorOpen?: boolean;
   inspectorMode?: 'docked' | 'floating';
   onInspectorClose?: () => void;
@@ -34,10 +39,14 @@ export function TitleBar({
 }) {
   const { tr } = usePrefs();
   const [viewOpen, setViewOpen] = useState(false);
+  const [sidebarViewMenuOpen, setSidebarViewMenuOpen] = useState(false);
   const viewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!viewOpen) return;
+    if (!viewOpen) {
+      setSidebarViewMenuOpen(false);
+      return;
+    }
     const onDoc = (e: MouseEvent) => {
       if (!viewRef.current?.contains(e.target as Node)) setViewOpen(false);
     };
@@ -112,6 +121,41 @@ export function TitleBar({
                   setViewOpen(false);
                 }}
               />
+              <div
+                className="relative"
+                onMouseEnter={() => setSidebarViewMenuOpen(true)}
+                onMouseLeave={() => setSidebarViewMenuOpen(false)}
+              >
+                <button
+                  type="button"
+                  disabled={!onSidebarViewChange}
+                  onClick={() => setSidebarViewMenuOpen((v) => !v)}
+                  className="flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-1.5 text-left text-[12px] enabled:hover:bg-[var(--panel)] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <span>{tr('sidebarView')}</span>
+                  <ChevronRight className="h-3.5 w-3.5 text-[var(--ink-muted)]" />
+                </button>
+                {sidebarViewMenuOpen && onSidebarViewChange && (
+                  <div className="absolute left-full top-0 z-50 ml-0.5 min-w-[10rem] rounded-lg border border-[var(--line)] bg-[var(--stage)] py-1 shadow-lg">
+                    <MenuItem
+                      label={tr('navigator')}
+                      hint={sidebarView === 'navigator' ? '✓' : undefined}
+                      onClick={() => {
+                        onSidebarViewChange('navigator');
+                        setViewOpen(false);
+                      }}
+                    />
+                    <MenuItem
+                      label={tr('overview')}
+                      hint={sidebarView === 'overview' ? '✓' : undefined}
+                      onClick={() => {
+                        onSidebarViewChange('overview');
+                        setViewOpen(false);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
               <div className="my-1 border-t border-[var(--line)]" />
               <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
                 {tr('viewInspectorSidebar')}

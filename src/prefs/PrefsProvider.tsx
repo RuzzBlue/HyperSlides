@@ -103,11 +103,13 @@ const fallbackAppearance: AppearancePrefs = {
 const fallbackSettings: AppPrefs = {
   autoAdvanceAfterQuiz: false,
   rememberLastCourse: true,
+  showNavigatorHeader: true,
   showSlideNumbers: true,
   useCourseSettings: true,
   contentZoom: '100',
   presenterMenu: 'fixed-footer',
   navigatorSidebarWidth: 260,
+  sidebarView: 'navigator',
 };
 
 export function PrefsProvider({ children }: { children: ReactNode }) {
