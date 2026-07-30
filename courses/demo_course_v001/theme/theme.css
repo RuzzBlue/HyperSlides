@@ -1,10 +1,22 @@
-/* Course-local presentation polish — respects app dark/light via [data-theme] */
+/* Crypto Teal — presentation polish */
 .lesson-stage {
   --hc-accent: var(--lesson-accent, #0e6e6a);
 }
 
-.lesson-stage h2 {
+.lesson-stage h1 {
+  font-family: var(--font-display);
+  font-size: var(--lesson-h1, 2.15rem);
   letter-spacing: -0.02em;
+}
+
+.lesson-stage h2 {
+  font-family: var(--font-display);
+  font-size: var(--lesson-h2, 1.55rem);
+  letter-spacing: -0.02em;
+}
+
+.lesson-stage h3 {
+  font-size: var(--lesson-h3, 1.2rem);
 }
 
 .lesson-theme-root .lesson-stage a,
@@ -12,7 +24,6 @@
   accent-color: var(--lesson-accent, #0e6e6a);
 }
 
-/* Thin scrollbars inside scrollable lesson cards */
 .lesson-stage .overflow-y-auto {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--lesson-accent, #0e6e6a) 45%, transparent) transparent;
@@ -20,4 +31,12 @@
 
 html[data-theme='dark'] .lesson-stage {
   color-scheme: dark;
+}
+
+/* Title / dark variants: lighten text when the stage itself is dark in light mode */
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage,
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage h1,
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage h2,
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage p {
+  color: #f8fafc;
 }

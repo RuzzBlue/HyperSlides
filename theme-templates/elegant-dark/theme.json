@@ -1,0 +1,92 @@
+{
+  "id": "elegant-dark",
+  "name": "Elegant Dark",
+  "fonts": {
+    "display": "\"Libre Baskerville\", Georgia, serif",
+    "body": "\"Manrope\", system-ui, sans-serif",
+    "google": "https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Manrope:wght@400;500;600;700&display=swap"
+  },
+  "fontSizeBase": "16px",
+  "typeScale": {
+    "h1": "2.25rem",
+    "h2": "1.5rem",
+    "h3": "1.15rem",
+    "body": "16px"
+  },
+  "accent": "#c9a227",
+  "quiz": "#6ea8fe",
+  "lab": "#9b8cff",
+  "background": {
+    "light": {
+      "type": "gradient",
+      "value": "linear-gradient(180deg, #1a1c22 0%, #12141a 55%, #0e1014 100%)"
+    },
+    "dark": {
+      "type": "gradient",
+      "value": "linear-gradient(180deg, #12141a 0%, #0a0b0e 100%)"
+    }
+  },
+  "backgrounds": {
+    "default": {
+      "light": {
+        "type": "gradient",
+        "value": "linear-gradient(180deg, #1a1c22 0%, #12141a 55%, #0e1014 100%)"
+      },
+      "dark": {
+        "type": "gradient",
+        "value": "linear-gradient(180deg, #12141a 0%, #0a0b0e 100%)"
+      }
+    },
+    "title": {
+      "light": {
+        "type": "gradient",
+        "value": "radial-gradient(ellipse 70% 45% at 50% 0%, rgba(201,162,39,0.18) 0%, transparent 60%), linear-gradient(180deg, #1f222b 0%, #0e1014 100%)"
+      },
+      "dark": {
+        "type": "gradient",
+        "value": "radial-gradient(ellipse 70% 45% at 50% 0%, rgba(201,162,39,0.14) 0%, transparent 60%), linear-gradient(180deg, #16181f 0%, #08090c 100%)"
+      }
+    },
+    "section": {
+      "light": {
+        "type": "gradient",
+        "value": "linear-gradient(135deg, #23262f 0%, #14161c 100%)"
+      },
+      "dark": {
+        "type": "gradient",
+        "value": "linear-gradient(135deg, #1c1f28 0%, #0a0b0e 100%)"
+      }
+    },
+    "accent": {
+      "light": {
+        "type": "gradient",
+        "value": "linear-gradient(160deg, #2a2416 0%, #14161c 55%, #0e1014 100%)"
+      },
+      "dark": {
+        "type": "gradient",
+        "value": "linear-gradient(160deg, #241f12 0%, #0a0b0e 100%)"
+      }
+    },
+    "dark": {
+      "light": { "type": "color", "value": "#08090c" },
+      "dark": { "type": "color", "value": "#050506" }
+    }
+  },
+  "watermark": {
+    "enabled": false,
+    "kind": "text",
+    "value": "PRIVATE",
+    "opacity": 0.05,
+    "size": "13vmin",
+    "rotateDeg": -22,
+    "position": "center",
+    "repeat": "tiled"
+  },
+  "pageNumber": {
+    "enabled": true,
+    "position": "bottom-right",
+    "format": "{n} · {total}",
+    "opacity": 0.45
+  },
+  "cssFile": "theme.css"
+}

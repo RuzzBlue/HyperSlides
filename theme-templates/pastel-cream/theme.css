@@ -1,0 +1,60 @@
+/* Pastel Cream — soft sand stage, warm accent */
+.lesson-stage {
+  --hc-accent: var(--lesson-accent, #c4785a);
+  color: #3d342e;
+}
+
+.lesson-stage h1,
+.lesson-stage h2 {
+  font-family: var(--font-display);
+  font-weight: 650;
+  color: #2a2420;
+  letter-spacing: -0.02em;
+}
+
+.lesson-stage h1 { font-size: var(--lesson-h1, 2.2rem); }
+.lesson-stage h2 { font-size: var(--lesson-h2, 1.45rem); }
+.lesson-stage h3 {
+  font-size: var(--lesson-h3, 1.15rem);
+  color: #c4785a;
+}
+
+.lesson-stage p,
+.lesson-stage li {
+  line-height: 1.7;
+  color: #5a4f46;
+}
+
+.lesson-stage .hc-section,
+.lesson-stage .hc-card-media-left,
+.lesson-stage .hc-icon-block {
+  background: #fffaf4 !important;
+  border-color: #ead9c8 !important;
+  border-radius: 1rem;
+  box-shadow: 0 8px 24px rgba(61, 52, 46, 0.06);
+}
+
+.lesson-stage .hc-btn--primary {
+  background: var(--lesson-accent, #c4785a) !important;
+}
+
+html[data-theme='dark'] .lesson-stage {
+  color: #f3ebe3;
+}
+
+html[data-theme='dark'] .lesson-stage h1,
+html[data-theme='dark'] .lesson-stage h2 {
+  color: #fbf6ef;
+}
+
+html[data-theme='dark'] .lesson-stage p,
+html[data-theme='dark'] .lesson-stage li {
+  color: #d4c4b4;
+}
+
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage,
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage h1,
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage h2,
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage p {
+  color: #fbf6ef;
+}

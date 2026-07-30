@@ -38,6 +38,17 @@ courses/
     notes/...
     widgets/...
     assets/
+    theme/
+      theme.json
+      theme.css
 ```
+
+## Themes (PowerPoint-style)
+
+Copy a pack from [`theme-templates/`](theme-templates/README.md) into `courses/<id>/theme/`.
+
+Themes control slide stage design: fonts, type sizes, accent colors, named backgrounds (`default` / `title` / `section` / …), watermark, and page numbers.
+
+Per-slide background: set `"bg": "title"` on a `course.json` item, or `data-slide-bg="title"` in the lesson HTML.
 
 Created by RuzzBlue - 2026

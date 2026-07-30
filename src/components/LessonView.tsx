@@ -2,46 +2,43 @@ import { useEffect, useId, useMemo, useRef, type CSSProperties } from 'react';
 import type { CourseTheme } from '@shared/types';
 import { usePrefs } from '../prefs/PrefsProvider';
 import { PortalsRenderer } from './lesson/InteractiveWidgets';
-
-function bgCss(
-  bg: CourseTheme['background'] | undefined,
-  mode: 'light' | 'dark',
-  courseFolder: string,
-): string | undefined {
-  const spec = mode === 'dark' ? bg?.dark : bg?.light;
-  if (!spec?.value) return undefined;
-  if (spec.type === 'image') {
-    const url = spec.value.startsWith('http')
-      ? spec.value
-      : `http://127.0.0.1:8765/courses/${courseFolder}/theme/${spec.value.replace(/^\/+/, '')}`;
-    return `center / cover no-repeat url("${url}")`;
-  }
-  return spec.value;
-}
-
-function resolveMode(theme: 'light' | 'dark' | 'system'): 'light' | 'dark' {
-  if (theme === 'system') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  return theme;
-}
+import { ThemeDecorations } from './theme/ThemeDecorations';
+import {
+  bgSpecToCss,
+  detectSlideBgFromHtml,
+  resolveAppearanceMode,
+  resolveBgPair,
+} from './theme/themeUtils';
 
 export function LessonView({
   html,
   title,
   courseFolder,
   theme,
+  slideBg,
+  slideIndex,
+  slideTotal,
 }: {
   html: string;
   title: string;
   courseFolder: string;
   theme?: CourseTheme | null;
+  /** From course.json item `bg`, if set. */
+  slideBg?: string;
+  slideIndex?: number;
+  slideTotal?: number;
 }) {
   const { appearance } = usePrefs();
-  const mode = resolveMode(appearance.theme);
+  const mode = resolveAppearanceMode(appearance.theme);
   const uid = useId().replace(/:/g, '');
   const stageId = useMemo(() => `lesson-stage-${uid}`, [uid]);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  const variant =
+    slideBg?.trim() || detectSlideBgFromHtml(html) || 'default';
+  const pair = resolveBgPair(theme, variant);
+  const lightBg = bgSpecToCss(pair?.light, courseFolder);
+  const darkBg = bgSpecToCss(pair?.dark, courseFolder);
 
   /**
    * Only write HTML when the lesson fragment changes.
@@ -77,15 +74,18 @@ export function LessonView({
   }, [theme, courseFolder]);
 
   const accent = theme?.accent || 'var(--accent)';
-  const lightBg = bgCss(theme?.background, 'light', courseFolder);
-  const darkBg = bgCss(theme?.background, 'dark', courseFolder);
+  const scale = theme?.typeScale;
 
   const style = {
     ['--lesson-accent' as string]: accent,
     ['--font-display' as string]: theme?.fonts?.display || undefined,
     ['--font-ui' as string]: theme?.fonts?.body || undefined,
+    ['--lesson-h1' as string]: scale?.h1 || undefined,
+    ['--lesson-h2' as string]: scale?.h2 || undefined,
+    ['--lesson-h3' as string]: scale?.h3 || undefined,
+    ['--lesson-body' as string]: scale?.body || undefined,
     fontFamily: theme?.fonts?.body || 'var(--font-ui)',
-    fontSize: theme?.fontSizeBase || undefined,
+    fontSize: theme?.fontSizeBase || scale?.body || undefined,
     background: mode === 'dark' ? darkBg || 'var(--stage)' : lightBg || 'var(--stage)',
   } as CSSProperties;
 
@@ -96,14 +96,21 @@ export function LessonView({
       lang={appearance.locale}
       data-lesson-theme={theme?.id || 'default'}
       data-lesson-mode={mode}
+      data-slide-bg={variant}
     >
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(ellipse_at_top,_color-mix(in_srgb,var(--lesson-accent)_16%,transparent),_transparent_70%)]"
         aria-hidden
       />
+      <ThemeDecorations
+        theme={theme}
+        courseFolder={courseFolder}
+        slideIndex={slideIndex}
+        slideTotal={slideTotal}
+      />
       <article
         id={stageId}
-        className="lesson-stage relative mx-auto w-full max-w-4xl px-6 py-10 md:px-12 md:py-14"
+        className="lesson-stage relative z-[3] mx-auto w-full max-w-4xl px-6 py-10 md:px-12 md:py-14"
         aria-label={title}
         style={{ ['--lesson-accent' as string]: accent }}
       >

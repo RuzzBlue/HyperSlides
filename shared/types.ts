@@ -157,6 +157,11 @@ export interface CourseLessonEntry {
   durationMinutes?: number;
   /** Filename under course `notes/` (e.g. m01_u01_l01.md). */
   notes?: string;
+  /**
+   * Named background variant from theme `backgrounds` (e.g. "title", "section").
+   * Falls back to HTML `data-slide-bg`, then theme `default`.
+   */
+  bg?: string;
 }
 
 /** Quiz display slot — `title` is the navigator/toolbar name (edit in course.json). */
@@ -165,6 +170,7 @@ export interface CourseQuizEntry {
   id: string;
   title: string;
   notes?: string;
+  bg?: string;
 }
 
 /** Lab display slot — `title` is the navigator/toolbar name (edit in course.json). */
@@ -173,6 +179,7 @@ export interface CourseLabEntry {
   id: string;
   title: string;
   notes?: string;
+  bg?: string;
 }
 
 export type CourseSequenceEntry = CourseLessonEntry | CourseQuizEntry | CourseLabEntry;
@@ -234,6 +241,8 @@ export interface SequenceItem {
   activityId?: string;
   /** Presenter notes filename under course `notes/` */
   notesFile?: string;
+  /** Theme background variant key (from course.json `bg`). */
+  bg?: string;
   index: number;
 }
 
@@ -264,6 +273,48 @@ export interface LoadedCourse {
   theme: CourseTheme | null;
 }
 
+/** Single light/dark background paint for the lesson stage. */
+export type ThemeBgSpec = {
+  type: 'color' | 'gradient' | 'image';
+  /** CSS color/gradient, or image path relative to theme/ (for type=image). */
+  value: string;
+};
+
+export type ThemeBgPair = {
+  light?: ThemeBgSpec;
+  dark?: ThemeBgSpec;
+};
+
+export type ThemeWatermark = {
+  enabled?: boolean;
+  kind: 'text' | 'image';
+  /** Watermark text, or image path relative to theme/. */
+  value: string;
+  /** 0–1, default ~0.08 */
+  opacity?: number;
+  /** CSS size, e.g. "14vmin" or "180px" */
+  size?: string;
+  /** Rotation in degrees (inclination). */
+  rotateDeg?: number;
+  position?: 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  /** One mark vs tiled pattern across the stage. */
+  repeat?: 'single' | 'tiled';
+};
+
+export type ThemePageNumber = {
+  enabled?: boolean;
+  position?:
+    | 'bottom-right'
+    | 'bottom-left'
+    | 'bottom-center'
+    | 'top-right'
+    | 'top-left'
+    | 'top-center';
+  /** Tokens: {n} current 1-based index, {total} slide count. Default "{n}" */
+  format?: string;
+  opacity?: number;
+};
+
 /** Course-owned presentation theme (packaged with the course, not user progress). */
 export interface CourseTheme {
   id: string;
@@ -277,15 +328,31 @@ export interface CourseTheme {
     localCss?: string;
   };
   fontSizeBase?: string;
+  /** Optional heading/body size overrides applied as CSS variables. */
+  typeScale?: {
+    h1?: string;
+    h2?: string;
+    h3?: string;
+    body?: string;
+  };
   accent?: string;
   /** Quiz chrome accent (navigator thumbs, quiz header tint, buttons) */
   quiz?: string;
   /** Lab chrome accent (navigator thumbs, lab header tint, buttons) */
   lab?: string;
-  background?: {
-    light?: { type: 'color' | 'gradient' | 'image'; value: string };
-    dark?: { type: 'color' | 'gradient' | 'image'; value: string };
-  };
+  /**
+   * Default stage background (legacy). Prefer `backgrounds.default` for new themes.
+   * Still used when `backgrounds` is omitted.
+   */
+  background?: ThemeBgPair;
+  /**
+   * Named background variants (PowerPoint-style layouts).
+   * Slides pick one via course.json `"bg": "title"` or HTML `data-slide-bg="title"`.
+   * Common keys: default, title, section, accent, dark.
+   */
+  backgrounds?: Record<string, ThemeBgPair>;
+  watermark?: ThemeWatermark;
+  pageNumber?: ThemePageNumber;
   /** Optional extra CSS file relative to theme/ */
   cssFile?: string;
 }

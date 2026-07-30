@@ -1,0 +1,72 @@
+/* Old Magazine — newsprint stage, ink headlines */
+.lesson-stage {
+  --hc-accent: var(--lesson-accent, #8b3a2b);
+  color: #2a2118;
+}
+
+.lesson-stage h1,
+.lesson-stage h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #1a140f;
+}
+
+.lesson-stage h1 {
+  font-size: var(--lesson-h1, 2.6rem);
+  line-height: 1.15;
+}
+
+.lesson-stage h2 {
+  font-size: var(--lesson-h2, 1.7rem);
+  border-bottom: 2px solid #2a2118;
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.85rem;
+}
+
+.lesson-stage h3 {
+  font-size: var(--lesson-h3, 1.25rem);
+  font-family: var(--font-display);
+  color: #8b3a2b;
+}
+
+.lesson-stage p,
+.lesson-stage li {
+  line-height: 1.7;
+  color: #3d3226;
+}
+
+.lesson-stage .hc-section,
+.lesson-stage .hc-card-media-left,
+.lesson-stage .hc-icon-block {
+  background: #f7ecda !important;
+  border-color: #d4c0a0 !important;
+  border-radius: 2px;
+  box-shadow: 2px 3px 0 rgba(42, 33, 24, 0.08);
+}
+
+html[data-theme='dark'] .lesson-stage,
+html[data-theme='dark'] .lesson-stage h1,
+html[data-theme='dark'] .lesson-stage h2 {
+  color: #f3e7d3;
+}
+
+html[data-theme='dark'] .lesson-stage h2 {
+  border-bottom-color: #c4a882;
+}
+
+html[data-theme='dark'] .lesson-stage p,
+html[data-theme='dark'] .lesson-stage li {
+  color: #d4c4ae;
+}
+
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage,
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage h1,
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage h2,
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage p {
+  color: #f3e7d3;
+}
+
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage h2 {
+  border-bottom-color: #c4a882;
+}

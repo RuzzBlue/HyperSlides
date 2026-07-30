@@ -1,0 +1,50 @@
+/* Elegant Dark — charcoal stage, gold accent */
+.lesson-theme-root {
+  color: #e8e6e1;
+}
+
+.lesson-stage {
+  --hc-accent: var(--lesson-accent, #c9a227);
+  color: #e8e6e1;
+}
+
+.lesson-stage h1,
+.lesson-stage h2 {
+  font-family: var(--font-display);
+  color: #f5f2ea;
+  letter-spacing: -0.015em;
+}
+
+.lesson-stage h1 { font-size: var(--lesson-h1, 2.25rem); }
+.lesson-stage h2 { font-size: var(--lesson-h2, 1.5rem); }
+.lesson-stage h3 {
+  font-size: var(--lesson-h3, 1.15rem);
+  color: #d4af37;
+}
+
+.lesson-stage p,
+.lesson-stage li {
+  color: #b8b4ab;
+  line-height: 1.7;
+}
+
+.lesson-stage a {
+  color: #e0c35a;
+}
+
+.lesson-stage .hc-section,
+.lesson-stage .hc-card-media-left,
+.lesson-stage .hc-icon-block,
+.lesson-stage .hc-hero--glow {
+  background: #181b22 !important;
+  border-color: #2c303a !important;
+  color: #e8e6e1;
+}
+
+.lesson-stage .hc-hero--soft {
+  background: linear-gradient(135deg, #1f222b, #14161c) !important;
+}
+
+.lesson-stage .overflow-y-auto {
+  scrollbar-color: color-mix(in srgb, var(--lesson-accent, #c9a227) 40%, transparent) transparent;
+}

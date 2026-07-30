@@ -1,0 +1,50 @@
+/* White Minimalist */
+.lesson-stage {
+  --hc-accent: var(--lesson-accent, #171717);
+  max-width: 42rem;
+}
+
+.lesson-stage h1,
+.lesson-stage h2,
+.lesson-stage h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.lesson-stage h1 { font-size: var(--lesson-h1, 2rem); }
+.lesson-stage h2 { font-size: var(--lesson-h2, 1.4rem); }
+.lesson-stage h3 { font-size: var(--lesson-h3, 1.1rem); }
+
+.lesson-stage p,
+.lesson-stage li {
+  line-height: 1.65;
+  color: #404040;
+}
+
+html[data-theme='dark'] .lesson-stage p,
+html[data-theme='dark'] .lesson-stage li {
+  color: #d4d4d4;
+}
+
+.lesson-stage .hc-section,
+.lesson-stage .hc-card-media-left,
+.lesson-stage .hc-icon-block {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e5e5;
+}
+
+html[data-theme='dark'] .lesson-stage .hc-section,
+html[data-theme='dark'] .lesson-stage .hc-card-media-left,
+html[data-theme='dark'] .lesson-stage .hc-icon-block {
+  border-color: #262626;
+}
+
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage,
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage h1,
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage h2,
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage p,
+.lesson-theme-root[data-slide-bg='dark'] .lesson-stage li {
+  color: #fafafa;
+}

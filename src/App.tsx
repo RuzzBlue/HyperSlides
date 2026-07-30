@@ -551,6 +551,9 @@ export default function App() {
                         title={lesson.title || current.title}
                         courseFolder={course.summary.folder}
                         theme={course.theme}
+                        slideBg={current.bg}
+                        slideIndex={index}
+                        slideTotal={course.sequence.length}
                       />
                     )}
                     {!loading && current?.type === 'quiz' && quiz && course && (

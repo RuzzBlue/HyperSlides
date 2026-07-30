@@ -118,6 +118,7 @@ function pushSequenceEntries(
           .join(ctx.mod.path, ...(ctx.unit ? [ctx.unit.id, entry.file] : [entry.file]))
           .replace(/\\/g, '/'),
         notesFile: entry.notes,
+        bg: entry.bg,
         index: ctx.nextIndex(),
       });
       continue;
@@ -134,6 +135,7 @@ function pushSequenceEntries(
         unitTitle: ctx.unit?.title,
         activityId: entry.id,
         notesFile: entry.notes,
+        bg: entry.bg,
         index: ctx.nextIndex(),
       });
       continue;
@@ -149,6 +151,7 @@ function pushSequenceEntries(
       unitTitle: ctx.unit?.title,
       activityId: entry.id,
       notesFile: entry.notes,
+      bg: entry.bg,
       index: ctx.nextIndex(),
     });
   }

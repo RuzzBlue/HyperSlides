@@ -7,6 +7,12 @@
     "google": "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,600;700&display=swap"
   },
   "fontSizeBase": "16px",
+  "typeScale": {
+    "h1": "2.15rem",
+    "h2": "1.55rem",
+    "h3": "1.2rem",
+    "body": "16px"
+  },
   "accent": "#0e6e6a",
   "quiz": "#2f5aa8",
   "lab": "#6b4f9a",
@@ -19,6 +25,74 @@
       "type": "gradient",
       "value": "linear-gradient(180deg, #0f1f1c 0%, #121a18 40%, #161920 100%)"
     }
+  },
+  "backgrounds": {
+    "default": {
+      "light": {
+        "type": "gradient",
+        "value": "linear-gradient(180deg, #ecfdf5 0%, #f0fdf9 28%, #f8fafc 62%, #ffffff 100%)"
+      },
+      "dark": {
+        "type": "gradient",
+        "value": "linear-gradient(180deg, #0f1f1c 0%, #121a18 40%, #161920 100%)"
+      }
+    },
+    "title": {
+      "light": {
+        "type": "gradient",
+        "value": "radial-gradient(ellipse 90% 60% at 50% -10%, #99f6e4 0%, transparent 55%), linear-gradient(165deg, #ecfdf5 0%, #ffffff 55%, #f0fdfa 100%)"
+      },
+      "dark": {
+        "type": "gradient",
+        "value": "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(45,212,191,0.22) 0%, transparent 55%), linear-gradient(180deg, #0a1614 0%, #121a18 100%)"
+      }
+    },
+    "section": {
+      "light": {
+        "type": "gradient",
+        "value": "linear-gradient(135deg, #ccfbf1 0%, #f8fafc 45%, #ffffff 100%)"
+      },
+      "dark": {
+        "type": "gradient",
+        "value": "linear-gradient(135deg, #134e4a 0%, #0f1f1c 55%, #161920 100%)"
+      }
+    },
+    "accent": {
+      "light": {
+        "type": "gradient",
+        "value": "linear-gradient(180deg, #f0fdfa 0%, #e0f2fe 100%)"
+      },
+      "dark": {
+        "type": "gradient",
+        "value": "linear-gradient(180deg, #115e59 0%, #1e3a5f 100%)"
+      }
+    },
+    "dark": {
+      "light": {
+        "type": "gradient",
+        "value": "linear-gradient(160deg, #0f766e 0%, #134e4a 40%, #0f172a 100%)"
+      },
+      "dark": {
+        "type": "color",
+        "value": "#0a1210"
+      }
+    }
+  },
+  "watermark": {
+    "enabled": false,
+    "kind": "text",
+    "value": "HYPERCLASS",
+    "opacity": 0.06,
+    "size": "12vmin",
+    "rotateDeg": -30,
+    "position": "center",
+    "repeat": "single"
+  },
+  "pageNumber": {
+    "enabled": true,
+    "position": "bottom-right",
+    "format": "{n}",
+    "opacity": 0.5
   },
   "cssFile": "theme.css"
 }
