@@ -32,6 +32,7 @@ import {
 import { StatusBar } from './components/StatusBar';
 import { TitleBar } from './components/TitleBar';
 import { Toolbar } from './components/Toolbar';
+import { CourseSettingsModal } from './components/CourseSettingsModal';
 import type { InsertKind } from './components/AddContentButton';
 import { StageZoomFrame } from './components/ZoomControl';
 import { usePrefs } from './prefs/PrefsProvider';
@@ -54,6 +55,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(NAVIGATOR_SIDEBAR_DEFAULT_WIDTH);
+  const [courseSettingsOpen, setCourseSettingsOpen] = useState(false);
   const sidebarTreeApiRef = useRef<SidebarTreeApi | null>(null);
   const [inspectorTool, setInspectorTool] = useState<InspectorTool | null>(null);
   const [inspectorMode, setInspectorMode] = useState<InspectorMode>('docked');
@@ -544,6 +546,7 @@ export default function App() {
           inspectorTool={inspectorTool}
           onInspectorTool={handleInspectorTool}
           onInsert={(kind) => void handleInsert(kind)}
+          onOpenCourseSettings={() => setCourseSettingsOpen(true)}
         />
       )}
 
@@ -555,7 +558,11 @@ export default function App() {
             progress={progress}
             onSelect={goTo}
             showSlideNumbers={settings.showSlideNumbers}
-            showHeader={settings.showNavigatorHeader !== false}
+            showHeaderCount={settings.showSidebarHeaderCount !== false}
+            showHeaderViewToggle={Boolean(settings.showSidebarViewToggle)}
+            onSidebarViewChange={(next) => {
+              void save({ settings: { sidebarView: next } });
+            }}
             mode={settings.sidebarView ?? 'navigator'}
             width={sidebarWidth}
             onWidthChange={setSidebarWidth}
@@ -759,6 +766,19 @@ export default function App() {
         initialTab={settingsTab}
         onTabChange={setSettingsTab}
         onProgressReset={() => void handleProgressReset()}
+      />
+
+      <CourseSettingsModal
+        mode="edit"
+        open={courseSettingsOpen && Boolean(course)}
+        onClose={() => setCourseSettingsOpen(false)}
+        course={course}
+        onSaved={(next) => {
+          setCourse(next);
+          applyCourseSettings(next.packageManifest, next.theme);
+          setCourseSettingsOpen(false);
+          void loadCourses();
+        }}
       />
     </AppShell>
   );

@@ -5,6 +5,7 @@ import { PortalsRenderer } from './lesson/InteractiveWidgets';
 import { ThemeDecorations } from './theme/ThemeDecorations';
 import {
   bgSpecToCss,
+  bgSpecToStyle,
   detectSlideBgFromHtml,
   resolveAppearanceMode,
   resolveBgPair,
@@ -37,8 +38,11 @@ export function LessonView({
   const variant =
     slideBg?.trim() || detectSlideBgFromHtml(html) || 'default';
   const pair = resolveBgPair(theme, variant);
+  const activeSpec = mode === 'dark' ? pair?.dark : pair?.light;
   const lightBg = bgSpecToCss(pair?.light, courseFolder);
   const darkBg = bgSpecToCss(pair?.dark, courseFolder);
+  const cssBgStyle = bgSpecToStyle(activeSpec, courseFolder);
+  const isCssBg = activeSpec?.type === 'css';
 
   /**
    * Only write HTML when the lesson fragment changes.
@@ -86,7 +90,13 @@ export function LessonView({
     ['--lesson-body' as string]: scale?.body || undefined,
     fontFamily: theme?.fonts?.body || 'var(--font-ui)',
     fontSize: theme?.fontSizeBase || scale?.body || undefined,
-    background: mode === 'dark' ? darkBg || 'var(--stage)' : lightBg || 'var(--stage)',
+    background: isCssBg
+      ? cssBgStyle
+        ? undefined
+        : 'var(--stage)'
+      : mode === 'dark'
+        ? darkBg || 'var(--stage)'
+        : lightBg || 'var(--stage)',
   } as CSSProperties;
 
   return (
@@ -98,6 +108,13 @@ export function LessonView({
       data-lesson-mode={mode}
       data-slide-bg={variant}
     >
+      {isCssBg && cssBgStyle && (
+        <div
+          className="pointer-events-none absolute inset-0 z-0"
+          style={cssBgStyle}
+          aria-hidden
+        />
+      )}
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-0 h-56 bg-[radial-gradient(ellipse_at_top,_color-mix(in_srgb,var(--lesson-accent)_16%,transparent),_transparent_70%)]"
         aria-hidden

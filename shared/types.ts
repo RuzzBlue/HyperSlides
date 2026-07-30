@@ -291,9 +291,15 @@ export interface LoadedCourse {
 
 /** Single light/dark background paint for the lesson stage. */
 export type ThemeBgSpec = {
-  type: 'color' | 'gradient' | 'image';
+  type: 'color' | 'gradient' | 'image' | 'css';
   /** CSS color/gradient, or image path relative to theme/ (for type=image). */
   value: string;
+  /**
+   * For type='css': raw CSS declarations pasted by the author
+   * (e.g. background-color, background-image, background-size, opacity…).
+   * Applied as inline style properties on the stage. Prefer this over packing everything into `value`.
+   */
+  cssText?: string;
 };
 
 export type ThemeBgPair = {
@@ -329,6 +335,8 @@ export type ThemePageNumber = {
   /** Tokens: {n} current 1-based index, {total} slide count. Default "{n}" */
   format?: string;
   opacity?: number;
+  /** CSS size, e.g. "11px" or "0.85rem" */
+  size?: string;
 };
 
 /** Course-owned presentation theme (packaged with the course, not user progress). */
@@ -486,8 +494,13 @@ export type SidebarViewMode = 'navigator' | 'overview';
 export interface AppPrefs {
   autoAdvanceAfterQuiz: boolean;
   rememberLastCourse: boolean;
-  /** Show the Navigator/Overview title card at the top of the left sidebar. */
-  showNavigatorHeader: boolean;
+  /**
+   * Show Navigator/Overview title + slide count in the left sidebar header.
+   * Combined with showSidebarViewToggle: both off hides the header entirely.
+   */
+  showSidebarHeaderCount: boolean;
+  /** Show Navigator ↔ Overview switcher in the left sidebar header. */
+  showSidebarViewToggle: boolean;
   showSlideNumbers: boolean;
   /**
    * When true, opening a course applies that course’s language / color defaults for the session
@@ -500,7 +513,7 @@ export interface AppPrefs {
   presenterMenu: PresenterMenuMode;
   /** Course navigator sidebar width in px (capped at default; drag to shrink). */
   navigatorSidebarWidth: number;
-  /** Left sidebar layout while presenting (navigator thumbnails vs overview outline). */
+  /** Default left sidebar layout while presenting (navigator thumbnails vs overview outline). */
   sidebarView: SidebarViewMode;
 }
 

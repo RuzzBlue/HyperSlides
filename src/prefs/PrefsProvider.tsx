@@ -103,7 +103,8 @@ const fallbackAppearance: AppearancePrefs = {
 const fallbackSettings: AppPrefs = {
   autoAdvanceAfterQuiz: false,
   rememberLastCourse: true,
-  showNavigatorHeader: true,
+  showSidebarHeaderCount: true,
+  showSidebarViewToggle: false,
   showSlideNumbers: true,
   useCourseSettings: true,
   contentZoom: '100',
@@ -130,6 +131,14 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
         settings: {
           ...fallbackSettings,
           ...res.data.settings,
+          showSidebarHeaderCount:
+            res.data.settings.showSidebarHeaderCount ??
+            (res.data.settings as { showNavigatorHeader?: boolean }).showNavigatorHeader ??
+            fallbackSettings.showSidebarHeaderCount,
+          showSidebarViewToggle:
+            res.data.settings.showSidebarViewToggle ??
+            (res.data.settings as { showSidebarHeaderToggle?: boolean }).showSidebarHeaderToggle ??
+            fallbackSettings.showSidebarViewToggle,
         },
       };
       setState(next);

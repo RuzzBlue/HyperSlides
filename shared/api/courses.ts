@@ -252,6 +252,7 @@ const DEFAULT_PAGE_NUMBER: NonNullable<CourseTheme['pageNumber']> = {
   position: 'bottom-right',
   format: '{n}',
   opacity: 0.5,
+  size: '11px',
 };
 
 /** Fill legacy / incomplete theme.json packages with the current schema defaults. */

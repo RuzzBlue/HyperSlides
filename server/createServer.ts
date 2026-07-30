@@ -25,7 +25,7 @@ export function createServer(options?: { appRoot?: string; serveDist?: boolean }
   const app = express();
 
   app.use(cors());
-  app.use(express.json({ limit: '4mb' }));
+  app.use(express.json({ limit: '8mb' }));
 
   const coursesRoot = getCoursesRoot(appRoot);
   const runtimeDir = path.join(appRoot, 'public', 'runtime');

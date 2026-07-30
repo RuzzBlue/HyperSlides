@@ -5,10 +5,17 @@ import type {
   CoursePackageManifest,
   CourseSummary,
   CourseTheme,
+  ThemeBgPair,
   ThemePageNumber,
   ThemeWatermark,
 } from '../types.ts';
-import { getCoursesRoot, listCourses } from './courses.ts';
+import {
+  accentGradientDark,
+  accentGradientLight,
+  accentSolidDark,
+  accentSolidLight,
+} from '../colorUtils.ts';
+import { getCoursesRoot, listCourses, loadCourse } from './courses.ts';
 import { WELCOME_SLIDE_HTML } from './slideTemplate.ts';
 
 export type ThemeTemplateInfo = {
@@ -21,8 +28,15 @@ export type CreateCourseCustomTheme = {
   displayFont: string;
   bodyFont: string;
   googleFontsUrl: string;
-  watermark: ThemeWatermark;
-  pageNumber: ThemePageNumber;
+  quiz?: string;
+  lab?: string;
+  bgMode?: 'solid' | 'gradient' | 'css';
+  bgSolid?: string;
+  bgSolidDark?: string;
+  bgGradient?: string;
+  bgGradientDark?: string;
+  bgCssText?: string;
+  bgCssTextDark?: string;
 };
 
 export type CreateCourseInput = {
@@ -34,6 +48,15 @@ export type CreateCourseInput = {
   themeSource: 'template' | 'custom';
   themeTemplateId?: string;
   customTheme?: CreateCourseCustomTheme;
+  /** Applied for both template and custom themes (overrides template defaults). */
+  watermark?: ThemeWatermark;
+  pageNumber?: ThemePageNumber;
+  /** Optional image file to store under theme/ (sets watermark.value to the relative filename). */
+  watermarkImage?: { filename: string; dataBase64: string };
+  /** ISO 639-1 course language (package manifest). */
+  language?: string;
+  /** When true, learners may change language while the course is open (if using course settings). */
+  toggleLanguage?: boolean;
   security?: {
     accessEnabled?: boolean;
     accessHint?: string;
@@ -41,6 +64,8 @@ export type CreateCourseInput = {
     authorHint?: string;
   };
 };
+
+export type UpdateCourseInput = CreateCourseInput;
 
 function getThemeTemplatesRoot(appRoot: string): string {
   return path.join(appRoot, 'theme-templates');
@@ -92,8 +117,37 @@ function ensureDir(dir: string) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
+function buildDefaultBgPair(input: CreateCourseCustomTheme, accent: string): ThemeBgPair {
+  const mode = input.bgMode ?? 'gradient';
+  if (mode === 'solid') {
+    const light = input.bgSolid ?? accentSolidLight(accent);
+    const dark = input.bgSolidDark ?? accentSolidDark(accent);
+    return {
+      light: { type: 'color', value: light },
+      dark: { type: 'color', value: dark },
+    };
+  }
+  if (mode === 'css') {
+    const cssText = input.bgCssText ?? '';
+    const cssTextDark = input.bgCssTextDark ?? cssText;
+    return {
+      light: { type: 'css', value: 'custom', cssText },
+      dark: { type: 'css', value: 'custom', cssText: cssTextDark },
+    };
+  }
+  const lightGrad = input.bgGradient ?? accentGradientLight(accent);
+  const darkGrad = input.bgGradientDark ?? accentGradientDark(accent);
+  return {
+    light: { type: 'gradient', value: lightGrad },
+    dark: { type: 'gradient', value: darkGrad },
+  };
+}
+
 function buildCustomTheme(input: CreateCourseCustomTheme): { theme: CourseTheme; css: string } {
   const accent = input.accent || '#0e6e6a';
+  const quiz = input.quiz ?? '#2f5aa8';
+  const lab = input.lab ?? '#6b4f9a';
+  const defaultBg = buildDefaultBgPair(input, accent);
   const theme: CourseTheme = {
     id: 'custom',
     name: 'Custom',
@@ -110,29 +164,11 @@ function buildCustomTheme(input: CreateCourseCustomTheme): { theme: CourseTheme;
       body: '16px',
     },
     accent,
-    quiz: '#2f5aa8',
-    lab: '#6b4f9a',
-    background: {
-      light: {
-        type: 'gradient',
-        value: `linear-gradient(180deg, color-mix(in srgb, ${accent} 12%, #ffffff) 0%, #ffffff 100%)`,
-      },
-      dark: {
-        type: 'gradient',
-        value: `linear-gradient(180deg, color-mix(in srgb, ${accent} 22%, #0f172a) 0%, #0f172a 100%)`,
-      },
-    },
+    quiz,
+    lab,
+    background: defaultBg,
     backgrounds: {
-      default: {
-        light: {
-          type: 'gradient',
-          value: `linear-gradient(180deg, color-mix(in srgb, ${accent} 12%, #ffffff) 0%, #ffffff 100%)`,
-        },
-        dark: {
-          type: 'gradient',
-          value: `linear-gradient(180deg, color-mix(in srgb, ${accent} 22%, #0f172a) 0%, #0f172a 100%)`,
-        },
-      },
+      default: defaultBg,
       title: {
         light: {
           type: 'gradient',
@@ -171,8 +207,6 @@ function buildCustomTheme(input: CreateCourseCustomTheme): { theme: CourseTheme;
         dark: { type: 'color', value: '#020617' },
       },
     },
-    watermark: input.watermark,
-    pageNumber: input.pageNumber,
     cssFile: 'theme.css',
   };
 
@@ -222,6 +256,78 @@ html[data-theme='dark'] .lesson-stage {
   return { theme, css };
 }
 
+function patchThemeDecorations(
+  themePath: string,
+  watermark?: ThemeWatermark,
+  pageNumber?: ThemePageNumber,
+) {
+  if (!watermark && !pageNumber) return;
+  if (!fs.existsSync(themePath)) return;
+  const theme = JSON.parse(fs.readFileSync(themePath, 'utf-8')) as CourseTheme;
+  if (watermark) theme.watermark = watermark;
+  if (pageNumber) theme.pageNumber = pageNumber;
+  writeJson(themePath, theme);
+}
+
+/**
+ * Write a binary asset into courses/<id>/theme/assets/ and return the path
+ * relative to theme/ for theme.json (e.g. "assets/watermark.png").
+ */
+export function writeThemeAsset(
+  themeDir: string,
+  filename: string,
+  dataBase64: string,
+): string {
+  const assetsDir = path.join(themeDir, 'assets');
+  ensureDir(assetsDir);
+  const base = path.basename(filename || 'watermark.png').replace(/[^\w.\-]+/g, '_');
+  const safe = base || 'watermark.png';
+  const raw = dataBase64.replace(/^data:[^;]+;base64,/, '');
+  const buf = Buffer.from(raw, 'base64');
+  if (!buf.length) throw new Error('Empty image data');
+  if (buf.length > 3_500_000) throw new Error('Image too large (max ~3.5MB)');
+  fs.writeFileSync(path.join(assetsDir, safe), buf);
+  return `assets/${safe}`;
+}
+
+export function uploadCourseThemeAsset(
+  appRoot: string,
+  courseId: string,
+  filename: string,
+  dataBase64: string,
+): { path: string } {
+  const loaded = loadCourse(appRoot, courseId);
+  if (!loaded) throw new Error('Course not found');
+  const themeDir = path.join(loaded.rootPath, 'theme');
+  const rel = writeThemeAsset(themeDir, filename, dataBase64);
+  return { path: rel };
+}
+
+function applyWatermarkImage(
+  themeDir: string,
+  themePath: string,
+  watermark: ThemeWatermark | undefined,
+  watermarkImage: { filename: string; dataBase64: string } | undefined,
+) {
+  if (!watermarkImage) return;
+  const preferred =
+    watermark?.value?.trim()
+      ? path.basename(watermark.value.trim())
+      : watermarkImage.filename;
+  const rel = writeThemeAsset(themeDir, preferred || watermarkImage.filename, watermarkImage.dataBase64);
+  const next: ThemeWatermark = {
+    enabled: watermark?.enabled ?? true,
+    kind: 'image',
+    value: rel,
+    opacity: watermark?.opacity,
+    size: watermark?.size,
+    rotateDeg: watermark?.rotateDeg,
+    position: watermark?.position,
+    repeat: watermark?.repeat,
+  };
+  patchThemeDecorations(themePath, next, undefined);
+}
+
 /**
  * Scaffold a new course package under courses/<folder>/.
  * Creates module-01 / unit-01 / lesson-01 plus theme, notes, and empty buckets.
@@ -267,6 +373,13 @@ export function createCourse(appRoot: string, input: CreateCourseInput): CourseS
     writeJson(path.join(rootPath, 'theme', 'theme.json'), theme);
     fs.writeFileSync(path.join(rootPath, 'theme', 'theme.css'), css, 'utf-8');
   }
+  patchThemeDecorations(path.join(rootPath, 'theme', 'theme.json'), input.watermark, input.pageNumber);
+  applyWatermarkImage(
+    path.join(rootPath, 'theme'),
+    path.join(rootPath, 'theme', 'theme.json'),
+    input.watermark,
+    input.watermarkImage,
+  );
 
   fs.writeFileSync(
     path.join(rootPath, 'modules', 'module-01', 'unit-01', 'lesson-01.html'),
@@ -323,8 +436,8 @@ export function createCourse(appRoot: string, input: CreateCourseInput): CourseS
     hyperclassMinVersion: '0.1.0',
     author,
     description,
-    language: 'en',
-    toggleLanguage: true,
+    language: input.language === 'es' ? 'es' : 'en',
+    toggleLanguage: input.toggleLanguage !== false,
     darkLightTheme: 'light',
     toggleDarkLightTheme: true,
     extensions: ['mermaid', 'chartjs'],
@@ -366,6 +479,98 @@ export function createCourse(appRoot: string, input: CreateCourseInput): CourseS
     throw new Error('Course created but failed to load summary');
   }
   return created;
+}
+
+/**
+ * Update an existing course's metadata, theme, and security flags.
+ * Returns the reloaded course package (same shape as GET /api/courses/:id).
+ */
+export function updateCourse(
+  appRoot: string,
+  courseId: string,
+  input: UpdateCourseInput,
+): Omit<import('../types.ts').LoadedCourse, 'rootPath'> {
+  const loaded = loadCourse(appRoot, courseId);
+  if (!loaded) throw new Error('Course not found');
+  const rootPath = loaded.rootPath;
+  const title = input.title?.trim() || loaded.manifest.title;
+  const subtitle = input.subtitle?.trim() ?? loaded.manifest.subtitle ?? '';
+  const description = input.description?.trim() ?? loaded.manifest.description ?? '';
+  const coverAccent = input.coverAccent?.trim() || loaded.manifest.coverAccent || '#0e6e6a';
+  const author = input.author?.trim() || loaded.manifest.author || 'Author';
+
+  const manifestPath = path.join(rootPath, 'course.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as CourseManifest;
+  manifest.title = title;
+  manifest.subtitle = subtitle;
+  manifest.description = description;
+  manifest.coverAccent = coverAccent;
+  manifest.author = author;
+  writeJson(manifestPath, manifest);
+
+  const packagePath = path.join(rootPath, 'manifest.json');
+  if (fs.existsSync(packagePath)) {
+    const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf-8')) as CoursePackageManifest;
+    pkg.name = title;
+    pkg.author = author;
+    pkg.description = description;
+    if (input.language !== undefined) {
+      pkg.language = input.language === 'es' ? 'es' : 'en';
+    }
+    if (input.toggleLanguage !== undefined) {
+      pkg.toggleLanguage = Boolean(input.toggleLanguage);
+    }
+    pkg.passwordLock = {
+      enabled: Boolean(input.security?.accessEnabled),
+      hint: input.security?.accessHint?.trim() || undefined,
+    };
+    pkg.authorLock = {
+      enabled: Boolean(input.security?.authorEnabled),
+      hint: input.security?.authorHint?.trim() || undefined,
+    };
+    writeJson(packagePath, pkg);
+  }
+
+  const themeDir = path.join(rootPath, 'theme');
+  ensureDir(themeDir);
+  const themeSource = input.themeSource === 'custom' ? 'custom' : 'template';
+  if (themeSource === 'template') {
+    const templateId = input.themeTemplateId || 'crypto-teal';
+    const src = path.join(getThemeTemplatesRoot(appRoot), templateId);
+    if (!fs.existsSync(path.join(src, 'theme.json'))) {
+      throw new Error(`Theme template not found: ${templateId}`);
+    }
+    fs.cpSync(src, themeDir, { recursive: true });
+  } else {
+    const custom = input.customTheme;
+    if (!custom) throw new Error('customTheme is required when themeSource is custom');
+    const { theme, css } = buildCustomTheme(custom);
+    writeJson(path.join(themeDir, 'theme.json'), theme);
+    fs.writeFileSync(path.join(themeDir, 'theme.css'), css, 'utf-8');
+  }
+  patchThemeDecorations(path.join(themeDir, 'theme.json'), input.watermark, input.pageNumber);
+  applyWatermarkImage(themeDir, path.join(themeDir, 'theme.json'), input.watermark, input.watermarkImage);
+
+  if (input.security?.accessEnabled || input.security?.authorEnabled) {
+    writeJson(path.join(rootPath, 'security.json'), {
+      accessLock: {
+        enabled: Boolean(input.security?.accessEnabled),
+        hint: input.security?.accessHint?.trim() || null,
+        configured: true,
+      },
+      authorLock: {
+        enabled: Boolean(input.security?.authorEnabled),
+        hint: input.security?.authorHint?.trim() || null,
+        configured: true,
+      },
+      note: 'Passwords are not persisted yet — UI stub for a future lock implementation.',
+    });
+  }
+
+  const refreshed = loadCourse(appRoot, courseId);
+  if (!refreshed) throw new Error('Course reload failed');
+  const { rootPath: _, ...safe } = refreshed;
+  return safe;
 }
 
 /**

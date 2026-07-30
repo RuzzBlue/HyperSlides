@@ -609,7 +609,7 @@ function AppSettingsTab({
   };
 
   const toggleRow = (
-    key: 'useCourseSettings' | 'autoAdvanceAfterQuiz' | 'rememberLastCourse' | 'showNavigatorHeader' | 'showSlideNumbers',
+    key: 'useCourseSettings' | 'autoAdvanceAfterQuiz' | 'rememberLastCourse' | 'showSlideNumbers',
     label: string,
   ) => (
     <div key={key}>
@@ -644,36 +644,67 @@ function AppSettingsTab({
         {toggleRow('rememberLastCourse', tr('rememberLastCourse'))}
 
         <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-3">
-          <div className="mb-2 text-[13px] text-[var(--ink)]">{tr('sidebarView')}</div>
-          <div
-            className="inline-grid grid-cols-2 rounded-lg border border-[var(--line)] bg-[var(--stage)] p-0.5"
-            role="group"
-            aria-label={tr('sidebarMode')}
-          >
-            {(
-              [
-                ['navigator', tr('navigator')],
-                ['overview', tr('overview')],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                title={label}
-                onClick={() => setDraft({ ...draft, sidebarView: value as SidebarViewMode })}
-                className={`cursor-pointer truncate rounded-md px-3 py-1.5 text-[12px] font-semibold leading-tight transition ${
-                  sidebarView === value
-                    ? 'bg-[var(--accent)] text-white shadow-sm'
-                    : 'text-[var(--ink-muted)] hover:bg-[var(--panel)] hover:text-[var(--ink)]'
-                }`}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="mb-2 text-[13px] text-[var(--ink)]">{tr('defaultSidebarView')}</div>
+              <div
+                className="inline-grid grid-cols-2 rounded-lg border border-[var(--line)] bg-[var(--stage)] p-0.5"
+                role="group"
+                aria-label={tr('sidebarMode')}
               >
-                {label}
-              </button>
-            ))}
+                {(
+                  [
+                    ['navigator', tr('navigator')],
+                    ['overview', tr('overview')],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    title={label}
+                    onClick={() => setDraft({ ...draft, sidebarView: value as SidebarViewMode })}
+                    className={`cursor-pointer truncate rounded-md px-3 py-1.5 text-[12px] font-semibold leading-tight transition ${
+                      sidebarView === value
+                        ? 'bg-[var(--accent)] text-white shadow-sm'
+                        : 'text-[var(--ink-muted)] hover:bg-[var(--panel)] hover:text-[var(--ink)]'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex min-w-[12rem] flex-col gap-2 pt-0.5">
+              <label className="flex cursor-pointer items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={draft.showSidebarHeaderCount !== false}
+                  onChange={(e) =>
+                    setDraft({ ...draft, showSidebarHeaderCount: e.target.checked })
+                  }
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
+                />
+                <span className="text-[12px] leading-snug text-[var(--ink)]">
+                  {tr('showSidebarHeaderCount')}
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={Boolean(draft.showSidebarViewToggle)}
+                  onChange={(e) =>
+                    setDraft({ ...draft, showSidebarViewToggle: e.target.checked })
+                  }
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
+                />
+                <span className="text-[12px] leading-snug text-[var(--ink)]">
+                  {tr('showSidebarViewToggle')}
+                </span>
+              </label>
+            </div>
           </div>
         </div>
 
-        {toggleRow('showNavigatorHeader', tr('showNavigatorHeader'))}
         {toggleRow('showSlideNumbers', tr('showSlideNumbers'))}
       </div>
 

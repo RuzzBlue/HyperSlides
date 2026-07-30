@@ -18,7 +18,8 @@ const DEFAULT_APPEARANCE: AppearancePrefs = {
 const DEFAULT_SETTINGS: AppPrefs = {
   autoAdvanceAfterQuiz: false,
   rememberLastCourse: true,
-  showNavigatorHeader: true,
+  showSidebarHeaderCount: true,
+  showSidebarViewToggle: false,
   showSlideNumbers: true,
   useCourseSettings: true,
   contentZoom: '100',
@@ -52,6 +53,24 @@ function createDefaultUser(): UserState {
   };
 }
 
+/** Merge stored settings and migrate the old showNavigatorHeader flag. */
+function normalizeSettings(raw: Partial<AppPrefs> | undefined): AppPrefs {
+  const legacy = raw as Partial<AppPrefs> & { showNavigatorHeader?: boolean };
+  const merged: AppPrefs = { ...DEFAULT_SETTINGS, ...(raw ?? {}) };
+  if (raw?.showSidebarHeaderCount === undefined && legacy?.showNavigatorHeader !== undefined) {
+    merged.showSidebarHeaderCount = Boolean(legacy.showNavigatorHeader);
+  }
+  if (raw?.showSidebarViewToggle === undefined) {
+    const legacyToggle = (raw as { showSidebarHeaderToggle?: boolean } | undefined)
+      ?.showSidebarHeaderToggle;
+    merged.showSidebarViewToggle =
+      legacyToggle !== undefined
+        ? Boolean(legacyToggle)
+        : DEFAULT_SETTINGS.showSidebarViewToggle;
+  }
+  return merged;
+}
+
 export function readUserState(appRoot: string): UserState {
   const file = userFile(appRoot);
   if (!fs.existsSync(file)) {
@@ -71,7 +90,7 @@ export function readUserState(appRoot: string): UserState {
     return {
       profile,
       appearance: { ...DEFAULT_APPEARANCE, ...(raw.appearance ?? {}) },
-      settings: { ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) },
+      settings: normalizeSettings(raw.settings),
     };
   } catch {
     const created = createDefaultUser();

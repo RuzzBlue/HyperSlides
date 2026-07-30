@@ -13,7 +13,7 @@ import {
   writeProgress,
   writeSlideNotes,
 } from './courses.ts';
-import { createCourse, deleteCourse, listThemeTemplates, type CreateCourseInput } from './createCourse.ts';
+import { createCourse, deleteCourse, listThemeTemplates, updateCourse, uploadCourseThemeAsset, type CreateCourseInput } from './createCourse.ts';
 import { insertCourseItem, type InsertKind } from './insertCourseItem.ts';
 import {
   deleteStructureNode,
@@ -73,6 +73,43 @@ export async function handleApiRequest(
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to create course';
         return { ok: false, status: 400, error: message };
+      }
+    }
+
+    if (method === 'PUT' && segments[0] === 'courses' && segments.length === 2) {
+      try {
+        const updated = updateCourse(ctx.appRoot, segments[1], (body ?? {}) as CreateCourseInput);
+        return { ok: true, status: 200, data: updated };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to update course';
+        const status = message === 'Course not found' ? 404 : 400;
+        return { ok: false, status, error: message };
+      }
+    }
+
+    if (
+      method === 'POST' &&
+      segments[0] === 'courses' &&
+      segments.length === 4 &&
+      segments[2] === 'theme' &&
+      segments[3] === 'assets'
+    ) {
+      try {
+        const payload = (body ?? {}) as { filename?: string; dataBase64?: string };
+        if (!payload.filename || !payload.dataBase64) {
+          return { ok: false, status: 400, error: 'filename and dataBase64 are required' };
+        }
+        const saved = uploadCourseThemeAsset(
+          ctx.appRoot,
+          segments[1],
+          payload.filename,
+          payload.dataBase64,
+        );
+        return { ok: true, status: 201, data: saved };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to upload theme asset';
+        const status = message === 'Course not found' ? 404 : 400;
+        return { ok: false, status, error: message };
       }
     }
 

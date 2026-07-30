@@ -113,10 +113,13 @@ export function ThemeDecorations({
 
       {showPage && (
         <div
-          className={`absolute text-[11px] font-medium tabular-nums tracking-wide text-[var(--ink-muted)] ${
+          className={`absolute font-medium tabular-nums tracking-wide text-[var(--ink-muted)] ${
             PAGE_POS_CLASS[pagePos] || PAGE_POS_CLASS['bottom-right']
           }`}
-          style={{ opacity: page?.opacity ?? 0.65 }}
+          style={{
+            opacity: page?.opacity ?? 0.65,
+            fontSize: page?.size ?? '11px',
+          }}
         >
           {formatPageNumber(page?.format, (slideIndex ?? 0) + 1, slideTotal ?? 0)}
         </div>

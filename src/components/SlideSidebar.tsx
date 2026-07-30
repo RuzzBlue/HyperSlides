@@ -144,7 +144,9 @@ export function SlideSidebar({
   progress,
   onSelect,
   showSlideNumbers = true,
-  showHeader = true,
+  showHeaderCount = true,
+  showHeaderViewToggle = false,
+  onSidebarViewChange,
   mode = 'navigator',
   width = NAVIGATOR_SIDEBAR_DEFAULT_WIDTH,
   onWidthChange,
@@ -159,7 +161,11 @@ export function SlideSidebar({
   progress: ProgressState | null;
   onSelect: (i: number) => void;
   showSlideNumbers?: boolean;
-  showHeader?: boolean;
+  /** Title + slide count in the sidebar header. */
+  showHeaderCount?: boolean;
+  /** Navigator ↔ Overview switcher in the sidebar header. */
+  showHeaderViewToggle?: boolean;
+  onSidebarViewChange?: (view: SidebarViewMode) => void;
   mode?: SidebarViewMode;
   width?: number;
   onWidthChange?: (width: number) => void;
@@ -172,6 +178,7 @@ export function SlideSidebar({
   const { tr } = usePrefs();
   const tree = useMemo(() => buildOverviewTree(sequence), [sequence]);
   const expansion = useTreeExpansion(tree, index);
+  const showHeader = showHeaderCount || showHeaderViewToggle;
 
   useEffect(() => {
     if (!treeApiRef) return;
@@ -285,13 +292,55 @@ export function SlideSidebar({
     >
       {showHeader && (
         <div className="shrink-0 p-2">
-          <div className="rounded-xl border border-[var(--line)] bg-[var(--stage)] px-3 py-2 shadow-sm">
-            <div className="truncate text-[12px] font-semibold tracking-tight text-[var(--ink)]">
-              {mode === 'navigator' ? tr('navigator') : tr('overview')}
-            </div>
-            {!compact && (
-              <div className="truncate text-[11px] tabular-nums text-[var(--ink-muted)]">
-                {sequence.length} {tr('slides')}
+          <div
+            className={`rounded-xl border border-[var(--line)] bg-[var(--stage)] shadow-sm ${
+              showHeaderCount && showHeaderViewToggle
+                ? 'flex items-center gap-2 px-2 py-1.5'
+                : showHeaderViewToggle && !showHeaderCount
+                  ? 'flex items-center px-2 py-1.5'
+                  : 'px-3 py-2'
+            }`}
+          >
+            {showHeaderCount && (
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[12px] font-semibold tracking-tight text-[var(--ink)]">
+                  {mode === 'navigator' ? tr('navigator') : tr('overview')}
+                </div>
+                {!compact && (
+                  <div className="truncate text-[11px] tabular-nums text-[var(--ink-muted)]">
+                    {sequence.length} {tr('slides')}
+                  </div>
+                )}
+              </div>
+            )}
+            {showHeaderViewToggle && onSidebarViewChange && (
+              <div
+                className={`inline-grid shrink-0 grid-cols-2 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-0.5 ${
+                  showHeaderCount ? '' : 'w-full'
+                }`}
+                role="group"
+                aria-label={tr('sidebarMode')}
+              >
+                {(
+                  [
+                    ['navigator', tr('navigator')],
+                    ['overview', tr('overview')],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    title={label}
+                    onClick={() => onSidebarViewChange(value)}
+                    className={`cursor-pointer truncate rounded-md px-2 py-1 text-[11px] font-semibold leading-tight transition ${
+                      mode === value
+                        ? 'bg-[var(--accent)] text-white shadow-sm'
+                        : 'text-[var(--ink-muted)] hover:bg-[var(--stage)] hover:text-[var(--ink)]'
+                    }`}
+                  >
+                    {compact && showHeaderCount ? label.slice(0, 3) : label}
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -307,7 +356,6 @@ export function SlideSidebar({
           onSelect={onSelect}
           showSlideNumbers={showSlideNumbers}
           compact={compact}
-          paddedTop={!showHeader}
           actions={actions}
           expansion={expansion}
         />
@@ -318,7 +366,6 @@ export function SlideSidebar({
           index={index}
           onSelect={onSelect}
           compact={compact}
-          paddedTop={!showHeader}
           actions={actions}
           expansion={expansion}
         />
@@ -1049,7 +1096,6 @@ function NavigatorList({
   onSelect,
   showSlideNumbers,
   compact,
-  paddedTop,
   actions,
   expansion,
 }: {
@@ -1060,7 +1106,6 @@ function NavigatorList({
   onSelect: (i: number) => void;
   showSlideNumbers: boolean;
   compact: boolean;
-  paddedTop?: boolean;
   actions: StructureActions;
   expansion: ReturnType<typeof useTreeExpansion>;
 }) {
@@ -1096,7 +1141,7 @@ function NavigatorList({
   return (
     <div
       ref={listRef}
-      className={`min-h-0 flex-1 space-y-0.5 overflow-y-auto pl-1 pr-2 pb-2 ${paddedTop ? 'pt-2' : ''}`}
+      className={`min-h-0 flex-1 space-y-0.5 overflow-y-auto pl-1 pr-2 pb-2 pt-2`}
     >
       <DropLine dest={{ kind: 'modules', index: 0 }} actions={actions} />
       {tree.map((mod, mi) => {
@@ -1306,7 +1351,6 @@ function OverviewList({
   index,
   onSelect,
   compact,
-  paddedTop,
   actions,
   expansion,
 }: {
@@ -1315,7 +1359,6 @@ function OverviewList({
   index: number;
   onSelect: (i: number) => void;
   compact: boolean;
-  paddedTop?: boolean;
   actions: StructureActions;
   expansion: ReturnType<typeof useTreeExpansion>;
 }) {
@@ -1351,7 +1394,7 @@ function OverviewList({
   return (
     <div
       ref={listRef}
-      className={`min-h-0 flex-1 overflow-y-auto pl-1 pr-2 pb-2 ${paddedTop ? 'pt-2' : ''}`}
+      className={`min-h-0 flex-1 overflow-y-auto pl-1 pr-2 pb-2 pt-2`}
     >
       <div className="space-y-1">
         <DropLine dest={{ kind: 'modules', index: 0 }} actions={actions} />
