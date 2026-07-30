@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type RefObject } from 'react';
 import {
   BookOpen,
   CheckCircle2,
@@ -24,9 +24,6 @@ import {
   type StructureMenuNode,
 } from './structure/StructureModals';
 import {
-  DRAG_MIME,
-  parseDrag,
-  serializeDrag,
   useStructureEditor,
   type StructureResultPayload,
 } from './structure/useStructureEditor';
@@ -88,6 +85,8 @@ export const NAVIGATOR_SIDEBAR_COMPACT_AT = 200;
 
 /** Horizontal step between module → unit → item rows. */
 const TREE_INDENT_PX = 20;
+/** Hover dwell before expanding a collapsed section during item drag. */
+const EXPAND_HOVER_MS = 800;
 
 export type SidebarTreeApi = {
   expandAll: () => void;
@@ -236,14 +235,27 @@ export function SlideSidebar({
     };
   }, [onWidthChange, onWidthCommit]);
 
+  const [expandPendingKey, setExpandPendingKey] = useState<string | null>(null);
+  const dragOriginRef = useRef<{ x: number; y: number } | null>(null);
+  const dragMovedRef = useRef(false);
+
   const actions: StructureActions = {
     enabled: Boolean(courseId && onStructureChange),
     sequence,
     tree,
     dragging: editor.dragging,
     dropHint: editor.dropHint,
+    expandPendingKey,
     setDragging: editor.setDragging,
     setDropHint: editor.setDropHint,
+    setExpandPendingKey,
+    beginDrag: (target, clientX, clientY) => {
+      dragOriginRef.current = { x: clientX, y: clientY };
+      dragMovedRef.current = false;
+      setExpandPendingKey(null);
+      editor.setDropHint(null);
+      editor.setDragging(target);
+    },
     onMove: editor.move,
     onRename: editor.openRename,
     onContext: (e, node) => {
@@ -254,6 +266,8 @@ export function SlideSidebar({
     ensureModuleOpen: expansion.ensureModuleOpen,
     ensureUnitOpen: expansion.ensureUnitOpen,
   };
+
+  useStructurePointerDrag(actions, dragOriginRef, dragMovedRef);
 
   return (
     <aside
@@ -380,8 +394,11 @@ type StructureActions = {
   tree: OverviewModule[];
   dragging: StructureTarget | null;
   dropHint: string | null;
+  expandPendingKey: string | null;
   setDragging: (t: StructureTarget | null) => void;
   setDropHint: (k: string | null) => void;
+  setExpandPendingKey: (k: string | null) => void;
+  beginDrag: (target: StructureTarget, clientX: number, clientY: number) => void;
   onMove: (source: StructureTarget, dest: StructureDropTarget) => Promise<void>;
   onRename: (node: StructureMenuNode) => void;
   onContext: (e: React.MouseEvent, node: StructureMenuNode) => void;
@@ -464,31 +481,12 @@ function DropLine({
 
   const key = dropKey(dest);
   const active = actions.dropHint === key;
+  const payload = JSON.stringify(dest);
 
   return (
-    <div
-      className="relative z-20 h-0"
-      onDragOver={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.dataTransfer.dropEffect = 'move';
-        if (actions.dropHint !== key) actions.setDropHint(key);
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const source =
-          actions.dragging ??
-          parseDrag(e.dataTransfer.getData(DRAG_MIME) || e.dataTransfer.getData('text/plain'));
-        actions.setDropHint(null);
-        if (!source || !canDrop(source, dest, actions.sequence)) return;
-        // Still allow showing the line, but skip a no-op move.
-        if (isNoOpDrop(source, dest, actions.tree)) return;
-        void actions.onMove(source, dest);
-      }}
-    >
+    <div className="relative z-20 h-0" data-hc-drop={payload}>
       {/* Tall hit target; only the nearest active line paints. */}
-      <div className="absolute inset-x-0 -top-2 h-4" />
+      <div className="absolute inset-x-0 -top-2 h-4" data-hc-drop={payload} />
       {active && (
         <div className="pointer-events-none absolute inset-x-1 -top-1 h-0.5 rounded-full bg-[var(--accent)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent)_25%,transparent)]" />
       )}
@@ -611,18 +609,12 @@ function Grip({
   if (!actions.enabled) return null;
   return (
     <span
-      draggable
       title="Drag to reorder"
-      onDragStart={(e) => {
+      onPointerDown={(e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
         e.stopPropagation();
-        e.dataTransfer.setData(DRAG_MIME, serializeDrag(target));
-        e.dataTransfer.setData('text/plain', serializeDrag(target));
-        e.dataTransfer.effectAllowed = 'move';
-        actions.setDragging(target);
-      }}
-      onDragEnd={() => {
-        actions.setDragging(null);
-        actions.setDropHint(null);
+        actions.beginDrag(target, e.clientX, e.clientY);
       }}
       onClick={(e) => e.stopPropagation()}
       className="inline-flex w-3.5 shrink-0 cursor-grab items-center justify-center text-[var(--ink-muted)] opacity-0 transition group-hover:opacity-100 active:cursor-grabbing"
@@ -653,6 +645,179 @@ function EditBtn({
       <Pencil className="h-3 w-3" />
     </button>
   );
+}
+
+/** Scroll the sidebar with the mouse wheel while a structure drag is active. */
+function useDragListScroll(
+  listRef: RefObject<HTMLDivElement | null>,
+  dragging: StructureTarget | null,
+) {
+  useEffect(() => {
+    if (!dragging) return;
+    const onWheel = (e: WheelEvent) => {
+      const el = listRef.current;
+      if (!el) return;
+      el.scrollTop += e.deltaY;
+      e.preventDefault();
+    };
+    // Capture so wheel works even when the pointer is over the stage / drag ghost.
+    window.addEventListener('wheel', onWheel, { passive: false, capture: true });
+    return () => window.removeEventListener('wheel', onWheel, true);
+  }, [dragging, listRef]);
+}
+
+function expandSectionKey(target: StructureTarget): string | null {
+  if (target.kind === 'module') return `module:${target.moduleId}`;
+  if (target.kind === 'unit') return `unit:${target.moduleId}/${target.unitId}`;
+  return null;
+}
+
+function applyExpandSection(key: string, actions: StructureActions) {
+  if (key.startsWith('module:')) {
+    actions.ensureModuleOpen(key.slice('module:'.length));
+    return;
+  }
+  if (key.startsWith('unit:')) {
+    const rest = key.slice('unit:'.length);
+    const slash = rest.indexOf('/');
+    if (slash < 0) return;
+    const moduleId = rest.slice(0, slash);
+    const unitId = rest.slice(slash + 1);
+    actions.ensureModuleOpen(moduleId);
+    actions.ensureUnitOpen(moduleId, unitId);
+  }
+}
+
+function readDropDestFromPoint(
+  clientX: number,
+  clientY: number,
+  dragging: StructureTarget,
+  sequence: SequenceItem[],
+): StructureDropTarget | null {
+  for (const node of document.elementsFromPoint(clientX, clientY)) {
+    if (!(node instanceof Element)) continue;
+    const host = node.closest('[data-hc-drop]');
+    const raw = host?.getAttribute('data-hc-drop');
+    if (!raw) continue;
+    try {
+      const dest = JSON.parse(raw) as StructureDropTarget;
+      if (canDrop(dragging, dest, sequence)) return dest;
+    } catch {
+      /* ignore bad payload */
+    }
+  }
+  return null;
+}
+
+function readExpandKeyFromPoint(clientX: number, clientY: number): string | null {
+  for (const node of document.elementsFromPoint(clientX, clientY)) {
+    if (!(node instanceof Element)) continue;
+    const host = node.closest('[data-hc-expand]');
+    const key = host?.getAttribute('data-hc-expand');
+    if (key) return key;
+  }
+  return null;
+}
+
+/**
+ * Pointer-based structure DnD (not HTML5 drag). Chromium suppresses wheel events
+ * during HTML5 drag sessions; pointer dragging keeps wheel scrolling usable.
+ */
+function useStructurePointerDrag(
+  actions: StructureActions,
+  originRef: MutableRefObject<{ x: number; y: number } | null>,
+  movedRef: MutableRefObject<boolean>,
+) {
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
+  const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const expandKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!actions.dragging) {
+      if (expandTimerRef.current) clearTimeout(expandTimerRef.current);
+      expandTimerRef.current = null;
+      expandKeyRef.current = null;
+      return;
+    }
+
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+
+    const clearExpand = () => {
+      if (expandTimerRef.current) clearTimeout(expandTimerRef.current);
+      expandTimerRef.current = null;
+      expandKeyRef.current = null;
+      actionsRef.current.setExpandPendingKey(null);
+    };
+
+    const onMove = (e: PointerEvent) => {
+      const a = actionsRef.current;
+      if (!a.dragging) return;
+
+      const origin = originRef.current;
+      if (origin && !movedRef.current) {
+        const dx = e.clientX - origin.x;
+        const dy = e.clientY - origin.y;
+        if (dx * dx + dy * dy < 25) return;
+        movedRef.current = true;
+      }
+
+      const expandKey =
+        a.dragging.kind === 'item' ? readExpandKeyFromPoint(e.clientX, e.clientY) : null;
+      if (expandKey) {
+        a.setExpandPendingKey(expandKey);
+        if (expandKeyRef.current !== expandKey) {
+          if (expandTimerRef.current) clearTimeout(expandTimerRef.current);
+          expandKeyRef.current = expandKey;
+          const key = expandKey;
+          expandTimerRef.current = setTimeout(() => {
+            expandTimerRef.current = null;
+            expandKeyRef.current = null;
+            applyExpandSection(key, actionsRef.current);
+            actionsRef.current.setExpandPendingKey(null);
+          }, EXPAND_HOVER_MS);
+        }
+      } else {
+        clearExpand();
+      }
+
+      const dest = readDropDestFromPoint(e.clientX, e.clientY, a.dragging, a.sequence);
+      const hint = dest ? dropKey(dest) : null;
+      if (a.dropHint !== hint) a.setDropHint(hint);
+    };
+
+    const finish = (e: PointerEvent) => {
+      const a = actionsRef.current;
+      const source = a.dragging;
+      const didMove = movedRef.current;
+      const dest =
+        source && didMove
+          ? readDropDestFromPoint(e.clientX, e.clientY, source, a.sequence)
+          : null;
+      clearExpand();
+      a.setDropHint(null);
+      a.setDragging(null);
+      originRef.current = null;
+      movedRef.current = false;
+      if (!source || !dest || !didMove) return;
+      if (!canDrop(source, dest, a.sequence)) return;
+      if (isNoOpDrop(source, dest, a.tree)) return;
+      void a.onMove(source, dest);
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      clearExpand();
+    };
+  }, [actions.dragging, originRef, movedRef]);
 }
 
 /** Drop-at-end target when hovering a module/unit header during drag. */
@@ -712,18 +877,6 @@ function TreeHeader({
         ? 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]'
         : 'text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--ink-muted)]';
 
-  const expandForDrag = () => {
-    // Only lessons/quizzes/labs need nested drop targets opened.
-    // Modules/units reorder among peers — keep expand/collapse as-is.
-    if (actions.dragging?.kind !== 'item') return;
-    if (node.target.kind === 'module') {
-      actions.ensureModuleOpen(node.target.moduleId);
-    } else if (node.target.kind === 'unit') {
-      actions.ensureModuleOpen(node.target.moduleId);
-      actions.ensureUnitOpen(node.target.moduleId, node.target.unitId);
-    }
-  };
-
   const dest = headerDropDest(node, actions.tree, actions.dragging);
   const canHeaderDrop =
     Boolean(dest) &&
@@ -731,39 +884,29 @@ function TreeHeader({
     canDrop(actions.dragging, dest!, actions.sequence);
   const headerHint = dest ? dropKey(dest) : null;
   const headerActive = Boolean(headerHint && actions.dropHint === headerHint);
+  const sectionKey = expandSectionKey(node.target);
+  const canExpandInside =
+    !open &&
+    actions.dragging?.kind === 'item' &&
+    sectionKey != null &&
+    (node.target.kind === 'module' || node.target.kind === 'unit');
+  const expandPending = Boolean(
+    canExpandInside && sectionKey && actions.expandPendingKey === sectionKey,
+  );
 
   return (
     <div
-      className={`group flex w-full items-center gap-0.5 rounded-md text-left hover:bg-black/5 dark:hover:bg-white/5 ${
-        headerActive || selected
-          ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] ring-1 ring-[var(--accent)]'
-          : ''
+      className={`group flex w-full items-center gap-0.5 rounded-md text-left transition hover:bg-black/5 dark:hover:bg-white/5 ${
+        expandPending
+          ? 'bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] ring-2 ring-dashed ring-[var(--accent)]'
+          : headerActive || selected
+            ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] ring-1 ring-[var(--accent)]'
+            : ''
       }`}
       style={{ paddingLeft: level * TREE_INDENT_PX }}
+      data-hc-drop={canHeaderDrop && dest ? JSON.stringify(dest) : undefined}
+      data-hc-expand={canExpandInside ? sectionKey ?? undefined : undefined}
       onContextMenu={(e) => actions.onContext(e, node)}
-      onDragEnter={() => expandForDrag()}
-      onDragOver={(e) => {
-        if (!actions.dragging) return;
-        expandForDrag();
-        if (!canHeaderDrop || !dest) return;
-        e.preventDefault();
-        e.stopPropagation();
-        e.dataTransfer.dropEffect = 'move';
-        if (actions.dropHint !== headerHint) actions.setDropHint(headerHint);
-      }}
-      onDrop={(e) => {
-        if (!canHeaderDrop || !dest || !actions.dragging) return;
-        e.preventDefault();
-        e.stopPropagation();
-        actions.setDropHint(null);
-        if (isNoOpDrop(actions.dragging, dest, actions.tree)) return;
-        void actions.onMove(actions.dragging, dest);
-      }}
-      onDragLeave={(e) => {
-        if (!headerHint || actions.dropHint !== headerHint) return;
-        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-        actions.setDropHint(null);
-      }}
     >
       <Grip target={node.target} actions={actions} />
       <button
@@ -825,6 +968,7 @@ function NavigatorList({
     isUnitOpen,
   } = expansion;
   const listRef = useRef<HTMLDivElement>(null);
+  useDragListScroll(listRef, actions.dragging);
 
   useLayoutEffect(() => {
     const el = listRef.current?.querySelector<HTMLElement>(`[data-slide-index="${index}"]`);
@@ -1079,6 +1223,7 @@ function OverviewList({
     isUnitOpen,
   } = expansion;
   const listRef = useRef<HTMLDivElement>(null);
+  useDragListScroll(listRef, actions.dragging);
 
   useLayoutEffect(() => {
     const el = listRef.current?.querySelector<HTMLElement>(`[data-slide-index="${index}"]`);
