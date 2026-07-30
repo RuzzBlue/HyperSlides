@@ -221,6 +221,24 @@ export default function App() {
     [course, current?.key, persistIndex],
   );
 
+  const handleStructureChange = useCallback(
+    (result: { course: Omit<LoadedCourse, 'rootPath'>; focusKey: string | null }) => {
+      setCourse(result.course);
+      setQuizResult(null);
+      setError(null);
+      if (result.focusKey) {
+        const focusIndex = result.course.sequence.findIndex((s) => s.key === result.focusKey);
+        if (focusIndex >= 0) {
+          setIndex(focusIndex);
+          void persistIndex(focusIndex);
+          return;
+        }
+      }
+      setIndex((prev) => Math.min(prev, Math.max(0, result.course.sequence.length - 1)));
+    },
+    [persistIndex],
+  );
+
   const handleInsert = useCallback(
     async (kind: InsertKind) => {
       if (!course || !current) return;
@@ -536,6 +554,9 @@ export default function App() {
             width={sidebarWidth}
             onWidthChange={setSidebarWidth}
             onWidthCommit={commitSidebarWidth}
+            courseId={course.summary.id}
+            onStructureChange={handleStructureChange}
+            onStructureError={(msg) => setError(msg)}
           />
         )}
 

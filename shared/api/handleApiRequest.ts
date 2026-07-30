@@ -15,6 +15,13 @@ import {
 } from './courses.ts';
 import { createCourse, deleteCourse, listThemeTemplates, type CreateCourseInput } from './createCourse.ts';
 import { insertCourseItem, type InsertKind } from './insertCourseItem.ts';
+import {
+  deleteStructureNode,
+  duplicateStructureItem,
+  moveStructureNode,
+  renameStructureNode,
+} from './courseStructure.ts';
+import type { StructureDropTarget, StructureTarget } from '../types.ts';
 import { readUserState, updateUserState } from './userSettings.ts';
 
 export interface ApiContext {
@@ -100,6 +107,63 @@ export async function handleApiRequest(
         return { ok: true, status: 201, data: result };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to insert item';
+        return { ok: false, status: 400, error: message };
+      }
+    }
+
+    if (
+      method === 'POST' &&
+      segments[0] === 'courses' &&
+      segments.length === 4 &&
+      segments[2] === 'structure'
+    ) {
+      const action = segments[3];
+      try {
+        if (action === 'rename') {
+          const target = (body as { target?: StructureTarget })?.target;
+          const title = (body as { title?: string })?.title;
+          if (!target || typeof title !== 'string') {
+            return { ok: false, status: 400, error: 'Missing target or title' };
+          }
+          return {
+            ok: true,
+            status: 200,
+            data: renameStructureNode(ctx.appRoot, segments[1], target, title),
+          };
+        }
+        if (action === 'delete') {
+          const target = (body as { target?: StructureTarget })?.target;
+          if (!target) return { ok: false, status: 400, error: 'Missing target' };
+          return {
+            ok: true,
+            status: 200,
+            data: deleteStructureNode(ctx.appRoot, segments[1], target),
+          };
+        }
+        if (action === 'duplicate') {
+          const itemKey = (body as { itemKey?: string })?.itemKey;
+          if (!itemKey) return { ok: false, status: 400, error: 'Missing itemKey' };
+          return {
+            ok: true,
+            status: 201,
+            data: duplicateStructureItem(ctx.appRoot, segments[1], itemKey),
+          };
+        }
+        if (action === 'move') {
+          const source = (body as { source?: StructureTarget })?.source;
+          const dest = (body as { dest?: StructureDropTarget })?.dest;
+          if (!source || !dest) {
+            return { ok: false, status: 400, error: 'Missing source or dest' };
+          }
+          return {
+            ok: true,
+            status: 200,
+            data: moveStructureNode(ctx.appRoot, segments[1], source, dest),
+          };
+        }
+        return { ok: false, status: 404, error: `Unknown structure action: ${action}` };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Structure update failed';
         return { ok: false, status: 400, error: message };
       }
     }

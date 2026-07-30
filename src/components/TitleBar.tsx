@@ -113,14 +113,6 @@ export function TitleBar({
                   setViewOpen(false);
                 }}
               />
-              <MenuItem
-                label={tr('resetSidebar')}
-                disabled={!courseMenus || !onResetSidebar}
-                onClick={() => {
-                  onResetSidebar?.();
-                  setViewOpen(false);
-                }}
-              />
               <div
                 className="relative"
                 onMouseEnter={() => setSidebarViewMenuOpen(true)}
@@ -156,6 +148,14 @@ export function TitleBar({
                   </div>
                 )}
               </div>
+              <MenuItem
+                label={tr('resetSidebar')}
+                disabled={!courseMenus || !onResetSidebar}
+                onClick={() => {
+                  onResetSidebar?.();
+                  setViewOpen(false);
+                }}
+              />
               <div className="my-1 border-t border-[var(--line)]" />
               <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
                 {tr('viewInspectorSidebar')}

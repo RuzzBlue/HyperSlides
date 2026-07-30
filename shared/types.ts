@@ -230,6 +230,19 @@ export interface CourseManifest {
 
 export type SequenceItemType = 'lesson' | 'quiz' | 'lab';
 
+/** Target for course.json structure mutations (rename / delete / move). */
+export type StructureTarget =
+  | { kind: 'module'; moduleId: string }
+  | { kind: 'unit'; moduleId: string; unitId: string }
+  | { kind: 'item'; itemKey: string };
+
+/** Drop destination for structure drag-and-drop. */
+export type StructureDropTarget =
+  | { kind: 'modules'; index: number }
+  | { kind: 'units'; moduleId: string; index: number }
+  | { kind: 'unit-items'; moduleId: string; unitId: string; index: number }
+  | { kind: 'module-trailing'; moduleId: string; index: number };
+
 export interface SequenceItem {
   key: string;
   type: SequenceItemType;
