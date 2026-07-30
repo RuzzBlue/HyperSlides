@@ -441,6 +441,17 @@ function firstSelectableIndex(mod: OverviewModule, unitId?: string): number | nu
   return mod.trailing[0]?.index ?? null;
 }
 
+function moduleContainsIndex(mod: OverviewModule, index: number): boolean {
+  for (const unit of mod.units) {
+    if (unit.items.some((i) => i.index === index)) return true;
+  }
+  return mod.trailing.some((i) => i.index === index);
+}
+
+function unitContainsIndex(unit: OverviewUnit, index: number): boolean {
+  return unit.items.some((i) => i.index === index);
+}
+
 function DropLine({
   dest,
   actions,
@@ -677,6 +688,7 @@ function TreeHeader({
   onToggle,
   onSelect,
   dense,
+  selected,
   node,
   actions,
 }: {
@@ -687,6 +699,8 @@ function TreeHeader({
   /** Select first child item and toggle expand/collapse. */
   onSelect?: () => void;
   dense?: boolean;
+  /** True when this collapsed section contains the current slide. */
+  selected?: boolean;
   node: StructureMenuNode;
   actions: StructureActions;
 }) {
@@ -721,7 +735,7 @@ function TreeHeader({
   return (
     <div
       className={`group flex w-full items-center gap-0.5 rounded-md text-left hover:bg-black/5 dark:hover:bg-white/5 ${
-        headerActive
+        headerActive || selected
           ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] ring-1 ring-[var(--accent)]'
           : ''
       }`}
@@ -851,6 +865,7 @@ function NavigatorList({
               label={mod.title}
               onToggle={() => toggleModule(mod.id)}
               onSelect={() => selectModule(mod)}
+              selected={!moduleOpen && moduleContainsIndex(mod, index)}
               node={moduleNode}
               actions={actions}
             />
@@ -874,6 +889,7 @@ function NavigatorList({
                         label={unit.title}
                         onToggle={() => toggleUnit(mod.id, unit.id)}
                         onSelect={() => selectUnit(mod, unit.id)}
+                        selected={!unitOpen && unitContainsIndex(unit, index)}
                         node={unitNode}
                         actions={actions}
                       />
@@ -1106,6 +1122,7 @@ function OverviewList({
                   onToggle={() => toggleModule(mod.id)}
                   onSelect={() => selectModule(mod)}
                   dense
+                  selected={!moduleOpen && moduleContainsIndex(mod, index)}
                   node={moduleNode}
                   actions={actions}
                 />
@@ -1133,6 +1150,7 @@ function OverviewList({
                             onToggle={() => toggleUnit(mod.id, unit.id)}
                             onSelect={() => selectUnit(mod, unit.id)}
                             dense
+                            selected={!unitOpen && unitContainsIndex(unit, index)}
                             node={unitNode}
                             actions={actions}
                           />
