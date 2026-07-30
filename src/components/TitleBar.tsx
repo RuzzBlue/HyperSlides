@@ -13,6 +13,8 @@ export function TitleBar({
   sidebarView = 'navigator',
   onToggleSidebar,
   onResetSidebar,
+  onToggleExpandAllSidebar,
+  getSidebarFullyExpanded,
   onSidebarViewChange,
   inspectorOpen,
   inspectorMode,
@@ -30,6 +32,8 @@ export function TitleBar({
   sidebarView?: SidebarViewMode;
   onToggleSidebar?: () => void;
   onResetSidebar?: () => void;
+  onToggleExpandAllSidebar?: () => void;
+  getSidebarFullyExpanded?: () => boolean;
   onSidebarViewChange?: (view: SidebarViewMode) => void;
   inspectorOpen?: boolean;
   inspectorMode?: 'docked' | 'floating';
@@ -40,6 +44,7 @@ export function TitleBar({
   const { tr } = usePrefs();
   const [viewOpen, setViewOpen] = useState(false);
   const [sidebarViewMenuOpen, setSidebarViewMenuOpen] = useState(false);
+  const [sidebarFullyExpanded, setSidebarFullyExpanded] = useState(false);
   const viewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -47,12 +52,13 @@ export function TitleBar({
       setSidebarViewMenuOpen(false);
       return;
     }
+    setSidebarFullyExpanded(getSidebarFullyExpanded?.() ?? false);
     const onDoc = (e: MouseEvent) => {
       if (!viewRef.current?.contains(e.target as Node)) setViewOpen(false);
     };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
-  }, [viewOpen]);
+  }, [viewOpen, getSidebarFullyExpanded]);
 
   const courseMenus = mode === 'course';
 
@@ -153,6 +159,19 @@ export function TitleBar({
                 disabled={!courseMenus || !onResetSidebar}
                 onClick={() => {
                   onResetSidebar?.();
+                  setViewOpen(false);
+                }}
+              />
+              <MenuItem
+                label={
+                  sidebarFullyExpanded
+                    ? tr('collapseAllSidebar')
+                    : tr('expandAllSidebar')
+                }
+                disabled={!courseMenus || !onToggleExpandAllSidebar}
+                onClick={() => {
+                  onToggleExpandAllSidebar?.();
+                  setSidebarFullyExpanded((v) => !v);
                   setViewOpen(false);
                 }}
               />

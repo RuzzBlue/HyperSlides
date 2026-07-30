@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { apiFetch } from './api/client';
 import type {
@@ -22,6 +22,7 @@ import {
   clampNavigatorSidebarWidth,
   NAVIGATOR_SIDEBAR_DEFAULT_WIDTH,
   SlideSidebar,
+  type SidebarTreeApi,
 } from './components/SlideSidebar';
 import {
   Inspector,
@@ -53,6 +54,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(NAVIGATOR_SIDEBAR_DEFAULT_WIDTH);
+  const sidebarTreeApiRef = useRef<SidebarTreeApi | null>(null);
   const [inspectorTool, setInspectorTool] = useState<InspectorTool | null>(null);
   const [inspectorMode, setInspectorMode] = useState<InspectorMode>('docked');
   const [lastInspectorTool, setLastInspectorTool] = useState<InspectorTool>('notes');
@@ -508,6 +510,10 @@ export default function App() {
           sidebarView={settings.sidebarView ?? 'navigator'}
           onToggleSidebar={() => setSidebarOpen((v) => !v)}
           onResetSidebar={resetSidebarWidth}
+          onToggleExpandAllSidebar={() => sidebarTreeApiRef.current?.toggleExpandAll()}
+          getSidebarFullyExpanded={() =>
+            sidebarTreeApiRef.current?.isFullyExpanded() ?? false
+          }
           onSidebarViewChange={(next) => {
             void save({ settings: { sidebarView: next } });
           }}
@@ -557,6 +563,7 @@ export default function App() {
             courseId={course.summary.id}
             onStructureChange={handleStructureChange}
             onStructureError={(msg) => setError(msg)}
+            treeApiRef={sidebarTreeApiRef}
           />
         )}
 

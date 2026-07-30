@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import {
   BookOpen,
   CheckCircle2,
@@ -86,7 +86,16 @@ export const NAVIGATOR_SIDEBAR_MIN_WIDTH = 148;
 export const NAVIGATOR_SIDEBAR_MAX_WIDTH = NAVIGATOR_SIDEBAR_DEFAULT_WIDTH;
 export const NAVIGATOR_SIDEBAR_COMPACT_AT = 200;
 
-const TREE_INDENT_PX = 12;
+/** Horizontal step between module → unit → item rows. */
+const TREE_INDENT_PX = 20;
+
+export type SidebarTreeApi = {
+  expandAll: () => void;
+  collapseAll: () => void;
+  /** True when every module and unit is expanded. */
+  isFullyExpanded: () => boolean;
+  toggleExpandAll: () => void;
+};
 
 export function clampNavigatorSidebarWidth(width: number): number {
   return Math.min(
@@ -141,6 +150,7 @@ export function SlideSidebar({
   courseId,
   onStructureChange,
   onStructureError,
+  treeApiRef,
 }: {
   sequence: SequenceItem[];
   index: number;
@@ -155,9 +165,30 @@ export function SlideSidebar({
   courseId?: string;
   onStructureChange?: (result: StructureResultPayload) => void;
   onStructureError?: (message: string) => void;
+  treeApiRef?: MutableRefObject<SidebarTreeApi | null>;
 }) {
   const { tr } = usePrefs();
   const tree = useMemo(() => buildOverviewTree(sequence), [sequence]);
+  const expansion = useTreeExpansion(tree, index);
+
+  useEffect(() => {
+    if (!treeApiRef) return;
+    treeApiRef.current = {
+      expandAll: expansion.expandAll,
+      collapseAll: expansion.collapseAll,
+      isFullyExpanded: expansion.isFullyExpanded,
+      toggleExpandAll: expansion.toggleExpandAll,
+    };
+    return () => {
+      treeApiRef.current = null;
+    };
+  }, [
+    treeApiRef,
+    expansion.expandAll,
+    expansion.collapseAll,
+    expansion.isFullyExpanded,
+    expansion.toggleExpandAll,
+  ]);
   const counts = useMemo(() => {
     let lessons = 0;
     let quizzes = 0;
@@ -208,6 +239,7 @@ export function SlideSidebar({
   const actions: StructureActions = {
     enabled: Boolean(courseId && onStructureChange),
     sequence,
+    tree,
     dragging: editor.dragging,
     dropHint: editor.dropHint,
     setDragging: editor.setDragging,
@@ -252,6 +284,7 @@ export function SlideSidebar({
           compact={compact}
           paddedTop={!showHeader}
           actions={actions}
+          expansion={expansion}
         />
       ) : (
         <OverviewList
@@ -262,6 +295,7 @@ export function SlideSidebar({
           compact={compact}
           paddedTop={!showHeader}
           actions={actions}
+          expansion={expansion}
         />
       )}
 
@@ -341,6 +375,7 @@ export function SlideSidebar({
 type StructureActions = {
   enabled: boolean;
   sequence: SequenceItem[];
+  tree: OverviewModule[];
   dragging: StructureTarget | null;
   dropHint: string | null;
   setDragging: (t: StructureTarget | null) => void;
@@ -349,6 +384,102 @@ type StructureActions = {
   onRename: (node: StructureMenuNode) => void;
   onContext: (e: React.MouseEvent, node: StructureMenuNode) => void;
 };
+
+/** Drop indices that leave the dragged node in the same place (before & after itself). */
+function isNoOpDrop(
+  source: StructureTarget,
+  dest: StructureDropTarget,
+  tree: OverviewModule[],
+): boolean {
+  if (source.kind === 'module' && dest.kind === 'modules') {
+    const mi = tree.findIndex((m) => m.id === source.moduleId);
+    if (mi < 0) return false;
+    return dest.index === mi || dest.index === mi + 1;
+  }
+
+  if (source.kind === 'unit' && dest.kind === 'units') {
+    if (dest.moduleId !== source.moduleId) return false;
+    const mod = tree.find((m) => m.id === source.moduleId);
+    if (!mod) return false;
+    const ui = mod.units.findIndex((u) => u.id === source.unitId);
+    if (ui < 0) return false;
+    return dest.index === ui || dest.index === ui + 1;
+  }
+
+  if (source.kind === 'item') {
+    for (const mod of tree) {
+      for (const unit of mod.units) {
+        const ii = unit.items.findIndex((i) => i.key === source.itemKey);
+        if (ii < 0) continue;
+        if (dest.kind !== 'unit-items') return false;
+        if (dest.moduleId !== mod.id || dest.unitId !== unit.id) return false;
+        return dest.index === ii || dest.index === ii + 1;
+      }
+      const ti = mod.trailing.findIndex((i) => i.key === source.itemKey);
+      if (ti < 0) continue;
+      if (dest.kind !== 'module-trailing') return false;
+      if (dest.moduleId !== mod.id) return false;
+      return dest.index === ti || dest.index === ti + 1;
+    }
+  }
+
+  return false;
+}
+
+function firstSelectableIndex(mod: OverviewModule, unitId?: string): number | null {
+  if (unitId) {
+    const unit = mod.units.find((u) => u.id === unitId);
+    return unit?.items[0]?.index ?? null;
+  }
+  for (const unit of mod.units) {
+    if (unit.items[0]) return unit.items[0].index;
+  }
+  return mod.trailing[0]?.index ?? null;
+}
+
+function DropLine({
+  dest,
+  actions,
+}: {
+  dest: StructureDropTarget;
+  actions: StructureActions;
+}) {
+  if (!actions.enabled || !actions.dragging) return null;
+  if (!canDrop(actions.dragging, dest, actions.sequence)) return null;
+
+  const key = dropKey(dest);
+  const active = actions.dropHint === key;
+
+  return (
+    <div
+      className="relative z-20 h-0"
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'move';
+        if (actions.dropHint !== key) actions.setDropHint(key);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const source =
+          actions.dragging ??
+          parseDrag(e.dataTransfer.getData(DRAG_MIME) || e.dataTransfer.getData('text/plain'));
+        actions.setDropHint(null);
+        if (!source || !canDrop(source, dest, actions.sequence)) return;
+        // Still allow showing the line, but skip a no-op move.
+        if (isNoOpDrop(source, dest, actions.tree)) return;
+        void actions.onMove(source, dest);
+      }}
+    >
+      {/* Tall hit target; only the nearest active line paints. */}
+      <div className="absolute inset-x-0 -top-2 h-4" />
+      {active && (
+        <div className="pointer-events-none absolute inset-x-1 -top-1 h-0.5 rounded-full bg-[var(--accent)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent)_25%,transparent)]" />
+      )}
+    </div>
+  );
+}
 
 function useTreeExpansion(tree: OverviewModule[], index: number) {
   const current = useMemo(() => {
@@ -392,48 +523,67 @@ function useTreeExpansion(tree: OverviewModule[], index: number) {
     return openUnits[key] ?? key === `${current.moduleId}/${current.unitId}`;
   };
 
-  return { current, openModules, openUnits, toggleModule, toggleUnit, isModuleOpen, isUnitOpen };
-}
+  const ensureModuleOpen = (id: string) => {
+    setOpenModules((prev) => ({ ...prev, [id]: true }));
+  };
 
-function DropLine({
-  dest,
-  actions,
-}: {
-  dest: StructureDropTarget;
-  actions: StructureActions;
-}) {
-  if (!actions.enabled || !actions.dragging) return null;
-  if (!canDrop(actions.dragging, dest, actions.sequence)) return null;
-  const key = dropKey(dest);
-  const active = actions.dropHint === key;
-  return (
-    <div
-      className="relative z-20 h-0"
-      onDragOver={(e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        actions.setDropHint(key);
-      }}
-      onDragLeave={() => {
-        if (actions.dropHint === key) actions.setDropHint(null);
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        const source =
-          actions.dragging ??
-          parseDrag(e.dataTransfer.getData(DRAG_MIME) || e.dataTransfer.getData('text/plain'));
-        actions.setDropHint(null);
-        if (!source || !canDrop(source, dest, actions.sequence)) return;
-        void actions.onMove(source, dest);
-      }}
-    >
-      <div
-        className={`absolute inset-x-1 -top-1 h-2 rounded-full ${
-          active ? 'bg-[var(--accent)]' : 'bg-[var(--accent)]/25'
-        }`}
-      />
-    </div>
-  );
+  const ensureUnitOpen = (moduleId: string, unitId: string) => {
+    setOpenModules((prev) => ({ ...prev, [moduleId]: true }));
+    setOpenUnits((prev) => ({ ...prev, [`${moduleId}/${unitId}`]: true }));
+  };
+
+  const expandAll = useCallback(() => {
+    const mods: Record<string, boolean> = {};
+    const units: Record<string, boolean> = {};
+    for (const mod of tree) {
+      mods[mod.id] = true;
+      for (const unit of mod.units) units[`${mod.id}/${unit.id}`] = true;
+    }
+    setOpenModules(mods);
+    setOpenUnits(units);
+  }, [tree]);
+
+  const collapseAll = useCallback(() => {
+    const mods: Record<string, boolean> = {};
+    const units: Record<string, boolean> = {};
+    for (const mod of tree) {
+      mods[mod.id] = false;
+      for (const unit of mod.units) units[`${mod.id}/${unit.id}`] = false;
+    }
+    setOpenModules(mods);
+    setOpenUnits(units);
+  }, [tree]);
+
+  const isFullyExpanded = useCallback(() => {
+    for (const mod of tree) {
+      if (!isModuleOpen(mod.id)) return false;
+      for (const unit of mod.units) {
+        if (!isUnitOpen(mod.id, unit.id)) return false;
+      }
+    }
+    return tree.length > 0;
+  }, [tree, openModules, openUnits, current.moduleId, current.unitId]);
+
+  const toggleExpandAll = useCallback(() => {
+    if (isFullyExpanded()) collapseAll();
+    else expandAll();
+  }, [isFullyExpanded, collapseAll, expandAll]);
+
+  return {
+    current,
+    openModules,
+    openUnits,
+    toggleModule,
+    toggleUnit,
+    isModuleOpen,
+    isUnitOpen,
+    ensureModuleOpen,
+    ensureUnitOpen,
+    expandAll,
+    collapseAll,
+    isFullyExpanded,
+    toggleExpandAll,
+  };
 }
 
 function Grip({
@@ -495,6 +645,7 @@ function TreeHeader({
   open,
   label,
   onToggle,
+  onSelect,
   dense,
   node,
   actions,
@@ -503,6 +654,8 @@ function TreeHeader({
   open: boolean;
   label: string;
   onToggle: () => void;
+  /** Select first child item and toggle expand/collapse. */
+  onSelect?: () => void;
   dense?: boolean;
   node: StructureMenuNode;
   actions: StructureActions;
@@ -518,21 +671,29 @@ function TreeHeader({
   return (
     <div
       className="group flex w-full items-center gap-0.5 rounded-md text-left hover:bg-black/5 dark:hover:bg-white/5"
+      style={{ paddingLeft: level * TREE_INDENT_PX }}
       onContextMenu={(e) => actions.onContext(e, node)}
     >
       <Grip target={node.target} actions={actions} />
       <button
         type="button"
-        onClick={onToggle}
+        title={open ? 'Collapse' : 'Expand'}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded p-0.5 text-[var(--ink-muted)] hover:bg-black/5 dark:hover:bg-white/10"
+      >
+        <Chevron className={level === 0 ? 'h-3.5 w-3.5' : 'h-3 w-3'} />
+      </button>
+      <button
+        type="button"
+        onClick={() => onSelect?.()}
         title={label}
-        className={`flex min-w-0 flex-1 cursor-pointer items-center gap-1 py-0.5 text-left ${
+        className={`flex min-w-0 flex-1 cursor-pointer items-center gap-1 py-0.5 pr-0.5 text-left ${
           dense ? 'px-1 py-1' : ''
         }`}
-        style={dense ? undefined : { paddingLeft: level * TREE_INDENT_PX, paddingRight: 2 }}
       >
-        <Chevron
-          className={`shrink-0 text-[var(--ink-muted)] ${level === 0 ? 'h-3.5 w-3.5' : 'h-3 w-3'}`}
-        />
         <span className={`min-w-0 flex-1 truncate text-left ${moduleTitle}`}>{label}</span>
         <EditBtn node={node} actions={actions} />
       </button>
@@ -550,6 +711,7 @@ function NavigatorList({
   compact,
   paddedTop,
   actions,
+  expansion,
 }: {
   tree: OverviewModule[];
   sequence: SequenceItem[];
@@ -560,9 +722,17 @@ function NavigatorList({
   compact: boolean;
   paddedTop?: boolean;
   actions: StructureActions;
+  expansion: ReturnType<typeof useTreeExpansion>;
 }) {
-  const { current, openModules, openUnits, toggleModule, toggleUnit, isModuleOpen, isUnitOpen } =
-    useTreeExpansion(tree, index);
+  const {
+    current,
+    openModules,
+    openUnits,
+    toggleModule,
+    toggleUnit,
+    isModuleOpen,
+    isUnitOpen,
+  } = expansion;
   const listRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -570,10 +740,22 @@ function NavigatorList({
     el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [index, current.moduleId, current.unitId, openModules, openUnits]);
 
+  const selectModule = (mod: OverviewModule) => {
+    toggleModule(mod.id);
+    const next = firstSelectableIndex(mod);
+    if (next != null) onSelect(next);
+  };
+
+  const selectUnit = (mod: OverviewModule, unitId: string) => {
+    toggleUnit(mod.id, unitId);
+    const next = firstSelectableIndex(mod, unitId);
+    if (next != null) onSelect(next);
+  };
+
   return (
     <div
       ref={listRef}
-      className={`min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 pb-2 ${paddedTop ? 'pt-2' : ''}`}
+      className={`min-h-0 flex-1 space-y-0.5 overflow-y-auto pl-1 pr-2 pb-2 ${paddedTop ? 'pt-2' : ''}`}
     >
       <DropLine dest={{ kind: 'modules', index: 0 }} actions={actions} />
       {tree.map((mod, mi) => {
@@ -591,6 +773,7 @@ function NavigatorList({
               open={moduleOpen}
               label={mod.title}
               onToggle={() => toggleModule(mod.id)}
+              onSelect={() => selectModule(mod)}
               node={moduleNode}
               actions={actions}
             />
@@ -613,6 +796,7 @@ function NavigatorList({
                         open={unitOpen}
                         label={unit.title}
                         onToggle={() => toggleUnit(mod.id, unit.id)}
+                        onSelect={() => selectUnit(mod, unit.id)}
                         node={unitNode}
                         actions={actions}
                       />
@@ -692,7 +876,6 @@ function NavigatorList({
           </div>
         );
       })}
-      {/* silence unused sequence warning in strict mode */}
       <span className="hidden">{sequence.length}</span>
     </div>
   );
@@ -782,6 +965,7 @@ function OverviewList({
   compact,
   paddedTop,
   actions,
+  expansion,
 }: {
   tree: OverviewModule[];
   sequence: SequenceItem[];
@@ -790,9 +974,17 @@ function OverviewList({
   compact: boolean;
   paddedTop?: boolean;
   actions: StructureActions;
+  expansion: ReturnType<typeof useTreeExpansion>;
 }) {
-  const { current, openModules, openUnits, toggleModule, toggleUnit, isModuleOpen, isUnitOpen } =
-    useTreeExpansion(tree, index);
+  const {
+    current,
+    openModules,
+    openUnits,
+    toggleModule,
+    toggleUnit,
+    isModuleOpen,
+    isUnitOpen,
+  } = expansion;
   const listRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -800,10 +992,22 @@ function OverviewList({
     el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [index, current.moduleId, current.unitId, openModules, openUnits]);
 
+  const selectModule = (mod: OverviewModule) => {
+    toggleModule(mod.id);
+    const next = firstSelectableIndex(mod);
+    if (next != null) onSelect(next);
+  };
+
+  const selectUnit = (mod: OverviewModule, unitId: string) => {
+    toggleUnit(mod.id, unitId);
+    const next = firstSelectableIndex(mod, unitId);
+    if (next != null) onSelect(next);
+  };
+
   return (
     <div
       ref={listRef}
-      className={`min-h-0 flex-1 overflow-y-auto px-2 pb-2 ${paddedTop ? 'pt-2' : ''}`}
+      className={`min-h-0 flex-1 overflow-y-auto pl-1 pr-2 pb-2 ${paddedTop ? 'pt-2' : ''}`}
     >
       <div className="space-y-1">
         <DropLine dest={{ kind: 'modules', index: 0 }} actions={actions} />
@@ -823,6 +1027,7 @@ function OverviewList({
                   open={moduleOpen}
                   label={mod.title}
                   onToggle={() => toggleModule(mod.id)}
+                  onSelect={() => selectModule(mod)}
                   dense
                   node={moduleNode}
                   actions={actions}
@@ -849,6 +1054,7 @@ function OverviewList({
                             open={unitOpen}
                             label={unit.title}
                             onToggle={() => toggleUnit(mod.id, unit.id)}
+                            onSelect={() => selectUnit(mod, unit.id)}
                             dense
                             node={unitNode}
                             actions={actions}

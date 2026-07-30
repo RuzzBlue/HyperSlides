@@ -11,6 +11,7 @@ import type {
   StructureTarget,
 } from '../types.ts';
 import { loadCourse } from './courses.ts';
+import { EMPTY_SLIDE_HTML } from './slideTemplate.ts';
 
 export type { StructureDropTarget, StructureTarget };
 
@@ -451,11 +452,60 @@ function moveUnitFolder(
   if (!fs.existsSync(src)) return;
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   if (fs.existsSync(dest)) {
-    // Merge by renaming unit id collision — rare; keep existing dest and leave src
-    // (caller should have renamed unit.id if needed).
     throw new Error('Unit folder already exists in destination module');
   }
   fs.renameSync(src, dest);
+}
+
+/** After a move, remove emptied units/modules. Keeps at least one module with one unit. */
+function pruneEmptyAncestors(
+  rootPath: string,
+  manifest: CourseManifest,
+  moduleId: string,
+  unitId: string | null,
+) {
+  const mi = findModuleIndex(manifest, moduleId);
+  if (mi < 0) return;
+  const mod = manifest.modules[mi];
+
+  if (unitId) {
+    const ui = findUnitIndex(mod, unitId);
+    if (ui >= 0 && (mod.units[ui].items?.length ?? 0) === 0) {
+      deleteUnitArtifacts(rootPath, mod, mod.units[ui]);
+      mod.units.splice(ui, 1);
+    }
+  }
+
+  const moduleEmpty = mod.units.length === 0 && !(mod.items && mod.items.length > 0);
+  if (!moduleEmpty) return;
+
+  if (manifest.modules.length > 1) {
+    deleteModuleArtifacts(rootPath, mod);
+    manifest.modules.splice(mi, 1);
+    return;
+  }
+
+  // Last module must remain valid for the course package.
+  const unitIdNew = 'unit-01';
+  const lessonId = 'lesson-01';
+  const absDir = path.join(rootPath, mod.path, unitIdNew);
+  fs.mkdirSync(absDir, { recursive: true });
+  fs.writeFileSync(path.join(absDir, `${lessonId}.html`), EMPTY_SLIDE_HTML, 'utf-8');
+  mod.units = [
+    {
+      id: unitIdNew,
+      title: 'Unit 1',
+      items: [
+        {
+          type: 'lesson',
+          id: lessonId,
+          title: 'Slide',
+          file: `${lessonId}.html`,
+        },
+      ],
+    },
+  ];
+  mod.items = undefined;
 }
 
 export function moveStructureNode(
@@ -485,15 +535,13 @@ export function moveStructureNode(
     const fromMod = manifest.modules[fromMi];
     const fromUi = findUnitIndex(fromMod, source.unitId);
     if (fromUi < 0) throw new Error('Unit not found');
-    if (fromMod.units.length <= 1 && dest.moduleId !== source.moduleId) {
-      throw new Error('Cannot move the last unit out of a module');
-    }
+    const fromModuleId = fromMod.id;
     const [unit] = fromMod.units.splice(fromUi, 1);
     const toMi = findModuleIndex(manifest, dest.moduleId);
     if (toMi < 0) throw new Error('Destination module not found');
     const toMod = manifest.modules[toMi];
     let finalUnit = unit;
-    if (toMod.units.some((u) => u.id === unit.id) && fromMod.id !== toMod.id) {
+    if (toMod.units.some((u) => u.id === unit.id) && fromModuleId !== toMod.id) {
       const id = nextId(
         toMod.units.map((u) => u.id),
         'unit',
@@ -505,22 +553,27 @@ export function moveStructureNode(
     }
     moveUnitFolder(rootPath, finalUnit, fromMod, toMod);
     let index = Math.max(0, Math.min(dest.index, toMod.units.length));
-    if (fromMod.id === toMod.id && dest.index > fromUi) index = Math.max(0, dest.index - 1);
+    if (fromModuleId === toMod.id && dest.index > fromUi) index = Math.max(0, dest.index - 1);
     toMod.units.splice(index, 0, finalUnit);
+    if (fromModuleId !== toMod.id) {
+      pruneEmptyAncestors(rootPath, manifest, fromModuleId, null);
+    }
     const first = finalUnit.items?.[0];
-    focusKey = first ? entryKey(first, toMod, finalUnit) : null;
+    const refreshedTo = manifest.modules.find((m) => m.id === dest.moduleId) ?? toMod;
+    const refreshedUnit =
+      refreshedTo.units.find((u) => u.id === finalUnit.id) ?? finalUnit;
+    focusKey = first ? entryKey(first, refreshedTo, refreshedUnit) : null;
   } else {
     const loc = locateItem(manifest, source.itemKey);
     if (!loc) throw new Error('Item not found');
     const fromMod = manifest.modules[loc.moduleIndex];
     const fromUnit = loc.unitIndex != null ? fromMod.units[loc.unitIndex] : null;
+    const fromModuleId = fromMod.id;
+    const fromUnitId = fromUnit?.id ?? null;
     const fromList =
       loc.list === 'unit' && fromUnit
         ? (fromUnit.items ?? [])
         : (fromMod.items ?? []);
-    if (loc.list === 'unit' && (fromUnit?.items?.length ?? 0) <= 1) {
-      throw new Error('Cannot move the last item out of a unit');
-    }
     const [entry] = fromList.splice(loc.itemIndex, 1);
 
     if (dest.kind === 'unit-items') {
@@ -539,8 +592,8 @@ export function moveStructureNode(
       let index = Math.max(0, Math.min(dest.index, toUnit.items.length));
       const sameList =
         loc.list === 'unit' &&
-        fromUnit?.id === toUnit.id &&
-        fromMod.id === toMod.id;
+        fromUnitId === toUnit.id &&
+        fromModuleId === toMod.id;
       if (sameList && dest.index > loc.itemIndex) index = Math.max(0, dest.index - 1);
       toUnit.items.splice(index, 0, finalEntry);
       focusKey = entryKey(finalEntry, toMod, toUnit);
@@ -553,12 +606,20 @@ export function moveStructureNode(
       const toMod = manifest.modules[toMi];
       if (!toMod.items) toMod.items = [];
       let index = Math.max(0, Math.min(dest.index, toMod.items.length));
-      const sameList = loc.list === 'trailing' && fromMod.id === toMod.id;
+      const sameList = loc.list === 'trailing' && fromModuleId === toMod.id;
       if (sameList && dest.index > loc.itemIndex) index = Math.max(0, dest.index - 1);
       toMod.items.splice(index, 0, entry);
       focusKey = entryKey(entry, toMod, null);
     } else {
       throw new Error('Items can only be dropped into a unit or module trailing list');
+    }
+
+    const leftSameUnit =
+      dest.kind === 'unit-items' &&
+      dest.moduleId === fromModuleId &&
+      dest.unitId === fromUnitId;
+    if (!leftSameUnit) {
+      pruneEmptyAncestors(rootPath, manifest, fromModuleId, fromUnitId);
     }
   }
 
