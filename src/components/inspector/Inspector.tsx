@@ -329,16 +329,15 @@ function NotesPanel({
   const { tr } = usePrefs();
   const [markdown, setMarkdown] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const [empty, setEmpty] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<'preview' | 'editor'>('preview');
-  const taRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
   const baseline = useRef('');
   const hadFile = useRef(Boolean(context.notesFile));
 
   useEffect(() => {
     hadFile.current = Boolean(context.notesFile);
     onFileLabel(context.notesFile ?? null);
-    setView('preview');
   }, [context.notesFile, context.slideKey, onFileLabel]);
 
   useEffect(() => {
@@ -357,6 +356,7 @@ function NotesPanel({
         setMarkdown('');
         baseline.current = '';
         onDirtyChange(false);
+        setEmpty(true);
         setLoaded(true);
         return;
       }
@@ -365,6 +365,7 @@ function NotesPanel({
       baseline.current = text;
       onFileLabel(res.data.notesFile);
       onDirtyChange(false);
+      setEmpty(!text.trim());
       setLoaded(true);
     })();
     return () => {
@@ -372,9 +373,28 @@ function NotesPanel({
     };
   }, [context.courseId, context.slideKey, onDirtyChange, onFileLabel]);
 
+  useEffect(() => {
+    if (!loaded) return;
+    const el = editorRef.current;
+    if (!el) return;
+    const text = baseline.current;
+    el.innerHTML = text.trim() ? renderNotesMarkdown(text) : '';
+    setEmpty(!editorHasContent(el));
+  }, [loaded, context.slideKey]);
+
+  const syncFromEditor = useCallback(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    setEmpty(!editorHasContent(el));
+    const next = htmlToNotesMarkdown(el);
+    setMarkdown(next);
+    onDirtyChange(next !== baseline.current);
+  }, [onDirtyChange]);
+
   const save = useCallback(async () => {
     onSavingChange(true);
     setError(null);
+    const current = editorRef.current ? htmlToNotesMarkdown(editorRef.current) : markdown;
     const res = await apiFetch<{
       slideKey: string;
       notesFile: string;
@@ -382,14 +402,16 @@ function NotesPanel({
     }>({
       method: 'PUT',
       path: `/api/courses/${context.courseId}/notes`,
-      body: { slideKey: context.slideKey, markdown },
+      body: { slideKey: context.slideKey, markdown: current },
     });
     onSavingChange(false);
     if (!res.ok || !res.data) {
       setError(res.error ?? 'Failed to save');
       return;
     }
-    baseline.current = res.data.markdown.replace(/^\uFEFF/, '');
+    const saved = res.data.markdown.replace(/^\uFEFF/, '');
+    setMarkdown(saved);
+    baseline.current = saved;
     onDirtyChange(false);
     if (res.data.notesFile) {
       onFileLabel(res.data.notesFile);
@@ -404,126 +426,51 @@ function NotesPanel({
     registerSave(save);
   }, [registerSave, save]);
 
-  const markDirty = (next: string) => {
-    setMarkdown(next);
-    onDirtyChange(next !== baseline.current);
-  };
-
-  const wrapSelection = (before: string, after = before) => {
-    const el = taRef.current;
-    if (!el) {
-      markDirty(markdown + before + after);
-      return;
+  const applyFormat = (kind: 'heading' | 'bold' | 'bullet') => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    if (kind === 'bold') {
+      document.execCommand('bold');
+    } else if (kind === 'bullet') {
+      document.execCommand('insertUnorderedList');
+    } else {
+      const block = document.queryCommandValue('formatBlock').toLowerCase();
+      document.execCommand('formatBlock', false, block === 'h1' ? 'p' : 'h1');
     }
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const selected = markdown.slice(start, end);
-    const next = markdown.slice(0, start) + before + selected + after + markdown.slice(end);
-    markDirty(next);
-    requestAnimationFrame(() => {
-      el.focus();
-      if (selected) {
-        el.setSelectionRange(start + before.length, start + before.length + selected.length);
-      } else {
-        const caret = start + before.length;
-        el.setSelectionRange(caret, caret);
-      }
-    });
-  };
-
-  const prefixLines = (kind: 'bullet' | 'heading') => {
-    const el = taRef.current;
-    const start = el?.selectionStart ?? markdown.length;
-    const end = el?.selectionEnd ?? markdown.length;
-    const before = markdown.slice(0, start);
-    const lineStart = before.lastIndexOf('\n') + 1;
-    const block = markdown.slice(lineStart, end) || '';
-    const lines = (block.length ? block : '').split('\n');
-    const nextBlock = lines
-      .map((line) => {
-        if (kind === 'heading') {
-          if (/^#{1,6}\s/.test(line)) return line.replace(/^#{1,6}\s/, '# ');
-          return `# ${line}`;
-        }
-        if (/^\s*[-*+]\s/.test(line)) return line.replace(/^\s*[-*+]\s/, '');
-        if (/^\s*\d+\.\s/.test(line)) return line.replace(/^\s*\d+\.\s/, '- ');
-        return `- ${line}`;
-      })
-      .join('\n');
-    const next = markdown.slice(0, lineStart) + nextBlock + markdown.slice(end);
-    markDirty(next);
-    requestAnimationFrame(() => taRef.current?.focus());
+    syncFromEditor();
   };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center gap-1 border-b border-[var(--line)] px-2 py-1.5">
-        <FormatBtn
-          title={tr('inspectorNotesHeading')}
-          onClick={() => prefixLines('heading')}
-          disabled={view !== 'editor'}
-        >
+        <FormatBtn title={tr('inspectorNotesHeading')} onClick={() => applyFormat('heading')}>
           <Heading1 className="h-3.5 w-3.5" />
         </FormatBtn>
-        <FormatBtn
-          title={tr('inspectorNotesBold')}
-          onClick={() => wrapSelection('**', '**')}
-          disabled={view !== 'editor'}
-        >
+        <FormatBtn title={tr('inspectorNotesBold')} onClick={() => applyFormat('bold')}>
           <Bold className="h-3.5 w-3.5" />
         </FormatBtn>
-        <FormatBtn
-          title={tr('inspectorNotesBullet')}
-          onClick={() => prefixLines('bullet')}
-          disabled={view !== 'editor'}
-        >
+        <FormatBtn title={tr('inspectorNotesBullet')} onClick={() => applyFormat('bullet')}>
           <List className="h-3.5 w-3.5" />
         </FormatBtn>
-        <div
-          className="ml-auto grid grid-cols-2 rounded-md border border-[var(--line)] bg-[var(--panel)] p-0.5"
-          role="tablist"
-          aria-label={tr('inspectorNotesViewMode')}
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={view === 'preview'}
-            onClick={() => setView('preview')}
-            className={`cursor-pointer rounded px-2 py-0.5 text-[10px] font-semibold ${
-              view === 'preview' ? 'bg-[var(--stage)] text-[var(--ink)] shadow-sm' : 'text-[var(--ink-muted)]'
-            }`}
-          >
-            {tr('inspectorNotesPreview')}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={view === 'editor'}
-            onClick={() => setView('editor')}
-            className={`cursor-pointer rounded px-2 py-0.5 text-[10px] font-semibold ${
-              view === 'editor' ? 'bg-[var(--stage)] text-[var(--ink)] shadow-sm' : 'text-[var(--ink-muted)]'
-            }`}
-          >
-            {tr('inspectorNotesEditor')}
-          </button>
-        </div>
       </div>
       {!loaded ? (
         <div className="flex flex-1 items-center justify-center text-[12px] text-[var(--ink-muted)]">
           …
         </div>
-      ) : view === 'preview' ? (
-        <div
-          className="notes-md-preview min-h-0 flex-1 overflow-y-auto px-3 py-2 text-[13px] leading-relaxed text-[var(--ink)]"
-          dangerouslySetInnerHTML={{ __html: renderNotesMarkdown(markdown) }}
-        />
       ) : (
-        <textarea
-          ref={taRef}
-          value={markdown}
-          onChange={(e) => markDirty(e.target.value)}
-          placeholder={tr('inspectorNotesPlaceholder')}
-          className="min-h-0 flex-1 resize-none overflow-y-auto bg-[var(--stage)] px-3 py-2 font-mono text-[12px] leading-relaxed text-[var(--ink)] outline-none"
+        <div
+          ref={editorRef}
+          role="textbox"
+          aria-multiline="true"
+          contentEditable
+          suppressContentEditableWarning
+          data-placeholder={tr('inspectorNotesPlaceholder')}
+          onInput={syncFromEditor}
+          onBlur={syncFromEditor}
+          className={`notes-md-preview notes-md-editor min-h-0 flex-1 overflow-y-auto px-3 py-2 text-[13px] leading-relaxed text-[var(--ink)] outline-none ${
+            empty ? 'is-empty' : ''
+          }`}
         />
       )}
       {error && <div className="px-3 py-1 text-[11px] text-rose-600">{error}</div>}
@@ -531,23 +478,19 @@ function NotesPanel({
   );
 }
 
-/** Small safe markdown renderer for presenter notes (bold, headings, lists, quotes). */
+function editorHasContent(el: HTMLElement): boolean {
+  return Boolean(el.textContent?.replace(/\u00a0/g, ' ').trim());
+}
+
+/** Small safe markdown → HTML for presenter notes (headings, bold, lists). */
 function renderNotesMarkdown(source: string): string {
   const raw = source.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
-  if (!raw.trim()) {
-    return '<p class="notes-md-empty"></p>';
-  }
+  if (!raw.trim()) return '';
 
   const escape = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-  const inline = (s: string) => {
-    let t = escape(s);
-    t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    t = t.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
-    t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
-    return t;
-  };
+  const inline = (s: string) => escape(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
   const lines = raw.split('\n');
   const out: string[] = [];
@@ -566,16 +509,6 @@ function renderNotesMarkdown(source: string): string {
       const level = h[1].length;
       out.push(`<h${level}>${inline(h[2])}</h${level}>`);
       i += 1;
-      continue;
-    }
-
-    if (/^>\s?/.test(line)) {
-      const bits: string[] = [];
-      while (i < lines.length && /^>\s?/.test(lines[i])) {
-        bits.push(lines[i].replace(/^>\s?/, ''));
-        i += 1;
-      }
-      out.push(`<blockquote>${bits.map((b) => `<p>${inline(b)}</p>`).join('')}</blockquote>`);
       continue;
     }
 
@@ -604,7 +537,6 @@ function renderNotesMarkdown(source: string): string {
       i < lines.length &&
       lines[i].trim() &&
       !/^(#{1,3})\s+/.test(lines[i]) &&
-      !/^>\s?/.test(lines[i]) &&
       !/^\s*[-*+]\s+/.test(lines[i]) &&
       !/^\s*\d+\.\s+/.test(lines[i])
     ) {
@@ -617,24 +549,77 @@ function renderNotesMarkdown(source: string): string {
   return out.join('');
 }
 
+/** Serialize the notes contentEditable DOM back to simple markdown. */
+function htmlToNotesMarkdown(root: HTMLElement): string {
+  const walkInline = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? '';
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    const el = node as HTMLElement;
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'br') return '\n';
+    const inner = Array.from(el.childNodes).map(walkInline).join('');
+    if (tag === 'strong' || tag === 'b') return `**${inner}**`;
+    return inner;
+  };
+
+  const blocks: string[] = [];
+  for (const node of Array.from(root.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const t = (node.textContent ?? '').replace(/\u00a0/g, ' ').trim();
+      if (t) blocks.push(t);
+      continue;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) continue;
+    const el = node as HTMLElement;
+    const tag = el.tagName.toLowerCase();
+
+    if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
+      const level = Number(tag[1]);
+      const text = walkInline(el).replace(/\n+/g, ' ').trim();
+      if (text) blocks.push(`${'#'.repeat(level)} ${text}`);
+      continue;
+    }
+
+    if (tag === 'ul') {
+      const items = Array.from(el.querySelectorAll(':scope > li')).map((li) =>
+        `- ${walkInline(li).replace(/\n+/g, ' ').trim()}`,
+      );
+      if (items.length) blocks.push(items.join('\n'));
+      continue;
+    }
+
+    if (tag === 'ol') {
+      const items = Array.from(el.querySelectorAll(':scope > li')).map((li, idx) =>
+        `${idx + 1}. ${walkInline(li).replace(/\n+/g, ' ').trim()}`,
+      );
+      if (items.length) blocks.push(items.join('\n'));
+      continue;
+    }
+
+    if (tag === 'br') continue;
+
+    const text = walkInline(el).trim();
+    if (text) blocks.push(text);
+  }
+
+  return blocks.join('\n\n');
+}
+
 function FormatBtn({
   title,
   onClick,
   children,
-  disabled = false,
 }: {
   title: string;
   onClick: () => void;
   children: ReactNode;
-  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       title={title}
       onClick={onClick}
-      disabled={disabled}
-      className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-[var(--panel)] hover:text-[var(--ink)] disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[var(--ink-muted)]"
+      className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-[var(--panel)] hover:text-[var(--ink)]"
     >
       {children}
     </button>

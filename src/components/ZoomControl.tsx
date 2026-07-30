@@ -66,7 +66,7 @@ export function ZoomControl({
       </button>
       {open && (
         <div
-          className={`absolute right-0 z-40 max-h-56 min-w-[8.5rem] overflow-y-auto rounded-lg border border-[var(--line)] bg-[var(--stage)] py-1 text-[var(--ink)] shadow-lg ${
+          className={`absolute left-0 z-40 max-h-56 min-w-[8.5rem] overflow-y-auto rounded-lg border border-[var(--line)] bg-[var(--stage)] py-1 text-[var(--ink)] shadow-lg ${
             menuPlacement === 'up' ? 'bottom-full mb-1' : 'top-full mt-1'
           }`}
         >

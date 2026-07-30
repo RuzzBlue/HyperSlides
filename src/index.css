@@ -1475,6 +1475,16 @@ html[data-theme='dark'] .lesson-stage .hc-marquee__item figcaption {
   color: var(--ink-muted);
 }
 
+.notes-md-editor {
+  cursor: text;
+}
+
+.notes-md-editor.is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--ink-muted);
+  pointer-events: none;
+}
+
 /* Lab section HTML — semantic tags (Tailwind preflight strips list/heading defaults) */
 .lab-html {
   color: var(--ink);
