@@ -251,6 +251,8 @@ export function SlideSidebar({
       e.stopPropagation();
       editor.setContextMenu({ x: e.clientX, y: e.clientY, node });
     },
+    ensureModuleOpen: expansion.ensureModuleOpen,
+    ensureUnitOpen: expansion.ensureUnitOpen,
   };
 
   return (
@@ -383,6 +385,8 @@ type StructureActions = {
   onMove: (source: StructureTarget, dest: StructureDropTarget) => Promise<void>;
   onRename: (node: StructureMenuNode) => void;
   onContext: (e: React.MouseEvent, node: StructureMenuNode) => void;
+  ensureModuleOpen: (moduleId: string) => void;
+  ensureUnitOpen: (moduleId: string, unitId: string) => void;
 };
 
 /** Drop indices that leave the dragged node in the same place (before & after itself). */
@@ -640,6 +644,32 @@ function EditBtn({
   );
 }
 
+/** Drop-at-end target when hovering a module/unit header during drag. */
+function headerDropDest(
+  node: StructureMenuNode,
+  tree: OverviewModule[],
+  dragging: StructureTarget | null,
+): StructureDropTarget | null {
+  if (!dragging) return null;
+  if (node.target.kind === 'unit' && dragging.kind === 'item') {
+    const mod = tree.find((m) => m.id === node.target.moduleId);
+    const unit = mod?.units.find((u) => u.id === node.target.unitId);
+    if (!unit) return null;
+    return {
+      kind: 'unit-items',
+      moduleId: node.target.moduleId,
+      unitId: node.target.unitId,
+      index: unit.items.length,
+    };
+  }
+  if (node.target.kind === 'module' && dragging.kind === 'unit') {
+    const mod = tree.find((m) => m.id === node.target.moduleId);
+    if (!mod) return null;
+    return { kind: 'units', moduleId: node.target.moduleId, index: mod.units.length };
+  }
+  return null;
+}
+
 function TreeHeader({
   level,
   open,
@@ -668,11 +698,58 @@ function TreeHeader({
         ? 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]'
         : 'text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--ink-muted)]';
 
+  const expandForDrag = () => {
+    // Only lessons/quizzes/labs need nested drop targets opened.
+    // Modules/units reorder among peers — keep expand/collapse as-is.
+    if (actions.dragging?.kind !== 'item') return;
+    if (node.target.kind === 'module') {
+      actions.ensureModuleOpen(node.target.moduleId);
+    } else if (node.target.kind === 'unit') {
+      actions.ensureModuleOpen(node.target.moduleId);
+      actions.ensureUnitOpen(node.target.moduleId, node.target.unitId);
+    }
+  };
+
+  const dest = headerDropDest(node, actions.tree, actions.dragging);
+  const canHeaderDrop =
+    Boolean(dest) &&
+    actions.dragging != null &&
+    canDrop(actions.dragging, dest!, actions.sequence);
+  const headerHint = dest ? dropKey(dest) : null;
+  const headerActive = Boolean(headerHint && actions.dropHint === headerHint);
+
   return (
     <div
-      className="group flex w-full items-center gap-0.5 rounded-md text-left hover:bg-black/5 dark:hover:bg-white/5"
+      className={`group flex w-full items-center gap-0.5 rounded-md text-left hover:bg-black/5 dark:hover:bg-white/5 ${
+        headerActive
+          ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] ring-1 ring-[var(--accent)]'
+          : ''
+      }`}
       style={{ paddingLeft: level * TREE_INDENT_PX }}
       onContextMenu={(e) => actions.onContext(e, node)}
+      onDragEnter={() => expandForDrag()}
+      onDragOver={(e) => {
+        if (!actions.dragging) return;
+        expandForDrag();
+        if (!canHeaderDrop || !dest) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'move';
+        if (actions.dropHint !== headerHint) actions.setDropHint(headerHint);
+      }}
+      onDrop={(e) => {
+        if (!canHeaderDrop || !dest || !actions.dragging) return;
+        e.preventDefault();
+        e.stopPropagation();
+        actions.setDropHint(null);
+        if (isNoOpDrop(actions.dragging, dest, actions.tree)) return;
+        void actions.onMove(actions.dragging, dest);
+      }}
+      onDragLeave={(e) => {
+        if (!headerHint || actions.dropHint !== headerHint) return;
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+        actions.setDropHint(null);
+      }}
     >
       <Grip target={node.target} actions={actions} />
       <button

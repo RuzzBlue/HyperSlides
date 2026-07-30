@@ -15,9 +15,10 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    // Notes save writes under courses/ — don't full-reload the presenter UI.
+    // Course package files are edited via the API (structure, notes, themes).
+    // Watching them causes full page reloads that kick the presenter back to the library.
     watch: {
-      ignored: ['**/courses/**/notes/**', '**/courses/**/course.json', '**/data/**'],
+      ignored: ['**/courses/**', '**/data/**', '**/theme-templates/**'],
     },
   },
 });
