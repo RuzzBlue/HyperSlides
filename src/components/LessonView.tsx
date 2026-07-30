@@ -91,7 +91,7 @@ export function LessonView({
 
   return (
     <div
-      className="lesson-theme-root relative h-full overflow-y-auto"
+      className="lesson-theme-root relative h-full overflow-hidden"
       style={style}
       lang={appearance.locale}
       data-lesson-theme={theme?.id || 'default'}
@@ -99,24 +99,27 @@ export function LessonView({
       data-slide-bg={variant}
     >
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(ellipse_at_top,_color-mix(in_srgb,var(--lesson-accent)_16%,transparent),_transparent_70%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 z-0 h-56 bg-[radial-gradient(ellipse_at_top,_color-mix(in_srgb,var(--lesson-accent)_16%,transparent),_transparent_70%)]"
         aria-hidden
       />
+      <div className="relative z-[1] h-full overflow-y-auto">
+        <article
+          id={stageId}
+          className="lesson-stage relative mx-auto w-full max-w-4xl px-6 py-10 md:px-12 md:py-14"
+          aria-label={title}
+          style={{ ['--lesson-accent' as string]: accent }}
+        >
+          <div ref={contentRef} />
+          <PortalsRenderer stageId={stageId} htmlContent={html} courseFolder={courseFolder} />
+        </article>
+      </div>
+      {/* Viewport-fixed overlay: watermark + page number stay put while content scrolls */}
       <ThemeDecorations
         theme={theme}
         courseFolder={courseFolder}
         slideIndex={slideIndex}
         slideTotal={slideTotal}
       />
-      <article
-        id={stageId}
-        className="lesson-stage relative z-[3] mx-auto w-full max-w-4xl px-6 py-10 md:px-12 md:py-14"
-        aria-label={title}
-        style={{ ['--lesson-accent' as string]: accent }}
-      >
-        <div ref={contentRef} />
-        <PortalsRenderer stageId={stageId} htmlContent={html} courseFolder={courseFolder} />
-      </article>
     </div>
   );
 }

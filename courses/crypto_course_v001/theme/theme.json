@@ -79,19 +79,19 @@
     }
   },
   "watermark": {
-    "enabled": false,
+    "enabled": true,
     "kind": "text",
     "value": "HYPERCLASS",
     "opacity": 0.06,
     "size": "12vmin",
     "rotateDeg": -30,
     "position": "center",
-    "repeat": "single"
+    "repeat": "tiled"
   },
   "pageNumber": {
     "enabled": true,
     "position": "bottom-right",
-    "format": "{n}",
+    "format": "Page {n}",
     "opacity": 0.5
   },
   "cssFile": "theme.css"

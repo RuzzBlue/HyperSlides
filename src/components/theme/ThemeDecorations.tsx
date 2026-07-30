@@ -75,13 +75,12 @@ export function ThemeDecorations({
   }
 
   return (
-    <>
+    <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden" aria-hidden>
       {showWm && wm && (
         <div
-          className={`pointer-events-none absolute z-[1] select-none ${
+          className={`absolute select-none ${
             tiled ? 'inset-[-20%]' : POS_CLASS[wmPos] || POS_CLASS.center
           }`}
-          aria-hidden
           style={tiled ? watermarkStyle : undefined}
         >
           {!tiled && wm.kind === 'text' && (
@@ -114,15 +113,14 @@ export function ThemeDecorations({
 
       {showPage && (
         <div
-          className={`pointer-events-none absolute z-[2] text-[11px] font-medium tabular-nums tracking-wide text-[var(--ink-muted)] ${
+          className={`absolute text-[11px] font-medium tabular-nums tracking-wide text-[var(--ink-muted)] ${
             PAGE_POS_CLASS[pagePos] || PAGE_POS_CLASS['bottom-right']
           }`}
           style={{ opacity: page?.opacity ?? 0.65 }}
-          aria-hidden
         >
           {formatPageNumber(page?.format, (slideIndex ?? 0) + 1, slideTotal ?? 0)}
         </div>
       )}
-    </>
+    </div>
   );
 }
