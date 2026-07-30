@@ -11,7 +11,7 @@
       "id": "module-01",
       "title": "Module 1 · Foundations",
       "description": "Understand crypto ownership, transactions, and the network that records them.",
-      "path": "content/modules/module-01",
+      "path": "modules/module-01",
       "units": [
         {
           "id": "unit-01",
@@ -89,7 +89,7 @@
       "id": "module-02",
       "title": "Module 2 · Keys, Wallets & Practice",
       "description": "Build safe habits, prepare a wallet, and practice a low-risk transaction.",
-      "path": "content/modules/module-02",
+      "path": "modules/module-02",
       "units": [
         {
           "id": "unit-01",

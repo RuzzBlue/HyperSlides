@@ -11,7 +11,7 @@
       "id": "module-01",
       "title": "Slides Layout",
       "description": "PowerPoint-style text and image slide patterns.",
-      "path": "content/modules/module-01",
+      "path": "modules/module-01",
       "units": [
         {
           "id": "unit-01",
@@ -199,7 +199,7 @@
       "id": "module-02",
       "title": "Interactive Components",
       "description": "Bootstrap-style gallery of every data-component portal.",
-      "path": "content/modules/module-02",
+      "path": "modules/module-02",
       "units": [
         {
           "id": "unit-01",
@@ -363,7 +363,7 @@
       "id": "module-03",
       "title": "Assessment Demo",
       "description": "One kitchen-sink quiz and one lab with placeholder data.",
-      "path": "content/modules/module-03",
+      "path": "modules/module-03",
       "units": [
         {
           "id": "unit-01",
@@ -389,7 +389,7 @@
       "id": "module-04",
       "title": "Future ideas",
       "description": "Backlog concepts for later HyperClass presentation features.",
-      "path": "content/modules/module-04",
+      "path": "modules/module-04",
       "units": [
         {
           "id": "unit-01",
