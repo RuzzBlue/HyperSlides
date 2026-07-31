@@ -3,30 +3,34 @@ import { LayoutTemplate, Loader2, X } from 'lucide-react';
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
 
+type TemplateSection = {
+  id: string;
+  slideKey: string;
+  sectionIndex: number;
+  title: string;
+  html?: string;
+};
+
 type TemplateLesson = {
   slideKey: string;
   id: string;
   title: string;
   file: string;
+  sections: TemplateSection[];
 };
 
 type TemplateUnit = {
   id: string;
   title: string;
+  moduleId: string;
+  moduleTitle: string;
   lessons: TemplateLesson[];
-};
-
-type TemplateModule = {
-  id: string;
-  title: string;
-  description?: string;
-  units: TemplateUnit[];
 };
 
 type TemplateCatalog = {
   courseId: string;
   courseTitle: string;
-  modules: TemplateModule[];
+  units: TemplateUnit[];
 };
 
 export function TemplatePickerButton({
@@ -76,7 +80,7 @@ function TemplatePickerMenu({
   const [catalog, setCatalog] = useState<TemplateCatalog | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [moduleId, setModuleId] = useState<string | null>(null);
+  const [unitId, setUnitId] = useState<string | null>(null);
   const [insertingKey, setInsertingKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -84,19 +88,25 @@ function TemplatePickerMenu({
     setLoading(true);
     setError(null);
     void (async () => {
-      const res = await apiFetch<TemplateCatalog>({
-        method: 'GET',
-        path: '/api/lesson-templates',
-      });
-      if (cancelled) return;
-      if (!res.ok || !res.data) {
-        setError(res.error ?? tr('inspectorCodeTemplatesLoadError'));
+      try {
+        const res = await apiFetch<TemplateCatalog>({
+          method: 'GET',
+          path: '/api/lesson-templates',
+        });
+        if (cancelled) return;
+        if (!res.ok || !res.data) {
+          setError(res.error ?? tr('inspectorCodeTemplatesLoadError'));
+          setLoading(false);
+          return;
+        }
+        setCatalog(res.data);
+        setUnitId(res.data.units[0]?.id ?? null);
         setLoading(false);
-        return;
+      } catch {
+        if (cancelled) return;
+        setError(tr('inspectorCodeTemplatesLoadError'));
+        setLoading(false);
       }
-      setCatalog(res.data);
-      setModuleId(res.data.modules[0]?.id ?? null);
-      setLoading(false);
     })();
     return () => {
       cancelled = true;
@@ -111,22 +121,35 @@ function TemplatePickerMenu({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const activeModule = catalog?.modules.find((m) => m.id === moduleId) ?? catalog?.modules[0];
+  const activeUnit = catalog?.units.find((u) => u.id === unitId) ?? catalog?.units[0];
 
-  const insertLesson = async (lesson: TemplateLesson) => {
-    setInsertingKey(lesson.slideKey);
-    setError(null);
-    const res = await apiFetch<{ html: string }>({
-      method: 'GET',
-      path: '/api/lesson-templates/source',
-      params: { slideKey: lesson.slideKey },
-    });
-    setInsertingKey(null);
-    if (!res.ok || !res.data) {
-      setError(res.error ?? tr('inspectorCodeTemplatesLoadError'));
+  const insertSection = async (section: TemplateSection) => {
+    if (section.html?.trim()) {
+      onInsert(section.html.replace(/^\uFEFF/, ''));
       return;
     }
-    onInsert(res.data.html.replace(/^\uFEFF/, ''));
+
+    setInsertingKey(section.id);
+    setError(null);
+    try {
+      const res = await apiFetch<{ html: string }>({
+        method: 'GET',
+        path: '/api/lesson-templates/source',
+        params: {
+          slideKey: section.slideKey,
+          sectionIndex: String(section.sectionIndex),
+        },
+      });
+      if (!res.ok || !res.data?.html) {
+        setError(res.error ?? tr('inspectorCodeTemplatesLoadError'));
+        return;
+      }
+      onInsert(res.data.html.replace(/^\uFEFF/, ''));
+    } catch {
+      setError(tr('inspectorCodeTemplatesLoadError'));
+    } finally {
+      setInsertingKey(null);
+    }
   };
 
   return (
@@ -138,12 +161,12 @@ function TemplatePickerMenu({
         onClick={onClose}
       />
       <div
-        className="absolute right-0 top-full z-[80] mt-1 flex max-h-[min(70vh,560px)] w-[min(92vw,420px)] flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--stage)] shadow-2xl"
+        className="absolute right-0 top-full z-[80] mt-1 flex max-h-[min(72vh,580px)] w-[min(92vw,400px)] flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--stage)] shadow-2xl"
         role="dialog"
         aria-label={tr('inspectorCodeTemplates')}
       >
         <div className="flex shrink-0 items-center gap-2 border-b border-[var(--line)] bg-[var(--panel)] px-3 py-2">
-          <LayoutTemplate className="h-4 w-4 text-[var(--accent)]" />
+          <LayoutTemplate className="h-4 w-4 shrink-0 text-[var(--accent)]" />
           <div className="min-w-0 flex-1">
             <div className="text-[12px] font-semibold text-[var(--ink)]">
               {tr('inspectorCodeTemplates')}
@@ -169,47 +192,48 @@ function TemplatePickerMenu({
         ) : error && !catalog ? (
           <div className="px-4 py-6 text-[12px] text-rose-600">{error}</div>
         ) : (
-          <>
-            <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-[var(--line)] px-2 py-1.5">
-              {catalog?.modules.map((mod) => (
+          <div className="flex min-h-0 flex-1">
+            <aside className="flex w-[7.75rem] shrink-0 flex-col overflow-y-auto border-r border-[var(--line)] bg-[var(--panel)] py-1.5">
+              {catalog?.units.map((unit) => (
                 <button
-                  key={mod.id}
+                  key={unit.id}
                   type="button"
-                  onClick={() => setModuleId(mod.id)}
-                  className={`shrink-0 cursor-pointer rounded-md px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap ${
-                    activeModule?.id === mod.id
+                  onClick={() => setUnitId(unit.id)}
+                  className={`mx-1 cursor-pointer rounded-md px-2 py-1.5 text-left text-[11px] font-semibold leading-snug ${
+                    activeUnit?.id === unit.id
                       ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
-                      : 'text-[var(--ink-muted)] hover:bg-[var(--panel)] hover:text-[var(--ink)]'
+                      : 'text-[var(--ink-muted)] hover:bg-[var(--stage)] hover:text-[var(--ink)]'
                   }`}
+                  title={unit.moduleTitle}
                 >
-                  {mod.title}
+                  {unit.title}
                 </button>
               ))}
-            </div>
+            </aside>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-2 py-2">
               {error && (
                 <div className="mb-2 rounded-md bg-rose-50 px-2 py-1.5 text-[11px] text-rose-700">
                   {error}
                 </div>
               )}
-              {activeModule?.units.map((unit) => (
-                <div key={unit.id} className="mb-3">
+              {activeUnit?.lessons.map((lesson) => (
+                <div key={lesson.slideKey} className="mb-3">
                   <div className="mb-1 px-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-                    {unit.title}
+                    {lesson.title}
                   </div>
                   <div className="grid gap-0.5">
-                    {unit.lessons.map((lesson) => {
-                      const busy = insertingKey === lesson.slideKey;
+                    {lesson.sections.map((section) => {
+                      const busy = insertingKey === section.id;
                       return (
                         <button
-                          key={lesson.slideKey}
+                          key={section.id}
                           type="button"
                           disabled={Boolean(insertingKey)}
-                          onClick={() => void insertLesson(lesson)}
-                          className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12px] text-[var(--ink)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] disabled:cursor-wait disabled:opacity-60"
+                          onClick={() => void insertSection(section)}
+                          className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] text-[var(--ink)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] disabled:cursor-wait disabled:opacity-60"
                         >
-                          <span className="min-w-0 flex-1 truncate font-medium">{lesson.title}</span>
+                          <span className="min-w-0 flex-1 truncate font-medium">{section.title}</span>
                           {busy && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />}
                         </button>
                       );
@@ -217,13 +241,13 @@ function TemplatePickerMenu({
                   </div>
                 </div>
               ))}
-              {!activeModule?.units.length && (
+              {!activeUnit?.lessons.length && (
                 <div className="px-2 py-6 text-center text-[12px] text-[var(--ink-muted)]">
                   {tr('inspectorCodeTemplatesEmpty')}
                 </div>
               )}
             </div>
-          </>
+          </div>
         )}
       </div>
     </>

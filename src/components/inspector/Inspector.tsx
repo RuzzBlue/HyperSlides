@@ -272,6 +272,16 @@ export function Inspector({
       <footer className="flex shrink-0 items-center gap-2 border-t border-[var(--line)] bg-[var(--panel)] px-3 py-2">
         {isNotes || isCode ? (
           <>
+            {isCode && (
+              <button
+                type="button"
+                title={tr('inspectorCodeCancel')}
+                onClick={onClose}
+                className="shrink-0 cursor-pointer rounded-md border border-[var(--line)] bg-[var(--stage)] px-3 py-1.5 text-[11px] font-semibold text-[var(--ink)] hover:bg-black/5 dark:hover:bg-white/10"
+              >
+                {tr('inspectorCodeCancel')}
+              </button>
+            )}
             <span className="w-[5.5rem] shrink-0 text-[10px] text-[var(--ink-muted)]">
               {panelDirty
                 ? isCode
@@ -291,7 +301,7 @@ export function Inspector({
               type="button"
               disabled={panelSaving || !panelDirty}
               onClick={() => void panelSaveRef.current?.()}
-              className="shrink-0 rounded-md bg-[var(--accent)] px-3 py-1.5 text-[11px] font-semibold text-white enabled:hover:brightness-110 disabled:opacity-40"
+              className="shrink-0 cursor-pointer rounded-md bg-[var(--accent)] px-3 py-1.5 text-[11px] font-semibold text-white enabled:hover:brightness-110 disabled:cursor-default disabled:opacity-40"
             >
               {panelSaving
                 ? isCode

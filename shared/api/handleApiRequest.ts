@@ -63,7 +63,15 @@ export async function handleApiRequest(
     if (method === 'GET' && segments[0] === 'lesson-templates' && segments[1] === 'source') {
       const slideKey = params?.slideKey;
       if (!slideKey) return { ok: false, status: 400, error: 'Missing slideKey' };
-      const source = readLessonTemplateSource(ctx.appRoot, slideKey);
+      const rawIndex = params?.sectionIndex;
+      const sectionIndex =
+        rawIndex === undefined || rawIndex === ''
+          ? undefined
+          : Number.parseInt(String(rawIndex), 10);
+      if (sectionIndex !== undefined && !Number.isFinite(sectionIndex)) {
+        return { ok: false, status: 400, error: 'Invalid sectionIndex' };
+      }
+      const source = readLessonTemplateSource(ctx.appRoot, slideKey, sectionIndex);
       if (!source) return { ok: false, status: 404, error: 'Template not found' };
       return { ok: true, status: 200, data: source };
     }

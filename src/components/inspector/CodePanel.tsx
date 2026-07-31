@@ -133,6 +133,17 @@ export function CodePanel({
     registerInsert?.(insertAtCursor);
   }, [registerInsert, insertAtCursor]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 's') return;
+      e.preventDefault();
+      e.stopPropagation();
+      void save();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [save]);
+
   if (!loaded) {
     return (
       <div className="flex flex-1 items-center justify-center px-3 text-[12px] text-[var(--ink-muted)]">

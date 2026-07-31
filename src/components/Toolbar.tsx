@@ -140,7 +140,8 @@ export function Toolbar({
       </div>
 
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="pointer-events-auto flex items-center gap-1.5">
+        {/* Nudge right so the cluster sits visually between a wider left chrome and the nav. */}
+        <div className="pointer-events-auto flex translate-x-7 items-center gap-1.5 sm:translate-x-9 lg:translate-x-11">
           <div
             className="flex items-center gap-0.5 rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 px-1 py-0.5 shadow-sm backdrop-blur-sm"
             title={insertEnabled ? undefined : tr('inspectorToolsDisabled')}
