@@ -154,6 +154,14 @@ export function Inspector({
   const panelSaveRef = useRef<(() => Promise<void>) | null>(null);
   const panelInsertRef = useRef<((snippet: string) => void) | null>(null);
 
+  const registerSave = useCallback((fn: () => Promise<void>) => {
+    panelSaveRef.current = fn;
+  }, []);
+
+  const registerInsert = useCallback((fn: (snippet: string) => void) => {
+    panelInsertRef.current = fn;
+  }, []);
+
   useEffect(() => {
     if (isCode) setFileLabel(codeContext?.file ?? null);
     else if (isNotes) setFileLabel(notesContext?.notesFile ?? null);
@@ -183,7 +191,15 @@ export function Inspector({
           <TemplatePickerButton
             open={templatesOpen}
             onOpenChange={setTemplatesOpen}
-            onInsert={(html) => panelInsertRef.current?.(html)}
+            onInsert={(html) => {
+              const insert = panelInsertRef.current;
+              if (!insert) {
+                console.error('[HyperClass] Code insert handler is not registered');
+                return false;
+              }
+              insert(html);
+              return true;
+            }}
           />
         )}
         <button
@@ -239,9 +255,7 @@ export function Inspector({
             onDirtyChange={setPanelDirty}
             onSavingChange={setPanelSaving}
             onFileLabel={setFileLabel}
-            registerSave={(fn) => {
-              panelSaveRef.current = fn;
-            }}
+            registerSave={registerSave}
             onBound={onNotesBound}
           />
         ) : isCode && codeContext ? (
@@ -250,12 +264,8 @@ export function Inspector({
             onDirtyChange={setPanelDirty}
             onSavingChange={setPanelSaving}
             onFileLabel={setFileLabel}
-            registerSave={(fn) => {
-              panelSaveRef.current = fn;
-            }}
-            registerInsert={(fn) => {
-              panelInsertRef.current = fn;
-            }}
+            registerSave={registerSave}
+            registerInsert={registerInsert}
             onSaved={onCodeSaved}
           />
         ) : isCode && !codeContext ? (
@@ -344,6 +354,7 @@ export function Inspector({
 
   return (
     <aside
+      data-inspector-panel
       className="flex h-full shrink-0 flex-col border-l border-[var(--line)] bg-[var(--stage)] shadow-[-8px_0_24px_rgba(28,31,38,0.06)]"
       style={{ width: INSPECTOR_DOCK_WIDTH }}
     >
@@ -513,6 +524,7 @@ function FloatingShell({
 
   return (
     <div
+      data-inspector-panel
       className="fixed z-[60] flex flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--stage)] shadow-2xl"
       style={{ left: pos.x, top: pos.y, width, height }}
       role="dialog"

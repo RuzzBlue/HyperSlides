@@ -6,9 +6,9 @@ import {
   Code2,
   Film,
   StickyNote,
+  MonitorCog,
   PanelLeft,
   Play,
-  Settings2,
   Shapes,
   Sparkles,
   Table2,
@@ -113,10 +113,9 @@ export function Toolbar({
           title={tr('courseSettingsToolbar')}
           disabled={!onOpenCourseSettings}
           onClick={() => onOpenCourseSettings?.()}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] font-semibold text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <Settings2 className="h-4 w-4" />
-          {tr('theme')}
+          <MonitorCog className="h-4 w-4" />
         </button>
 
         <div className="mx-1 h-5 w-px bg-[var(--line)]" />

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { html } from '@codemirror/lang-html';
 import type { EditorView } from '@codemirror/view';
@@ -37,6 +37,8 @@ export function CodePanel({
   const htmlRef = useRef(htmlText);
   htmlRef.current = htmlText;
 
+  const extensions = useMemo(() => [html()], []);
+
   useEffect(() => {
     onFileLabel(context.file ?? null);
   }, [context.file, context.slideKey, onFileLabel]);
@@ -55,6 +57,7 @@ export function CodePanel({
       if (!res.ok || !res.data) {
         setError(res.error ?? tr('inspectorCodeLoadError'));
         setHtmlText('');
+        htmlRef.current = '';
         baseline.current = '';
         onDirtyChange(false);
         setLoaded(true);
@@ -62,6 +65,7 @@ export function CodePanel({
       }
       const text = res.data.html.replace(/^\uFEFF/, '');
       setHtmlText(text);
+      htmlRef.current = text;
       baseline.current = text;
       onFileLabel(res.data.file);
       onDirtyChange(false);
@@ -87,6 +91,7 @@ export function CodePanel({
     }
     const saved = res.data.html.replace(/^\uFEFF/, '');
     setHtmlText(saved);
+    htmlRef.current = saved;
     baseline.current = saved;
     onDirtyChange(false);
     onFileLabel(res.data.file);
@@ -101,48 +106,84 @@ export function CodePanel({
     tr,
   ]);
 
+  /**
+   * Insert via React state (not EditorView.dispatch) so controlled CodeMirror
+   * sync cannot race/revert the change when onChange/extensions reconfigure.
+   */
   const insertAtCursor = useCallback(
     (snippet: string) => {
+      const block = String(snippet ?? '').replace(/^\uFEFF/, '').trimEnd();
+      if (!block) return;
+      const insert = `${block}\n\n`;
+
       const view = viewRef.current;
-      const block = snippet.trimEnd() + '\n\n';
-      if (!view) {
-        const next = htmlRef.current + (htmlRef.current.endsWith('\n') ? '' : '\n') + block;
-        setHtmlText(next);
-        onDirtyChange(next !== baseline.current);
-        return;
+      let next: string;
+      let caret = -1;
+      if (view?.dom?.isConnected) {
+        const doc = view.state.doc.toString();
+        const from = Math.max(0, Math.min(view.state.selection.main.from, doc.length));
+        next = doc.slice(0, from) + insert + doc.slice(from);
+        caret = from + insert.length;
+      } else {
+        const cur = htmlRef.current;
+        next = cur + (cur && !cur.endsWith('\n') ? '\n' : '') + insert;
+        caret = next.length;
       }
-      const { from } = view.state.selection.main;
-      view.dispatch({
-        changes: { from, insert: block },
-        selection: { anchor: from + block.length },
-        scrollIntoView: true,
-      });
-      view.focus();
-      const next = view.state.doc.toString();
+
+      htmlRef.current = next;
       setHtmlText(next);
       onDirtyChange(next !== baseline.current);
+
+      // Restore caret after controlled value sync.
+      if (caret >= 0) {
+        requestAnimationFrame(() => {
+          const v = viewRef.current;
+          if (!v?.dom?.isConnected) return;
+          const pos = Math.min(caret, v.state.doc.length);
+          v.dispatch({
+            selection: { anchor: pos, head: pos },
+            scrollIntoView: true,
+          });
+          v.focus();
+        });
+      }
     },
     [onDirtyChange],
   );
 
-  useEffect(() => {
-    registerSave(save);
-  }, [registerSave, save]);
+  const insertRef = useRef(insertAtCursor);
+  insertRef.current = insertAtCursor;
 
-  useEffect(() => {
-    registerInsert?.(insertAtCursor);
-  }, [registerInsert, insertAtCursor]);
+  const saveRef = useRef(save);
+  saveRef.current = save;
+
+  useLayoutEffect(() => {
+    registerSave(() => saveRef.current());
+  }, [registerSave]);
+
+  useLayoutEffect(() => {
+    registerInsert?.((snippet) => insertRef.current(snippet));
+  }, [registerInsert]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 's') return;
       e.preventDefault();
       e.stopPropagation();
-      void save();
+      void saveRef.current();
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [save]);
+  }, []);
+
+  const onChange = useCallback(
+    (value: string) => {
+      htmlRef.current = value;
+      setHtmlText(value);
+      onDirtyChange(value !== baseline.current);
+    },
+    [onDirtyChange],
+  );
 
   if (!loaded) {
     return (
@@ -164,7 +205,7 @@ export function CodePanel({
           value={htmlText}
           height="100%"
           theme="light"
-          extensions={[html()]}
+          extensions={extensions}
           basicSetup={{
             lineNumbers: true,
             foldGutter: true,
@@ -176,10 +217,7 @@ export function CodePanel({
           onCreateEditor={(view) => {
             viewRef.current = view;
           }}
-          onChange={(value) => {
-            setHtmlText(value);
-            onDirtyChange(value !== baseline.current);
-          }}
+          onChange={onChange}
           className="h-full text-[12px]"
         />
       </div>
