@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { html } from '@codemirror/lang-html';
+import type { EditorView } from '@codemirror/view';
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
 
@@ -16,6 +17,7 @@ export function CodePanel({
   onSavingChange,
   onFileLabel,
   registerSave,
+  registerInsert,
   onSaved,
 }: {
   context: CodeContext;
@@ -23,6 +25,7 @@ export function CodePanel({
   onSavingChange: (saving: boolean) => void;
   onFileLabel: (file: string | null) => void;
   registerSave: (fn: () => Promise<void>) => void;
+  registerInsert?: (fn: (snippet: string) => void) => void;
   onSaved?: (slideKey: string) => void;
 }) {
   const { tr } = usePrefs();
@@ -30,6 +33,9 @@ export function CodePanel({
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const baseline = useRef('');
+  const viewRef = useRef<EditorView | null>(null);
+  const htmlRef = useRef(htmlText);
+  htmlRef.current = htmlText;
 
   useEffect(() => {
     onFileLabel(context.file ?? null);
@@ -72,7 +78,7 @@ export function CodePanel({
     const res = await apiFetch<{ slideKey: string; file: string; html: string }>({
       method: 'PUT',
       path: `/api/courses/${context.courseId}/lesson-source`,
-      body: { slideKey: context.slideKey, html: htmlText },
+      body: { slideKey: context.slideKey, html: htmlRef.current },
     });
     onSavingChange(false);
     if (!res.ok || !res.data) {
@@ -88,7 +94,6 @@ export function CodePanel({
   }, [
     context.courseId,
     context.slideKey,
-    htmlText,
     onDirtyChange,
     onFileLabel,
     onSaved,
@@ -96,9 +101,37 @@ export function CodePanel({
     tr,
   ]);
 
+  const insertAtCursor = useCallback(
+    (snippet: string) => {
+      const view = viewRef.current;
+      const block = snippet.trimEnd() + '\n\n';
+      if (!view) {
+        const next = htmlRef.current + (htmlRef.current.endsWith('\n') ? '' : '\n') + block;
+        setHtmlText(next);
+        onDirtyChange(next !== baseline.current);
+        return;
+      }
+      const { from } = view.state.selection.main;
+      view.dispatch({
+        changes: { from, insert: block },
+        selection: { anchor: from + block.length },
+        scrollIntoView: true,
+      });
+      view.focus();
+      const next = view.state.doc.toString();
+      setHtmlText(next);
+      onDirtyChange(next !== baseline.current);
+    },
+    [onDirtyChange],
+  );
+
   useEffect(() => {
     registerSave(save);
   }, [registerSave, save]);
+
+  useEffect(() => {
+    registerInsert?.(insertAtCursor);
+  }, [registerInsert, insertAtCursor]);
 
   if (!loaded) {
     return (
@@ -128,6 +161,9 @@ export function CodePanel({
             bracketMatching: true,
             autocompletion: true,
             indentOnInput: true,
+          }}
+          onCreateEditor={(view) => {
+            viewRef.current = view;
           }}
           onChange={(value) => {
             setHtmlText(value);

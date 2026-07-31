@@ -15,6 +15,7 @@ import {
   writeProgress,
   writeSlideNotes,
 } from './courses.ts';
+import { listLessonTemplates, readLessonTemplateSource } from './lessonTemplates.ts';
 import { createCourse, deleteCourse, listThemeTemplates, updateCourse, uploadCourseThemeAsset, type CreateCourseInput } from './createCourse.ts';
 import { insertCourseItem, type InsertKind } from './insertCourseItem.ts';
 import {
@@ -45,6 +46,26 @@ export async function handleApiRequest(
 
     if (method === 'GET' && segments[0] === 'health') {
       return { ok: true, status: 200, data: { status: 'ok', runtime: 'node' } };
+    }
+
+    if (method === 'GET' && segments[0] === 'lesson-templates' && segments.length === 1) {
+      const catalog = listLessonTemplates(ctx.appRoot);
+      if (!catalog) {
+        return {
+          ok: false,
+          status: 404,
+          error: 'Template course not found (expected demo_course_v001)',
+        };
+      }
+      return { ok: true, status: 200, data: catalog };
+    }
+
+    if (method === 'GET' && segments[0] === 'lesson-templates' && segments[1] === 'source') {
+      const slideKey = params?.slideKey;
+      if (!slideKey) return { ok: false, status: 400, error: 'Missing slideKey' };
+      const source = readLessonTemplateSource(ctx.appRoot, slideKey);
+      if (!source) return { ok: false, status: 404, error: 'Template not found' };
+      return { ok: true, status: 200, data: source };
     }
 
     if (method === 'GET' && segments[0] === 'user' && segments.length === 1) {

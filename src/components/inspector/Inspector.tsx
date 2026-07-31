@@ -27,6 +27,7 @@ import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
 import type { StringKey } from '../../i18n/strings';
 import { CodePanel, type CodeContext } from './CodePanel';
+import { TemplatePickerButton } from './TemplatePicker';
 
 export type InspectorTool =
   | 'graphs'
@@ -136,10 +137,14 @@ export function Inspector({
   const isNotes = tool === 'notes';
   const isCode = tool === 'code';
   const [codeExpanded, setCodeExpanded] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   useEffect(() => {
-    if (!isCode || mode !== 'floating') setCodeExpanded(false);
-  }, [isCode, mode, tool]);
+    if (!isCode) {
+      setCodeExpanded(false);
+      setTemplatesOpen(false);
+    }
+  }, [isCode, tool]);
 
   const [panelDirty, setPanelDirty] = useState(false);
   const [panelSaving, setPanelSaving] = useState(false);
@@ -147,6 +152,7 @@ export function Inspector({
     isCode ? (codeContext?.file ?? null) : (notesContext?.notesFile ?? null),
   );
   const panelSaveRef = useRef<(() => Promise<void>) | null>(null);
+  const panelInsertRef = useRef<((snippet: string) => void) | null>(null);
 
   useEffect(() => {
     if (isCode) setFileLabel(codeContext?.file ?? null);
@@ -173,22 +179,47 @@ export function Inspector({
           </div>
           <div className="truncate text-[13px] font-semibold text-[var(--ink)]">{title}</div>
         </div>
+        {isCode && (
+          <TemplatePickerButton
+            open={templatesOpen}
+            onOpenChange={setTemplatesOpen}
+            onInsert={(html) => panelInsertRef.current?.(html)}
+          />
+        )}
         <button
           type="button"
           title={mode === 'docked' ? tr('inspectorFloat') : tr('inspectorPin')}
-          onClick={() => onModeChange(mode === 'docked' ? 'floating' : 'docked')}
+          onClick={() => {
+            if (mode === 'floating') setCodeExpanded(false);
+            onModeChange(mode === 'docked' ? 'floating' : 'docked');
+          }}
           className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)] dark:hover:bg-white/10"
         >
           {mode === 'docked' ? <FloatWindowsIcon className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
         </button>
-        {isCode && mode === 'floating' && (
+        {isCode && (
           <button
             type="button"
-            title={codeExpanded ? tr('inspectorCodeCollapse') : tr('inspectorCodeExpand')}
-            onClick={() => setCodeExpanded((v) => !v)}
+            title={
+              mode === 'floating' && codeExpanded
+                ? tr('inspectorCodeCollapse')
+                : tr('inspectorCodeExpand')
+            }
+            onClick={() => {
+              if (mode === 'docked') {
+                setCodeExpanded(true);
+                onModeChange('floating');
+                return;
+              }
+              setCodeExpanded((v) => !v);
+            }}
             className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)] dark:hover:bg-white/10"
           >
-            {codeExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            {mode === 'floating' && codeExpanded ? (
+              <Minimize2 className="h-4 w-4" />
+            ) : (
+              <Maximize2 className="h-4 w-4" />
+            )}
           </button>
         )}
         <button
@@ -221,6 +252,9 @@ export function Inspector({
             onFileLabel={setFileLabel}
             registerSave={(fn) => {
               panelSaveRef.current = fn;
+            }}
+            registerInsert={(fn) => {
+              panelInsertRef.current = fn;
             }}
             onSaved={onCodeSaved}
           />
