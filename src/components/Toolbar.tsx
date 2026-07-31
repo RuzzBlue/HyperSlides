@@ -115,7 +115,7 @@ export function Toolbar({
           onClick={() => onOpenCourseSettings?.()}
           className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <MonitorCog className="h-4 w-4" />
+          <MonitorCog className="h-5 w-5" />
         </button>
 
         <div className="mx-1 h-5 w-px bg-[var(--line)]" />
