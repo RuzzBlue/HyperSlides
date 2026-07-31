@@ -3713,3 +3713,17 @@ html[data-theme='dark'] .lesson-stage .hc-ideas__card li {
   color: #e2e8f0;
 }
 
+
+/* Code inspector (CodeMirror) fills the panel */
+.hc-code-editor,
+.hc-code-editor .cm-editor {
+  height: 100%;
+}
+.hc-code-editor .cm-scroller {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.hc-code-editor .cm-editor.cm-focused {
+  outline: none;
+}

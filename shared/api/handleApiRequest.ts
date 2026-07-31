@@ -6,10 +6,12 @@ import {
   loadLab,
   loadLesson,
   loadQuiz,
+  readLessonSource,
   readProgress,
   readSlideNotes,
   resetAllCourseProgress,
   resolveCourseAsset,
+  writeLessonSource,
   writeProgress,
   writeSlideNotes,
 } from './courses.ts';
@@ -218,6 +220,25 @@ export async function handleApiRequest(
       const lesson = loadLesson(ctx.appRoot, segments[1], file);
       if (!lesson) return { ok: false, status: 404, error: 'Lesson not found' };
       return { ok: true, status: 200, data: lesson };
+    }
+
+    if (method === 'GET' && segments[0] === 'courses' && segments[2] === 'lesson-source') {
+      const slideKey = params?.slideKey;
+      if (!slideKey) return { ok: false, status: 400, error: 'Missing slideKey param' };
+      const source = readLessonSource(ctx.appRoot, segments[1], slideKey);
+      if (!source) return { ok: false, status: 404, error: 'Lesson not found' };
+      return { ok: true, status: 200, data: source };
+    }
+
+    if (method === 'PUT' && segments[0] === 'courses' && segments[2] === 'lesson-source') {
+      const slideKey = (body as { slideKey?: string })?.slideKey;
+      const html = (body as { html?: string })?.html;
+      if (!slideKey || typeof html !== 'string') {
+        return { ok: false, status: 400, error: 'slideKey and html are required' };
+      }
+      const saved = writeLessonSource(ctx.appRoot, segments[1], slideKey, html);
+      if (!saved) return { ok: false, status: 404, error: 'Lesson not found' };
+      return { ok: true, status: 200, data: saved };
     }
 
     if (method === 'GET' && segments[0] === 'courses' && segments[2] === 'quizzes' && segments[3]) {

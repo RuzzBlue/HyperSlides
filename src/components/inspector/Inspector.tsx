@@ -1,10 +1,20 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 import {
   BarChart3,
   Bold,
+  Code2,
   Film,
   Heading1,
   List,
+  Maximize2,
+  Minimize2,
   StickyNote,
   Pin,
   Shapes,
@@ -16,6 +26,7 @@ import {
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
 import type { StringKey } from '../../i18n/strings';
+import { CodePanel, type CodeContext } from './CodePanel';
 
 export type InspectorTool =
   | 'graphs'
@@ -24,7 +35,8 @@ export type InspectorTool =
   | 'shape'
   | 'media'
   | 'animations'
-  | 'notes';
+  | 'notes'
+  | 'code';
 
 export type InspectorMode = 'docked' | 'floating';
 
@@ -35,6 +47,8 @@ export type NotesContext = {
   slideKey: string;
   notesFile?: string;
 };
+
+export type { CodeContext };
 
 /** Two overlapped windows — float / overlay affordance. */
 function FloatWindowsIcon({ className }: { className?: string }) {
@@ -64,7 +78,32 @@ const TOOL_META: Record<InspectorTool, { labelKey: StringKey; icon: ReactNode }>
   media: { labelKey: 'toolMedia', icon: <Film className="h-4 w-4" /> },
   animations: { labelKey: 'toolAnimations', icon: <Sparkles className="h-4 w-4" /> },
   notes: { labelKey: 'toolNotes', icon: <StickyNote className="h-4 w-4" /> },
+  code: { labelKey: 'toolCode', icon: <Code2 className="h-4 w-4" /> },
 };
+
+type FloatSize = {
+  width: number;
+  height: number;
+  minWidth: number;
+  minHeight: number;
+  resizable: 'height' | 'both';
+};
+
+export type FloatInsets = {
+  top: number;
+  left: number;
+  right: number;
+  bottom: number;
+};
+
+type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
+
+function floatSizeForTool(tool: InspectorTool): FloatSize {
+  if (tool === 'code') {
+    return { width: 680, height: 520, minWidth: 420, minHeight: 300, resizable: 'both' };
+  }
+  return { width: 360, height: 480, minWidth: 320, minHeight: 280, resizable: 'height' };
+}
 
 export function Inspector({
   tool,
@@ -73,7 +112,10 @@ export function Inspector({
   onClose,
   notesContext,
   onNotesBound,
+  codeContext,
+  onCodeSaved,
   floatResetToken = 0,
+  floatInsets,
 }: {
   tool: InspectorTool;
   mode: InspectorMode;
@@ -81,24 +123,43 @@ export function Inspector({
   onClose: () => void;
   notesContext?: NotesContext | null;
   onNotesBound?: (slideKey: string, notesFile: string) => void;
+  codeContext?: CodeContext | null;
+  onCodeSaved?: (slideKey: string) => void;
   /** Bump to re-center a floating inspector on screen. */
   floatResetToken?: number;
+  /** Content area insets for Code expand-to-fill (title/toolbar/sidebar/status). */
+  floatInsets?: FloatInsets;
 }) {
   const { tr } = usePrefs();
   const meta = TOOL_META[tool];
   const title = tr(meta.labelKey);
   const isNotes = tool === 'notes';
-
-  const [notesDirty, setNotesDirty] = useState(false);
-  const [notesSaving, setNotesSaving] = useState(false);
-  const [notesFileLabel, setNotesFileLabel] = useState<string | null>(
-    notesContext?.notesFile ?? null,
-  );
-  const notesSaveRef = useRef<(() => Promise<void>) | null>(null);
+  const isCode = tool === 'code';
+  const [codeExpanded, setCodeExpanded] = useState(false);
 
   useEffect(() => {
-    setNotesFileLabel(notesContext?.notesFile ?? null);
-  }, [notesContext?.notesFile, notesContext?.slideKey, tool]);
+    if (!isCode || mode !== 'floating') setCodeExpanded(false);
+  }, [isCode, mode, tool]);
+
+  const [panelDirty, setPanelDirty] = useState(false);
+  const [panelSaving, setPanelSaving] = useState(false);
+  const [fileLabel, setFileLabel] = useState<string | null>(
+    isCode ? (codeContext?.file ?? null) : (notesContext?.notesFile ?? null),
+  );
+  const panelSaveRef = useRef<(() => Promise<void>) | null>(null);
+
+  useEffect(() => {
+    if (isCode) setFileLabel(codeContext?.file ?? null);
+    else if (isNotes) setFileLabel(notesContext?.notesFile ?? null);
+  }, [
+    isCode,
+    isNotes,
+    codeContext?.file,
+    codeContext?.slideKey,
+    notesContext?.notesFile,
+    notesContext?.slideKey,
+    tool,
+  ]);
 
   const panel = (
     <>
@@ -120,6 +181,16 @@ export function Inspector({
         >
           {mode === 'docked' ? <FloatWindowsIcon className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
         </button>
+        {isCode && mode === 'floating' && (
+          <button
+            type="button"
+            title={codeExpanded ? tr('inspectorCodeCollapse') : tr('inspectorCodeExpand')}
+            onClick={() => setCodeExpanded((v) => !v)}
+            className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)] dark:hover:bg-white/10"
+          >
+            {codeExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </button>
+        )}
         <button
           type="button"
           title={tr('inspectorClose')}
@@ -134,14 +205,29 @@ export function Inspector({
         {isNotes && notesContext ? (
           <NotesPanel
             context={notesContext}
-            onDirtyChange={setNotesDirty}
-            onSavingChange={setNotesSaving}
-            onFileLabel={setNotesFileLabel}
+            onDirtyChange={setPanelDirty}
+            onSavingChange={setPanelSaving}
+            onFileLabel={setFileLabel}
             registerSave={(fn) => {
-              notesSaveRef.current = fn;
+              panelSaveRef.current = fn;
             }}
             onBound={onNotesBound}
           />
+        ) : isCode && codeContext ? (
+          <CodePanel
+            context={codeContext}
+            onDirtyChange={setPanelDirty}
+            onSavingChange={setPanelSaving}
+            onFileLabel={setFileLabel}
+            registerSave={(fn) => {
+              panelSaveRef.current = fn;
+            }}
+            onSaved={onCodeSaved}
+          />
+        ) : isCode && !codeContext ? (
+          <div className="flex flex-1 items-center justify-center px-4 text-center text-[12px] text-[var(--ink-muted)]">
+            {tr('inspectorCodeOnlyLessons')}
+          </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
             <InspectorBody tool={tool} />
@@ -150,24 +236,36 @@ export function Inspector({
       </div>
 
       <footer className="flex shrink-0 items-center gap-2 border-t border-[var(--line)] bg-[var(--panel)] px-3 py-2">
-        {isNotes ? (
+        {isNotes || isCode ? (
           <>
             <span className="w-[5.5rem] shrink-0 text-[10px] text-[var(--ink-muted)]">
-              {notesDirty ? tr('inspectorNotesUnsaved') : tr('inspectorNotesSaved')}
+              {panelDirty
+                ? isCode
+                  ? tr('inspectorCodeUnsaved')
+                  : tr('inspectorNotesUnsaved')
+                : isCode
+                  ? tr('inspectorCodeSaved')
+                  : tr('inspectorNotesSaved')}
             </span>
             <span
               className="min-w-0 flex-1 truncate text-center text-[10px] font-medium text-[var(--ink-muted)]"
-              title={notesFileLabel ?? undefined}
+              title={fileLabel ?? undefined}
             >
-              {notesFileLabel || '—'}
+              {fileLabel || '—'}
             </span>
             <button
               type="button"
-              disabled={notesSaving || !notesDirty}
-              onClick={() => void notesSaveRef.current?.()}
+              disabled={panelSaving || !panelDirty}
+              onClick={() => void panelSaveRef.current?.()}
               className="shrink-0 rounded-md bg-[var(--accent)] px-3 py-1.5 text-[11px] font-semibold text-white enabled:hover:brightness-110 disabled:opacity-40"
             >
-              {notesSaving ? tr('inspectorNotesSaving') : tr('inspectorNotesSave')}
+              {panelSaving
+                ? isCode
+                  ? tr('inspectorCodeSaving')
+                  : tr('inspectorNotesSaving')
+                : isCode
+                  ? tr('inspectorCodeSave')
+                  : tr('inspectorNotesSave')}
             </button>
           </>
         ) : (
@@ -188,7 +286,13 @@ export function Inspector({
 
   if (mode === 'floating') {
     return (
-      <FloatingShell title={title} resetToken={floatResetToken}>
+      <FloatingShell
+        title={title}
+        resetToken={floatResetToken}
+        size={floatSizeForTool(tool)}
+        expanded={isCode ? codeExpanded : false}
+        insets={floatInsets}
+      >
         {panel}
       </FloatingShell>
     );
@@ -204,44 +308,125 @@ export function Inspector({
   );
 }
 
+function expandedRect(insets?: FloatInsets) {
+  const pad = 8;
+  const top = insets?.top ?? 48 + 44;
+  const left = insets?.left ?? 0;
+  const right = insets?.right ?? 0;
+  const bottom = insets?.bottom ?? 32;
+  const x = left + pad;
+  const y = top + pad;
+  const width = Math.max(320, window.innerWidth - left - right - pad * 2);
+  const height = Math.max(240, window.innerHeight - top - bottom - pad * 2);
+  return { x, y, width, height };
+}
+
 function FloatingShell({
   title,
   resetToken,
+  size,
+  expanded = false,
+  insets,
   children,
 }: {
   title: string;
   resetToken: number;
+  size: FloatSize;
+  expanded?: boolean;
+  insets?: FloatInsets;
   children: ReactNode;
 }) {
-  const [pos, setPos] = useState(() => centerFloat(360, 480));
-  const [height, setHeight] = useState(480);
-  const width = 360;
+  const [pos, setPos] = useState(() => centerFloat(size.width, size.height));
+  const [width, setWidth] = useState(size.width);
+  const [height, setHeight] = useState(size.height);
+  const restoreRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const drag = useRef<{
-    kind: 'move' | 'resize';
+    kind: 'move' | 'resize-h' | 'resize';
+    edge?: ResizeEdge;
     ox: number;
     oy: number;
     sx: number;
     sy: number;
+    sw: number;
     sh: number;
   } | null>(null);
 
   useEffect(() => {
-    setPos(centerFloat(width, height));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- recenter on explicit Show
-  }, [resetToken]);
+    if (expanded) return;
+    setWidth(size.width);
+    setHeight(size.height);
+    setPos(centerFloat(size.width, size.height));
+  }, [size.width, size.height, size.resizable, resetToken, expanded]);
+
+  useEffect(() => {
+    if (expanded) {
+      if (!restoreRef.current) {
+        restoreRef.current = { x: pos.x, y: pos.y, width, height };
+      }
+      const next = expandedRect(insets);
+      setPos({ x: next.x, y: next.y });
+      setWidth(next.width);
+      setHeight(next.height);
+      return;
+    }
+    if (restoreRef.current) {
+      const prev = restoreRef.current;
+      restoreRef.current = null;
+      setPos({ x: prev.x, y: prev.y });
+      setWidth(prev.width);
+      setHeight(prev.height);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to expand/insets; restore captured on expand
+  }, [expanded, insets?.top, insets?.left, insets?.right, insets?.bottom]);
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
       if (!drag.current) return;
+      const dx = e.clientX - drag.current.ox;
+      const dy = e.clientY - drag.current.oy;
       if (drag.current.kind === 'move') {
         setPos({
-          x: drag.current.sx + (e.clientX - drag.current.ox),
-          y: drag.current.sy + (e.clientY - drag.current.oy),
+          x: drag.current.sx + dx,
+          y: drag.current.sy + dy,
         });
-      } else {
-        const nextH = Math.max(280, Math.min(window.innerHeight - 24, drag.current.sh + (e.clientY - drag.current.oy)));
-        setHeight(nextH);
+        return;
       }
+      if (drag.current.kind === 'resize-h') {
+        const nextH = Math.max(
+          size.minHeight,
+          Math.min(window.innerHeight - 24, drag.current.sh + dy),
+        );
+        setHeight(nextH);
+        return;
+      }
+      const edge = drag.current.edge ?? 'se';
+      let nextX = drag.current.sx;
+      let nextY = drag.current.sy;
+      let nextW = drag.current.sw;
+      let nextH = drag.current.sh;
+      if (edge.includes('e')) nextW = drag.current.sw + dx;
+      if (edge.includes('s')) nextH = drag.current.sh + dy;
+      if (edge.includes('w')) {
+        nextW = drag.current.sw - dx;
+        nextX = drag.current.sx + dx;
+      }
+      if (edge.includes('n')) {
+        nextH = drag.current.sh - dy;
+        nextY = drag.current.sy + dy;
+      }
+      if (nextW < size.minWidth) {
+        if (edge.includes('w')) nextX = drag.current.sx + (drag.current.sw - size.minWidth);
+        nextW = size.minWidth;
+      }
+      if (nextH < size.minHeight) {
+        if (edge.includes('n')) nextY = drag.current.sy + (drag.current.sh - size.minHeight);
+        nextH = size.minHeight;
+      }
+      nextW = Math.min(nextW, window.innerWidth - 16);
+      nextH = Math.min(nextH, window.innerHeight - 16);
+      setPos({ x: nextX, y: nextY });
+      setWidth(nextW);
+      setHeight(nextH);
     };
     const onUp = () => {
       drag.current = null;
@@ -254,7 +439,33 @@ function FloatingShell({
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, []);
+  }, [size.minHeight, size.minWidth]);
+
+  const startResize = (edge: ResizeEdge, cursor: string) => (e: ReactPointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    drag.current = {
+      kind: 'resize',
+      edge,
+      ox: e.clientX,
+      oy: e.clientY,
+      sx: pos.x,
+      sy: pos.y,
+      sw: width,
+      sh: height,
+    };
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = cursor;
+  };
+
+  const edgeHandle = (edge: ResizeEdge, className: string, cursor: string) => (
+    <div
+      key={edge}
+      className={`absolute z-10 ${className}`}
+      style={{ cursor }}
+      onPointerDown={startResize(edge, cursor)}
+    />
+  );
 
   return (
     <div
@@ -264,8 +475,11 @@ function FloatingShell({
       aria-label={title}
     >
       <div
-        className="flex h-6 shrink-0 cursor-grab items-center justify-center border-b border-[var(--line)] bg-[var(--panel)] active:cursor-grabbing"
+        className={`flex h-6 shrink-0 items-center justify-center border-b border-[var(--line)] bg-[var(--panel)] ${
+          expanded ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+        }`}
         onPointerDown={(e) => {
+          if (expanded) return;
           e.preventDefault();
           drag.current = {
             kind: 'move',
@@ -273,6 +487,7 @@ function FloatingShell({
             oy: e.clientY,
             sx: pos.x,
             sy: pos.y,
+            sw: width,
             sh: height,
           };
           document.body.style.userSelect = 'none';
@@ -282,23 +497,39 @@ function FloatingShell({
         <div className="h-1 w-10 rounded-full bg-[var(--line)]" />
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
-      <div
-        className="absolute inset-x-0 bottom-0 z-10 h-2 cursor-ns-resize"
-        onPointerDown={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          drag.current = {
-            kind: 'resize',
-            ox: e.clientX,
-            oy: e.clientY,
-            sx: pos.x,
-            sy: pos.y,
-            sh: height,
-          };
-          document.body.style.userSelect = 'none';
-          document.body.style.cursor = 'ns-resize';
-        }}
-      />
+      {!expanded && size.resizable === 'height' && (
+        <div
+          className="absolute inset-x-0 bottom-0 z-10 h-2 cursor-ns-resize"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            drag.current = {
+              kind: 'resize-h',
+              ox: e.clientX,
+              oy: e.clientY,
+              sx: pos.x,
+              sy: pos.y,
+              sw: width,
+              sh: height,
+            };
+            document.body.style.userSelect = 'none';
+            document.body.style.cursor = 'ns-resize';
+          }}
+        />
+      )}
+      {!expanded && size.resizable === 'both' && (
+        <>
+          {edgeHandle('n', 'inset-x-2 top-0 h-1.5', 'ns-resize')}
+          {edgeHandle('s', 'inset-x-2 bottom-0 h-1.5', 'ns-resize')}
+          {edgeHandle('e', 'inset-y-2 right-0 w-1.5', 'ew-resize')}
+          {edgeHandle('w', 'inset-y-2 left-0 w-1.5', 'ew-resize')}
+          {edgeHandle('ne', 'right-0 top-0 h-3 w-3', 'nesw-resize')}
+          {edgeHandle('nw', 'left-0 top-0 h-3 w-3', 'nwse-resize')}
+          {edgeHandle('se', 'bottom-0 right-0 h-3 w-3', 'nwse-resize')}
+          {edgeHandle('sw', 'bottom-0 left-0 h-3 w-3', 'nesw-resize')}
+          <div className="pointer-events-none absolute bottom-1 right-1 z-20 h-2 w-2 border-b-2 border-r-2 border-[var(--ink-muted)] opacity-60" />
+        </>
+      )}
     </div>
   );
 }
@@ -641,6 +872,8 @@ function InspectorBody({ tool }: { tool: InspectorTool }) {
     case 'animations':
       return <AnimationsPanel />;
     case 'notes':
+      return null;
+    case 'code':
       return null;
   }
 }

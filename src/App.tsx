@@ -284,6 +284,16 @@ export default function App() {
       }
       setLastInspectorTool(tool);
       setInspectorTool(tool);
+      // Code opens floating by default (wider, resizable editor).
+      if (tool === 'code') {
+        setInspectorMode('floating');
+        setFloatResetToken((n) => n + 1);
+        setZoomBeforeInspector((prev) => {
+          if (prev) setContentZoom(prev);
+          return null;
+        });
+        return;
+      }
       // Docked insert tools push the stage; notes can stay at current zoom unless docked insert tools need space.
       if (inspectorMode === 'docked' && tool !== 'notes') {
         setZoomBeforeInspector((prev) => {
@@ -302,7 +312,7 @@ export default function App() {
   const handleInspectorMode = useCallback(
     (mode: InspectorMode) => {
       setInspectorMode(mode);
-      if (mode === 'docked' && inspectorTool && inspectorTool !== 'notes') {
+      if (mode === 'docked' && inspectorTool && inspectorTool !== 'notes' && inspectorTool !== 'code') {
         setZoomBeforeInspector((prev) => {
           if (prev) {
             setContentZoom('full-width');
@@ -353,6 +363,23 @@ export default function App() {
     });
   }, []);
 
+  const onCodeSaved = useCallback(
+    (slideKey: string) => {
+      if (!course || !current || current.key !== slideKey || current.type !== 'lesson' || !current.file) {
+        return;
+      }
+      void (async () => {
+        const res = await apiFetch<LessonPayload>({
+          method: 'GET',
+          path: `/api/courses/${course.summary.id}/lesson`,
+          params: { file: current.file! },
+        });
+        if (res.ok && res.data) setLesson(res.data);
+      })();
+    },
+    [course, current],
+  );
+
   useEffect(() => {
     if (current && current.type !== 'lesson' && inspectorTool && inspectorTool !== 'notes') {
       closeInspector();
@@ -402,6 +429,9 @@ export default function App() {
       if (view !== 'present' || !course) return;
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) {
+        return;
+      }
+      if ((e.target as HTMLElement)?.closest?.('.cm-editor')) {
         return;
       }
       if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
@@ -736,6 +766,16 @@ export default function App() {
                 : null
             }
             onNotesBound={onNotesBound}
+            codeContext={
+              course && current?.type === 'lesson'
+                ? {
+                    courseId: course.summary.id,
+                    slideKey: current.key,
+                    file: current.file,
+                  }
+                : null
+            }
+            onCodeSaved={onCodeSaved}
           />
         )}
       </div>
@@ -747,6 +787,12 @@ export default function App() {
           onModeChange={handleInspectorMode}
           onClose={closeInspector}
           floatResetToken={floatResetToken}
+          floatInsets={{
+            top: 48 + 44, // TitleBar + Toolbar
+            left: sidebarOpen ? sidebarWidth : 0,
+            right: 0,
+            bottom: fullscreenStage ? 0 : 32, // StatusBar
+          }}
           notesContext={
             course && current
               ? {
@@ -757,6 +803,16 @@ export default function App() {
               : null
           }
           onNotesBound={onNotesBound}
+          codeContext={
+            course && current?.type === 'lesson'
+              ? {
+                  courseId: course.summary.id,
+                  slideKey: current.key,
+                  file: current.file,
+                }
+              : null
+          }
+          onCodeSaved={onCodeSaved}
         />
       )}
 

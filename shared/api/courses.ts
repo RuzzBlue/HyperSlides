@@ -366,6 +366,47 @@ export function loadLesson(
   };
 }
 
+function resolveLessonFile(
+  appRoot: string,
+  courseId: string,
+  slideKey: string,
+): { course: LoadedCourse; item: SequenceItem; abs: string } | null {
+  const course = loadCourse(appRoot, courseId);
+  if (!course) return null;
+  const item = course.sequence.find((s) => s.key === slideKey);
+  if (!item || item.type !== 'lesson' || !item.file) return null;
+  const abs = path.resolve(course.rootPath, item.file);
+  const root = path.resolve(course.rootPath);
+  if (!abs.startsWith(root) || !fs.existsSync(abs)) return null;
+  return { course, item, abs };
+}
+
+/** Raw lesson HTML from disk (for the Code inspector). */
+export function readLessonSource(
+  appRoot: string,
+  courseId: string,
+  slideKey: string,
+): { slideKey: string; file: string; html: string } | null {
+  const resolved = resolveLessonFile(appRoot, courseId, slideKey);
+  if (!resolved) return null;
+  const html = fs.readFileSync(resolved.abs, 'utf-8').replace(/^\uFEFF/, '');
+  return { slideKey, file: resolved.item.file!, html };
+}
+
+/** Persist raw lesson HTML and return the saved payload. */
+export function writeLessonSource(
+  appRoot: string,
+  courseId: string,
+  slideKey: string,
+  html: string,
+): { slideKey: string; file: string; html: string } | null {
+  const resolved = resolveLessonFile(appRoot, courseId, slideKey);
+  if (!resolved) return null;
+  const next = html.replace(/^\uFEFF/, '');
+  fs.writeFileSync(resolved.abs, next, 'utf-8');
+  return { slideKey, file: resolved.item.file!, html: next };
+}
+
 export function loadQuiz(appRoot: string, courseId: string, quizId: string): QuizPayload | null {
   const course = loadCourse(appRoot, courseId);
   if (!course) return null;
