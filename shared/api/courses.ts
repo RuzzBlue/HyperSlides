@@ -22,6 +22,13 @@ import type {
   QuizQuestion,
   SequenceItem,
 } from '../types.ts';
+import {
+  applyAnswerKeyToQuestions,
+  randomizeQuestionOptions,
+  readEncryptedAnswerKey,
+  stripCorrectFromQuestions,
+} from './quizAnswerKeys.ts';
+
 /** Convert package widgets + strip full-document wrappers for in-app React staging. */
 function prepareLessonFragment(raw: string): string {
   let html = raw.trim();
@@ -415,8 +422,32 @@ export function loadQuiz(appRoot: string, courseId: string, quizId: string): Qui
   if (!fs.existsSync(activityPath)) return null;
   const activity = readJson<QuizActivity>(activityPath);
   const questionsPath = path.join(quizDir, activity.questionsFile || 'questions.json');
-  const questions = readJson<QuizQuestion[]>(questionsPath);
+  const rawQuestions = readJson<QuizQuestion[]>(questionsPath);
+
+  // Prefer encrypted answer-keys; fall back to inline `correct` for unmigrated quizzes.
+  const keyDoc = readEncryptedAnswerKey(course.rootPath, course.summary.id, quizId);
+  let questions = applyAnswerKeyToQuestions(rawQuestions, keyDoc);
+  if (!keyDoc) {
+    // Keep any inline correct for grading path; public GET still strips them.
+    questions = rawQuestions;
+  }
+
   return { activity, questions };
+}
+
+/** Public quiz payload for the client (no correct answers; options optionally shuffled). */
+export function loadQuizForClient(
+  appRoot: string,
+  courseId: string,
+  quizId: string,
+): QuizPayload | null {
+  const quiz = loadQuiz(appRoot, courseId, quizId);
+  if (!quiz) return null;
+  let questions = stripCorrectFromQuestions(quiz.questions);
+  if (quiz.activity.randomizeAnswers) {
+    questions = randomizeQuestionOptions(questions);
+  }
+  return { activity: quiz.activity, questions };
 }
 
 export function loadLab(appRoot: string, courseId: string, labId: string): LabPayload | null {

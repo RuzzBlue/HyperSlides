@@ -4,5 +4,6 @@
   "description": "A short, ungraded poll to reflect on your first wallet practice.",
   "passingScore": 0,
   "allowedRetries": 0,
-  "questionsFile": "questions.json"
+  "questionsFile": "questions.json",
+  "randomizeAnswers": false
 }

@@ -6,6 +6,7 @@ import {
   loadLab,
   loadLesson,
   loadQuiz,
+  loadQuizForClient,
   readLessonSource,
   readProgress,
   readSlideNotes,
@@ -271,13 +272,12 @@ export async function handleApiRequest(
     }
 
     if (method === 'GET' && segments[0] === 'courses' && segments[2] === 'quizzes' && segments[3]) {
-      const quiz = loadQuiz(ctx.appRoot, segments[1], segments[3]);
+      const quiz = loadQuizForClient(ctx.appRoot, segments[1], segments[3]);
       if (!quiz) return { ok: false, status: 404, error: 'Quiz not found' };
-      const safeQuestions = quiz.questions.map(({ correct: _c, ...rest }) => rest);
       return {
         ok: true,
         status: 200,
-        data: { activity: quiz.activity, questions: safeQuestions },
+        data: quiz,
       };
     }
 

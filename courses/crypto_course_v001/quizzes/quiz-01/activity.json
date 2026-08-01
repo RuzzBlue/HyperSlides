@@ -4,5 +4,6 @@
   "description": "Quick quiz after the wallet fundamentals lessons.",
   "passingScore": 70,
   "allowedRetries": 0,
-  "questionsFile": "questions.json"
+  "questionsFile": "questions.json",
+  "randomizeAnswers": false
 }

@@ -12,6 +12,7 @@ import type {
   SequenceItem,
 } from '../types.ts';
 import { loadCourse } from './courses.ts';
+import { writeEncryptedAnswerKey } from './quizAnswerKeys.ts';
 import { EMPTY_SLIDE_HTML } from './slideTemplate.ts';
 
 export type InsertKind = 'module' | 'unit' | 'lesson' | 'quiz' | 'lab';
@@ -131,9 +132,10 @@ function writeEmptyLesson(
   return file;
 }
 
-function writeEmptyQuiz(rootPath: string, quizId: string, title: string) {
+function writeEmptyQuiz(rootPath: string, courseId: string, quizId: string, title: string) {
   const dir = path.join(rootPath, 'quizzes', quizId);
   ensureDir(dir);
+  ensureDir(path.join(rootPath, 'quizzes', 'answer-keys'));
   writeJson(path.join(dir, 'activity.json'), {
     id: quizId,
     title,
@@ -141,8 +143,14 @@ function writeEmptyQuiz(rootPath: string, quizId: string, title: string) {
     passingScore: 70,
     allowedRetries: 0,
     questionsFile: 'questions.json',
+    randomizeAnswers: false,
   });
   writeJson(path.join(dir, 'questions.json'), []);
+  writeEncryptedAnswerKey(rootPath, courseId, {
+    quizId,
+    version: 1,
+    answers: {},
+  });
 }
 
 function writeEmptyLab(rootPath: string, labId: string, title: string) {
@@ -302,7 +310,7 @@ export function insertCourseItem(
     if (!unit.items) unit.items = [];
     const quizId = nextId(allQuizIds(manifest), 'quiz');
     const title = 'Quiz';
-    writeEmptyQuiz(rootPath, quizId, title);
+    writeEmptyQuiz(rootPath, courseId, quizId, title);
     const entry: CourseQuizEntry = { type: 'quiz', id: quizId, title };
     unit.items = insertIntoItems(unit.items, itemIndex, entry);
     focusKey = `quiz:${quizId}`;

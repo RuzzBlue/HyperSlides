@@ -11,6 +11,10 @@ import type {
   StructureTarget,
 } from '../types.ts';
 import { loadCourse } from './courses.ts';
+import {
+  readEncryptedAnswerKey,
+  writeEncryptedAnswerKey,
+} from './quizAnswerKeys.ts';
 import { EMPTY_SLIDE_HTML } from './slideTemplate.ts';
 
 export type { StructureDropTarget, StructureTarget };
@@ -156,6 +160,7 @@ function copyDirRecursive(src: string, dest: string) {
 function deleteEntryArtifacts(rootPath: string, entry: CourseSequenceEntry, lessonDir?: string) {
   if (entry.type === 'quiz') {
     rmDirSafe(path.join(rootPath, 'quizzes', entry.id));
+    rmFileSafe(path.join(rootPath, 'quizzes', 'answer-keys', `${entry.id}.json`));
   } else if (entry.type === 'lab') {
     rmDirSafe(path.join(rootPath, 'labs', entry.id));
     rmFileSafe(path.join(rootPath, 'labs', 'rubrics', `${entry.id}.json`));
@@ -308,7 +313,13 @@ export function deleteStructureNode(
   return reloadResult(appRoot, courseId, null);
 }
 
-function cloneQuiz(rootPath: string, sourceId: string, newId: string, title: string) {
+function cloneQuiz(
+  rootPath: string,
+  courseId: string,
+  sourceId: string,
+  newId: string,
+  title: string,
+) {
   const src = path.join(rootPath, 'quizzes', sourceId);
   const dest = path.join(rootPath, 'quizzes', newId);
   if (!fs.existsSync(src)) throw new Error('Quiz files not found');
@@ -319,6 +330,13 @@ function cloneQuiz(rootPath: string, sourceId: string, newId: string, title: str
     act.id = newId;
     act.title = title;
     writeJson(actPath, act);
+  }
+  const keyDoc = readEncryptedAnswerKey(rootPath, courseId, sourceId);
+  if (keyDoc) {
+    writeEncryptedAnswerKey(rootPath, courseId, {
+      ...keyDoc,
+      quizId: newId,
+    });
   }
 }
 
@@ -392,7 +410,7 @@ export function duplicateStructureItem(
   } else if (loc.entry.type === 'quiz') {
     const id = nextId(allQuizIds(manifest), 'quiz');
     const title = `${loc.entry.title} (copy)`;
-    cloneQuiz(rootPath, loc.entry.id, id, title);
+    cloneQuiz(rootPath, courseId, loc.entry.id, id, title);
     newEntry = { type: 'quiz', id, title, bg: loc.entry.bg };
   } else {
     const id = nextId(allLabIds(manifest), 'lab');

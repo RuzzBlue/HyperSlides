@@ -4,11 +4,19 @@
     "type": "multiple_choice",
     "prompt": "Lorem ipsum dolor sit amet, consectetur adipiscing elit — which option is correct?",
     "options": [
-      { "id": "a", "label": "Ut enim ad minim veniam" },
-      { "id": "b", "label": "Quis nostrud exercitation" },
-      { "id": "c", "label": "Duis aute irure dolor" }
+      {
+        "id": "a",
+        "label": "Ut enim ad minim veniam"
+      },
+      {
+        "id": "b",
+        "label": "Quis nostrud exercitation"
+      },
+      {
+        "id": "c",
+        "label": "Duis aute irure dolor"
+      }
     ],
-    "correct": "b",
     "explanation": "Placeholder explanation · option B is marked correct for the demo.",
     "points": 1
   },
@@ -17,12 +25,23 @@
     "type": "multiple_select",
     "prompt": "Select all that apply · sed do eiusmod tempor incididunt.",
     "options": [
-      { "id": "a", "label": "Labore et dolore magna" },
-      { "id": "b", "label": "Aliqua ut enim" },
-      { "id": "c", "label": "Adipiscing elit sed" },
-      { "id": "d", "label": "Nulla pariatur excepteur" }
+      {
+        "id": "a",
+        "label": "Labore et dolore magna"
+      },
+      {
+        "id": "b",
+        "label": "Aliqua ut enim"
+      },
+      {
+        "id": "c",
+        "label": "Adipiscing elit sed"
+      },
+      {
+        "id": "d",
+        "label": "Nulla pariatur excepteur"
+      }
     ],
-    "correct": ["a", "b", "d"],
     "explanation": "Demo multi-select · A, B, and D are correct.",
     "points": 2
   },
@@ -30,7 +49,6 @@
     "id": "q3",
     "type": "true_false",
     "prompt": "Excepteur sint occaecat cupidatat non proident is always true.",
-    "correct": false,
     "explanation": "Demo true/false · marked false.",
     "points": 1
   },
@@ -38,7 +56,6 @@
     "id": "q4",
     "type": "short_answer",
     "prompt": "Type a short answer · what word fills “lorem ______”?",
-    "correct": ["ipsum", "Ipsum"],
     "explanation": "Accepted answers: ipsum.",
     "points": 1
   },
@@ -47,11 +64,19 @@
     "type": "ordering",
     "prompt": "Put these lorem steps in order.",
     "options": [
-      { "id": "a", "label": "Dolor" },
-      { "id": "b", "label": "Sit" },
-      { "id": "c", "label": "Amet" }
+      {
+        "id": "a",
+        "label": "Dolor"
+      },
+      {
+        "id": "b",
+        "label": "Sit"
+      },
+      {
+        "id": "c",
+        "label": "Amet"
+      }
     ],
-    "correct": ["a", "b", "c"],
     "explanation": "Order: Dolor → Sit → Amet.",
     "points": 2
   },
@@ -60,14 +85,25 @@
     "type": "matching",
     "prompt": "Match each placeholder term.",
     "options": [
-      { "id": "l1", "label": "Lorem" },
-      { "id": "l2", "label": "Ipsum" }
+      {
+        "id": "l1",
+        "label": "Lorem"
+      },
+      {
+        "id": "l2",
+        "label": "Ipsum"
+      }
     ],
     "matchTargets": [
-      { "id": "r1", "label": "First word" },
-      { "id": "r2", "label": "Second word" }
+      {
+        "id": "r1",
+        "label": "First word"
+      },
+      {
+        "id": "r2",
+        "label": "Second word"
+      }
     ],
-    "correct": { "l1": "r1", "l2": "r2" },
     "explanation": "Lorem = first, Ipsum = second.",
     "points": 2
   },
@@ -75,7 +111,6 @@
     "id": "q7",
     "type": "fill_blank",
     "prompt": "Never forget the demo ________ phrase.",
-    "correct": ["lorem", "ipsum", "placeholder"],
     "explanation": "Any of: lorem, ipsum, placeholder.",
     "points": 1
   },
@@ -84,9 +119,18 @@
     "type": "poll",
     "prompt": "Which demo habit will you try first? (ungraded poll)",
     "options": [
-      { "id": "a", "label": "Skim layouts" },
-      { "id": "b", "label": "Click every component" },
-      { "id": "c", "label": "Run the lab" }
+      {
+        "id": "a",
+        "label": "Skim layouts"
+      },
+      {
+        "id": "b",
+        "label": "Click every component"
+      },
+      {
+        "id": "c",
+        "label": "Run the lab"
+      }
     ],
     "points": 0
   },
@@ -95,9 +139,18 @@
     "type": "poll",
     "prompt": "Pick any that apply · multi-select poll.",
     "options": [
-      { "id": "a", "label": "Cats" },
-      { "id": "b", "label": "Charts" },
-      { "id": "c", "label": "Callouts" }
+      {
+        "id": "a",
+        "label": "Cats"
+      },
+      {
+        "id": "b",
+        "label": "Charts"
+      },
+      {
+        "id": "c",
+        "label": "Callouts"
+      }
     ],
     "multiSelect": true,
     "points": 0

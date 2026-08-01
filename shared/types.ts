@@ -31,21 +31,6 @@ export interface QuizOption {
   label: string;
 }
 
-export interface QuizQuestion {
-  id: string;
-  type: QuestionType;
-  prompt: string;
-  options?: QuizOption[];
-  /** Right-side options for matching questions */
-  matchTargets?: QuizOption[];
-  /** Correct answer(s) — omitted for polls */
-  correct?: string | string[] | boolean | Record<string, string>;
-  explanation?: string;
-  points?: number;
-  /** When type is `poll`, allow selecting multiple options (checkbox UI). */
-  multiSelect?: boolean;
-}
-
 export interface QuizActivity {
   id: string;
   title: string;
@@ -60,6 +45,31 @@ export interface QuizActivity {
    */
   allowedRetries?: number;
   questionsFile: string;
+  /**
+   * When true, shuffle option / match-target order each time the quiz loads.
+   * Correct answers stay bound by question id + option id in the encrypted answer key.
+   */
+  randomizeAnswers?: boolean;
+}
+
+/** Correct answers live in `quizzes/answer-keys/{quizId}.json` (encrypted), not in questions.json. */
+export type QuizCorrectValue = string | string[] | boolean | Record<string, string>;
+
+export interface QuizQuestion {
+  id: string;
+  type: QuestionType;
+  prompt: string;
+  options?: QuizOption[];
+  /** Right-side options for matching questions */
+  matchTargets?: QuizOption[];
+  /**
+   * @deprecated Prefer encrypted answer-keys. Still accepted as a migration fallback when no key file exists.
+   */
+  correct?: QuizCorrectValue;
+  explanation?: string;
+  points?: number;
+  /** When type is `poll`, allow selecting multiple options (checkbox UI). */
+  multiSelect?: boolean;
 }
 
 export interface LabStep {

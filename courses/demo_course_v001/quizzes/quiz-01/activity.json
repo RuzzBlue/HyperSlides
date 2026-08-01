@@ -4,5 +4,6 @@
   "description": "Lorem ipsum kitchen-sink quiz covering every graded and poll question type.",
   "passingScore": 70,
   "allowedRetries": 2,
-  "questionsFile": "questions.json"
+  "questionsFile": "questions.json",
+  "randomizeAnswers": true
 }

@@ -1,5 +1,62 @@
 [
-  {"id":"q1","type":"poll","prompt":"How confident are you about identifying a legitimate wallet download?","options":[{"id":"a","label":"Still learning"},{"id":"b","label":"Somewhat confident"},{"id":"c","label":"Very confident"}],"points":0},
-  {"id":"q2","type":"poll","prompt":"Which part of the wallet journey needs more practice?","options":[{"id":"a","label":"Backing up safely"},{"id":"b","label":"Checking networks"},{"id":"c","label":"Understanding fees"}],"points":0},
-  {"id":"q3","type":"poll","prompt":"Would you use a test amount before a larger transfer?","options":[{"id":"a","label":"Always"},{"id":"b","label":"Usually"},{"id":"c","label":"I need more guidance"}],"points":0}
+  {
+    "id": "q1",
+    "type": "poll",
+    "prompt": "How confident are you about identifying a legitimate wallet download?",
+    "options": [
+      {
+        "id": "a",
+        "label": "Still learning"
+      },
+      {
+        "id": "b",
+        "label": "Somewhat confident"
+      },
+      {
+        "id": "c",
+        "label": "Very confident"
+      }
+    ],
+    "points": 0
+  },
+  {
+    "id": "q2",
+    "type": "poll",
+    "prompt": "Which part of the wallet journey needs more practice?",
+    "options": [
+      {
+        "id": "a",
+        "label": "Backing up safely"
+      },
+      {
+        "id": "b",
+        "label": "Checking networks"
+      },
+      {
+        "id": "c",
+        "label": "Understanding fees"
+      }
+    ],
+    "points": 0
+  },
+  {
+    "id": "q3",
+    "type": "poll",
+    "prompt": "Would you use a test amount before a larger transfer?",
+    "options": [
+      {
+        "id": "a",
+        "label": "Always"
+      },
+      {
+        "id": "b",
+        "label": "Usually"
+      },
+      {
+        "id": "c",
+        "label": "I need more guidance"
+      }
+    ],
+    "points": 0
+  }
 ]
