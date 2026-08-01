@@ -21,13 +21,34 @@
     "Quiet workspace with paper for demo notes"
   ],
   "sections": [
-    { "id": "overview", "title": "Overview", "file": "sections/01-overview.html" },
-    { "id": "prepare", "title": "Prepare", "file": "sections/02-prepare.html" },
-    { "id": "execute", "title": "Execute", "file": "sections/03-execute.html" },
-    { "id": "submit", "title": "Submit", "file": "sections/04-submit.html" }
+    {
+      "id": "overview",
+      "title": "Overview",
+      "file": "sections/01-overview.html"
+    },
+    {
+      "id": "prepare",
+      "title": "Prepare",
+      "file": "sections/02-prepare.html"
+    },
+    {
+      "id": "execute",
+      "title": "Execute",
+      "file": "sections/03-execute.html"
+    },
+    {
+      "id": "submit",
+      "title": "Submit",
+      "file": "sections/04-submit.html"
+    }
   ],
   "submission": {
-    "methods": ["screenshot", "url", "written", "confirmation"],
+    "methods": [
+      "screenshot",
+      "url",
+      "written",
+      "confirmation"
+    ],
     "allowEvidence": true
   }
 }

@@ -28,6 +28,10 @@ import { usePrefs } from '../../prefs/PrefsProvider';
 import type { StringKey } from '../../i18n/strings';
 import { CodePanel, type CodeContext } from './CodePanel';
 import { TemplatePickerButton } from './TemplatePicker';
+import { QuizEditPanel, type QuizEditContext } from './QuizEditPanel';
+import { QuestionTemplatePickerButton } from './QuestionTemplatePicker';
+import { LabEditPanel, type LabEditContext } from './LabEditPanel';
+import { LabSectionTemplatePickerButton } from './LabSectionTemplatePicker';
 
 export type InspectorTool =
   | 'graphs'
@@ -50,6 +54,8 @@ export type NotesContext = {
 };
 
 export type { CodeContext };
+export type { QuizEditContext };
+export type { LabEditContext };
 
 /** Two overlapped windows — float / overlay affordance. */
 function FloatWindowsIcon({ className }: { className?: string }) {
@@ -115,6 +121,10 @@ export function Inspector({
   onNotesBound,
   codeContext,
   onCodeSaved,
+  quizEditContext,
+  onQuizSaved,
+  labEditContext,
+  onLabSaved,
   floatResetToken = 0,
   floatInsets,
 }: {
@@ -126,6 +136,10 @@ export function Inspector({
   onNotesBound?: (slideKey: string, notesFile: string) => void;
   codeContext?: CodeContext | null;
   onCodeSaved?: (slideKey: string) => void;
+  quizEditContext?: QuizEditContext | null;
+  onQuizSaved?: (quizId: string) => void;
+  labEditContext?: LabEditContext | null;
+  onLabSaved?: (labId: string) => void;
   /** Bump to re-center a floating inspector on screen. */
   floatResetToken?: number;
   /** Content area insets for Code expand-to-fill (title/toolbar/sidebar/status). */
@@ -133,9 +147,24 @@ export function Inspector({
 }) {
   const { tr } = usePrefs();
   const meta = TOOL_META[tool];
-  const title = tr(meta.labelKey);
   const isNotes = tool === 'notes';
   const isCode = tool === 'code';
+  const editKind: 'lesson' | 'quiz' | 'lab' | null = !isCode
+    ? null
+    : quizEditContext
+      ? 'quiz'
+      : labEditContext
+        ? 'lab'
+        : codeContext
+          ? 'lesson'
+          : null;
+  const title = tr(
+    editKind === 'quiz'
+      ? 'toolCodeQuiz'
+      : editKind === 'lab'
+        ? 'toolCodeLab'
+        : meta.labelKey,
+  );
   const [codeExpanded, setCodeExpanded] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
@@ -149,7 +178,9 @@ export function Inspector({
   const [panelDirty, setPanelDirty] = useState(false);
   const [panelSaving, setPanelSaving] = useState(false);
   const [fileLabel, setFileLabel] = useState<string | null>(
-    isCode ? (codeContext?.file ?? null) : (notesContext?.notesFile ?? null),
+    isCode
+      ? (codeContext?.file ?? quizEditContext?.quizId ?? labEditContext?.labId ?? null)
+      : (notesContext?.notesFile ?? null),
   );
   const panelSaveRef = useRef<(() => Promise<void>) | null>(null);
   const panelInsertRef = useRef<((snippet: string) => void) | null>(null);
@@ -163,17 +194,32 @@ export function Inspector({
   }, []);
 
   useEffect(() => {
-    if (isCode) setFileLabel(codeContext?.file ?? null);
-    else if (isNotes) setFileLabel(notesContext?.notesFile ?? null);
+    if (isCode) {
+      setFileLabel(
+        codeContext?.file ?? quizEditContext?.quizId ?? labEditContext?.labId ?? null,
+      );
+    } else if (isNotes) setFileLabel(notesContext?.notesFile ?? null);
   }, [
     isCode,
     isNotes,
     codeContext?.file,
     codeContext?.slideKey,
+    quizEditContext?.quizId,
+    labEditContext?.labId,
     notesContext?.notesFile,
     notesContext?.slideKey,
     tool,
   ]);
+
+  const onTemplateInsert = (snippet: string) => {
+    const insert = panelInsertRef.current;
+    if (!insert) {
+      console.error('[HyperClass] Insert handler is not registered');
+      return false;
+    }
+    insert(snippet);
+    return true;
+  };
 
   const panel = (
     <>
@@ -187,19 +233,25 @@ export function Inspector({
           </div>
           <div className="truncate text-[13px] font-semibold text-[var(--ink)]">{title}</div>
         </div>
-        {isCode && (
+        {editKind === 'lesson' && (
           <TemplatePickerButton
             open={templatesOpen}
             onOpenChange={setTemplatesOpen}
-            onInsert={(html) => {
-              const insert = panelInsertRef.current;
-              if (!insert) {
-                console.error('[HyperClass] Code insert handler is not registered');
-                return false;
-              }
-              insert(html);
-              return true;
-            }}
+            onInsert={onTemplateInsert}
+          />
+        )}
+        {editKind === 'quiz' && (
+          <QuestionTemplatePickerButton
+            open={templatesOpen}
+            onOpenChange={setTemplatesOpen}
+            onInsert={onTemplateInsert}
+          />
+        )}
+        {editKind === 'lab' && (
+          <LabSectionTemplatePickerButton
+            open={templatesOpen}
+            onOpenChange={setTemplatesOpen}
+            onInsert={onTemplateInsert}
           />
         )}
         <button
@@ -258,7 +310,7 @@ export function Inspector({
             registerSave={registerSave}
             onBound={onNotesBound}
           />
-        ) : isCode && codeContext ? (
+        ) : editKind === 'lesson' && codeContext ? (
           <CodePanel
             context={codeContext}
             onDirtyChange={setPanelDirty}
@@ -268,9 +320,29 @@ export function Inspector({
             registerInsert={registerInsert}
             onSaved={onCodeSaved}
           />
-        ) : isCode && !codeContext ? (
+        ) : editKind === 'quiz' && quizEditContext ? (
+          <QuizEditPanel
+            context={quizEditContext}
+            onDirtyChange={setPanelDirty}
+            onSavingChange={setPanelSaving}
+            onFileLabel={setFileLabel}
+            registerSave={registerSave}
+            registerInsert={registerInsert}
+            onSaved={onQuizSaved}
+          />
+        ) : editKind === 'lab' && labEditContext ? (
+          <LabEditPanel
+            context={labEditContext}
+            onDirtyChange={setPanelDirty}
+            onSavingChange={setPanelSaving}
+            onFileLabel={setFileLabel}
+            registerSave={registerSave}
+            registerInsert={registerInsert}
+            onSaved={onLabSaved}
+          />
+        ) : isCode ? (
           <div className="flex flex-1 items-center justify-center px-4 text-center text-[12px] text-[var(--ink-muted)]">
-            {tr('inspectorCodeOnlyLessons')}
+            {tr('inspectorCodeUnavailable')}
           </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">

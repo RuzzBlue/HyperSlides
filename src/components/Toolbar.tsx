@@ -72,6 +72,14 @@ export function Toolbar({
         : tr('typeLesson');
 
   const insertEnabled = current?.type === 'lesson';
+  const codeEnabled =
+    current?.type === 'lesson' || current?.type === 'quiz' || current?.type === 'lab';
+  const codeTitle =
+    current?.type === 'quiz'
+      ? tr('toolCodeQuiz')
+      : current?.type === 'lab'
+        ? tr('toolCodeLab')
+        : tr('toolCode');
   const [draft, setDraft] = useState(String(total ? index + 1 : 0));
 
   useEffect(() => {
@@ -183,8 +191,8 @@ export function Toolbar({
 
           <button
             type="button"
-            title={insertEnabled ? tr('toolCode') : tr('inspectorCodeOnlyLessons')}
-            disabled={!insertEnabled}
+            title={codeEnabled ? codeTitle : tr('inspectorCodeUnavailable')}
+            disabled={!codeEnabled}
             onClick={() => onInspectorTool(inspectorTool === 'code' ? null : 'code')}
             className={`inline-flex cursor-pointer items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-semibold shadow-sm backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-35 ${
               inspectorTool === 'code'
@@ -193,7 +201,7 @@ export function Toolbar({
             }`}
           >
             <Code2 className="h-3.5 w-3.5" />
-            <span className="hidden xl:inline">{tr('toolCode')}</span>
+            <span className="hidden xl:inline">{codeTitle}</span>
           </button>
         </div>
       </div>

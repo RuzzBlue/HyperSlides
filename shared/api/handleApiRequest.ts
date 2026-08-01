@@ -1,4 +1,15 @@
-import type { ApiRequest, ApiResponse, QuizAnswerMap } from '../types.ts';
+import type {
+  ApiRequest,
+  ApiResponse,
+  LabActivity,
+  LabRubric,
+  LabSection,
+  QuizActivity,
+  QuizAnswerMap,
+  QuizQuestion,
+  StructureDropTarget,
+  StructureTarget,
+} from '../types.ts';
 import {
   gradeQuiz,
   listCourses,
@@ -17,6 +28,16 @@ import {
   writeSlideNotes,
 } from './courses.ts';
 import { listLessonTemplates, readLessonTemplateSource } from './lessonTemplates.ts';
+import {
+  addLabSection,
+  listLabSectionTemplates,
+  listQuizQuestionTemplates,
+  readLabSource,
+  readQuizSource,
+  uploadLabStarterFile,
+  writeLabSource,
+  writeQuizSource,
+} from './quizLabSource.ts';
 import { createCourse, deleteCourse, listThemeTemplates, updateCourse, uploadCourseThemeAsset, type CreateCourseInput } from './createCourse.ts';
 import { insertCourseItem, type InsertKind } from './insertCourseItem.ts';
 import {
@@ -25,7 +46,6 @@ import {
   moveStructureNode,
   renameStructureNode,
 } from './courseStructure.ts';
-import type { StructureDropTarget, StructureTarget } from '../types.ts';
 import { readUserState, updateUserState } from './userSettings.ts';
 
 export interface ApiContext {
@@ -269,6 +289,91 @@ export async function handleApiRequest(
       const saved = writeLessonSource(ctx.appRoot, segments[1], slideKey, html);
       if (!saved) return { ok: false, status: 404, error: 'Lesson not found' };
       return { ok: true, status: 200, data: saved };
+    }
+
+    if (method === 'GET' && segments[0] === 'courses' && segments[2] === 'quiz-source') {
+      const quizId = params?.quizId;
+      if (!quizId) return { ok: false, status: 400, error: 'Missing quizId' };
+      const source = readQuizSource(ctx.appRoot, segments[1], quizId);
+      if (!source) return { ok: false, status: 404, error: 'Quiz not found' };
+      return { ok: true, status: 200, data: source };
+    }
+
+    if (method === 'PUT' && segments[0] === 'courses' && segments[2] === 'quiz-source') {
+      const quizId = (body as { quizId?: string })?.quizId;
+      if (!quizId) return { ok: false, status: 400, error: 'quizId is required' };
+      const saved = writeQuizSource(ctx.appRoot, segments[1], {
+        quizId,
+        activity: (body as { activity?: Partial<QuizActivity> }).activity,
+        questions: (body as { questions?: QuizQuestion[] }).questions,
+        answers: (body as { answers?: QuizAnswerMap }).answers,
+      });
+      if (!saved) return { ok: false, status: 404, error: 'Quiz not found' };
+      return { ok: true, status: 200, data: saved };
+    }
+
+    if (method === 'GET' && segments[0] === 'quiz-question-templates') {
+      return { ok: true, status: 200, data: { templates: listQuizQuestionTemplates(ctx.appRoot) } };
+    }
+
+    if (method === 'GET' && segments[0] === 'courses' && segments[2] === 'lab-source') {
+      const labId = params?.labId;
+      if (!labId) return { ok: false, status: 400, error: 'Missing labId' };
+      const source = readLabSource(ctx.appRoot, segments[1], labId);
+      if (!source) return { ok: false, status: 404, error: 'Lab not found' };
+      return { ok: true, status: 200, data: source };
+    }
+
+    if (method === 'PUT' && segments[0] === 'courses' && segments[2] === 'lab-source') {
+      const labId = (body as { labId?: string })?.labId;
+      if (!labId) return { ok: false, status: 400, error: 'labId is required' };
+      const saved = writeLabSource(ctx.appRoot, segments[1], {
+        labId,
+        activity: (body as { activity?: LabActivity }).activity,
+        sections: (body as { sections?: Array<LabSection & { html: string }> }).sections,
+        rubric: (body as { rubric?: LabRubric }).rubric,
+        deleteSectionIds: (body as { deleteSectionIds?: string[] }).deleteSectionIds,
+      });
+      if (!saved) return { ok: false, status: 404, error: 'Lab not found' };
+      return { ok: true, status: 200, data: saved };
+    }
+
+    if (
+      method === 'POST' &&
+      segments[0] === 'courses' &&
+      segments[2] === 'labs' &&
+      segments[4] === 'sections' &&
+      segments[5] === 'add'
+    ) {
+      const title = (body as { title?: string })?.title;
+      const saved = addLabSection(ctx.appRoot, segments[1], segments[3], title);
+      if (!saved) return { ok: false, status: 404, error: 'Lab not found' };
+      return { ok: true, status: 200, data: saved };
+    }
+
+    if (
+      method === 'POST' &&
+      segments[0] === 'courses' &&
+      segments[2] === 'labs' &&
+      segments[4] === 'starter-files'
+    ) {
+      const payload = (body ?? {}) as { filename?: string; dataBase64?: string };
+      if (!payload.filename || !payload.dataBase64) {
+        return { ok: false, status: 400, error: 'filename and dataBase64 are required' };
+      }
+      const saved = uploadLabStarterFile(
+        ctx.appRoot,
+        segments[1],
+        segments[3],
+        payload.filename,
+        payload.dataBase64,
+      );
+      if (!saved) return { ok: false, status: 404, error: 'Lab not found' };
+      return { ok: true, status: 200, data: saved };
+    }
+
+    if (method === 'GET' && segments[0] === 'lab-section-templates') {
+      return { ok: true, status: 200, data: { templates: listLabSectionTemplates(ctx.appRoot) } };
     }
 
     if (method === 'GET' && segments[0] === 'courses' && segments[2] === 'quizzes' && segments[3]) {

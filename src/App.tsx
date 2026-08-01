@@ -380,10 +380,74 @@ export default function App() {
     [course, current],
   );
 
+  const onQuizSaved = useCallback(
+    (quizId: string) => {
+      if (!course || !current || current.type !== 'quiz' || current.activityId !== quizId) return;
+      void (async () => {
+        const res = await apiFetch<QuizPayload>({
+          method: 'GET',
+          path: `/api/courses/${course.summary.id}/quizzes/${quizId}`,
+        });
+        if (res.ok && res.data) setQuiz(res.data);
+        // Refresh course so sidebar title updates if renamed
+        const courseRes = await apiFetch<Omit<LoadedCourse, 'rootPath'>>({
+          method: 'GET',
+          path: `/api/courses/${course.summary.id}`,
+        });
+        if (courseRes.ok && courseRes.data) {
+          setCourse((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  summary: courseRes.data!.summary,
+                  sequence: courseRes.data!.sequence,
+                  manifest: courseRes.data!.manifest,
+                }
+              : prev,
+          );
+        }
+      })();
+    },
+    [course, current],
+  );
+
+  const onLabSaved = useCallback(
+    (labId: string) => {
+      if (!course || !current || current.type !== 'lab' || current.activityId !== labId) return;
+      void (async () => {
+        const res = await apiFetch<LabPayload>({
+          method: 'GET',
+          path: `/api/courses/${course.summary.id}/labs/${labId}`,
+        });
+        if (res.ok && res.data) setLab(res.data);
+        const courseRes = await apiFetch<Omit<LoadedCourse, 'rootPath'>>({
+          method: 'GET',
+          path: `/api/courses/${course.summary.id}`,
+        });
+        if (courseRes.ok && courseRes.data) {
+          setCourse((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  summary: courseRes.data!.summary,
+                  sequence: courseRes.data!.sequence,
+                  manifest: courseRes.data!.manifest,
+                }
+              : prev,
+          );
+        }
+      })();
+    },
+    [course, current],
+  );
+
   useEffect(() => {
-    if (current && current.type !== 'lesson' && inspectorTool && inspectorTool !== 'notes') {
-      closeInspector();
-    }
+    if (!current || !inspectorTool || inspectorTool === 'notes') return;
+    const codeOk =
+      inspectorTool === 'code' &&
+      (current.type === 'lesson' || current.type === 'quiz' || current.type === 'lab');
+    const insertOk = inspectorTool !== 'code' && current.type === 'lesson';
+    if (!codeOk && !insertOk) closeInspector();
   }, [current, inspectorTool, closeInspector]);
 
   useEffect(() => {
@@ -776,6 +840,18 @@ export default function App() {
                 : null
             }
             onCodeSaved={onCodeSaved}
+            quizEditContext={
+              course && current?.type === 'quiz' && current.activityId
+                ? { courseId: course.summary.id, quizId: current.activityId }
+                : null
+            }
+            onQuizSaved={onQuizSaved}
+            labEditContext={
+              course && current?.type === 'lab' && current.activityId
+                ? { courseId: course.summary.id, labId: current.activityId }
+                : null
+            }
+            onLabSaved={onLabSaved}
           />
         )}
       </div>
@@ -813,6 +889,18 @@ export default function App() {
               : null
           }
           onCodeSaved={onCodeSaved}
+          quizEditContext={
+            course && current?.type === 'quiz' && current.activityId
+              ? { courseId: course.summary.id, quizId: current.activityId }
+              : null
+          }
+          onQuizSaved={onQuizSaved}
+          labEditContext={
+            course && current?.type === 'lab' && current.activityId
+              ? { courseId: course.summary.id, labId: current.activityId }
+              : null
+          }
+          onLabSaved={onLabSaved}
         />
       )}
 
