@@ -50,6 +50,8 @@ export interface QuizActivity {
    * Correct answers stay bound by question id + option id in the encrypted answer key.
    */
   randomizeAnswers?: boolean;
+  /** When true, show each question's point value as a badge on the quiz card. */
+  showQuestionPoints?: boolean;
 }
 
 /** Correct answers live in `quizzes/answer-keys/{quizId}.json` (encrypted), not in questions.json. */

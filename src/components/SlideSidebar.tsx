@@ -411,7 +411,7 @@ export function SlideSidebar({
             document.body.style.cursor = 'col-resize';
             document.body.style.userSelect = 'none';
           }}
-          className="absolute inset-y-0 right-0 z-10 w-1.5 cursor-col-resize touch-none hover:bg-[var(--accent)]/25 active:bg-[var(--accent)]/40"
+          className="absolute inset-y-0 left-full z-20 w-1.5 cursor-col-resize touch-none hover:bg-[var(--accent)]/25 active:bg-[var(--accent)]/40"
         />
       )}
 

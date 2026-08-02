@@ -212,9 +212,39 @@ export function QuizView({
               'border-indigo-300 bg-indigo-50/50 ring-1 ring-indigo-200 dark:border-indigo-600 dark:bg-indigo-950/30';
           }
 
+          const showPoints = Boolean(payload.activity.showQuestionPoints) && !isPoll;
+
           return (
-            <div key={q.id} className={`rounded-2xl border-2 p-5 shadow-sm ${cardClass}`}>
-              <div className="mb-3 flex items-start gap-2">
+            <div key={q.id} className={`relative rounded-2xl border-2 p-5 shadow-sm ${cardClass}`}>
+              {(showPoints || (graded && !isPoll)) && (
+                <div className="absolute right-3 top-3 flex items-center gap-1.5">
+                  {showPoints && (
+                    <span className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--quiz)_35%,transparent)] bg-[var(--quiz-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--quiz)]">
+                      {trf('quizQuestionPoints', { points: q.points ?? 1 })}
+                    </span>
+                  )}
+                  {graded && !isPoll && (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
+                        graded.correct
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-rose-600 text-white'
+                      }`}
+                    >
+                      {graded.correct ? (
+                        <>
+                          <CheckCircle2 className="h-3.5 w-3.5" /> {tr('quizCorrect')}
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="h-3.5 w-3.5" /> {tr('quizIncorrect')}
+                        </>
+                      )}
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className={`mb-3 flex items-start gap-2 ${showPoints || graded ? 'pr-24' : ''}`}>
                 <span
                   className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
                     graded && !isPoll
@@ -236,25 +266,6 @@ export function QuizView({
                     {isPoll ? ` · ${tr('quizPollNoAnswer')}` : ''}
                   </div>
                 </div>
-                {graded && !isPoll && (
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
-                      graded.correct
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-rose-600 text-white'
-                    }`}
-                  >
-                    {graded.correct ? (
-                      <>
-                        <CheckCircle2 className="h-3.5 w-3.5" /> {tr('quizCorrect')}
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="h-3.5 w-3.5" /> {tr('quizIncorrect')}
-                      </>
-                    )}
-                  </span>
-                )}
               </div>
 
               <QuestionInput

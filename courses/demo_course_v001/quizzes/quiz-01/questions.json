@@ -18,7 +18,7 @@
       }
     ],
     "explanation": "Placeholder explanation · option B is marked correct for the demo.",
-    "points": 1
+    "points": 0
   },
   {
     "id": "q2",
@@ -57,7 +57,7 @@
     "type": "short_answer",
     "prompt": "Type a short answer · what word fills “lorem ______”?",
     "explanation": "Accepted answers: ipsum.",
-    "points": 1
+    "points": 0
   },
   {
     "id": "q5",

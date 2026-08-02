@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
 import type { EditorView } from '@codemirror/view';
-import { ArrowDown, ArrowUp } from 'lucide-react';
+import { ArrowDown, ArrowUp, Info } from 'lucide-react';
 import type { QuizActivity, QuizAnswerMap, QuizQuestion } from '@shared/types';
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
@@ -33,7 +34,31 @@ function emptyActivity(quizId: string): QuizActivity {
     allowedRetries: 0,
     questionsFile: 'questions.json',
     randomizeAnswers: false,
+    showQuestionPoints: false,
   };
+}
+
+function computePointsSummary(text: string): {
+  total: number;
+  gradedCount: number;
+  valid: boolean;
+} {
+  try {
+    const value = JSON.parse(text);
+    if (!Array.isArray(value)) return { total: 0, gradedCount: 0, valid: false };
+    let total = 0;
+    let gradedCount = 0;
+    for (const q of value) {
+      if (!q || typeof q !== 'object') continue;
+      if ((q as QuizQuestion).type === 'poll') continue;
+      gradedCount += 1;
+      const pts = (q as QuizQuestion).points;
+      total += typeof pts === 'number' && Number.isFinite(pts) ? pts : 1;
+    }
+    return { total, gradedCount, valid: true };
+  } catch {
+    return { total: 0, gradedCount: 0, valid: false };
+  }
 }
 
 export function QuizEditPanel({
@@ -53,7 +78,7 @@ export function QuizEditPanel({
   registerInsert?: (fn: (snippet: string) => void) => void;
   onSaved?: (quizId: string) => void;
 }) {
-  const { tr } = usePrefs();
+  const { tr, trf } = usePrefs();
   const [activity, setActivity] = useState<QuizActivity>(() => emptyActivity(context.quizId));
   const [questionsText, setQuestionsText] = useState('[]');
   const [answers, setAnswers] = useState<QuizAnswerMap>({});
@@ -62,6 +87,7 @@ export function QuizEditPanel({
   const [error, setError] = useState<string | null>(null);
   const [tabError, setTabError] = useState<string | null>(null);
   const [tab, setTab] = useState<QuizTab>('options');
+  const pointsSummary = useMemo(() => computePointsSummary(questionsText), [questionsText]);
 
   const viewRef = useRef<EditorView | null>(null);
   const activityRef = useRef(activity);
@@ -285,6 +311,11 @@ export function QuizEditPanel({
         <TabButton active={tab === 'answers'} onClick={() => switchTab('answers')}>
           {tr('inspectorQuizAnswersTab')}
         </TabButton>
+        {tab === 'questions' && (
+          <div className="ml-auto">
+            <QuestionsSchemaHelp tr={tr} />
+          </div>
+        )}
       </div>
 
       {(error || tabError) && (
@@ -372,29 +403,54 @@ export function QuizEditPanel({
                 />
                 {tr('inspectorQuizRandomize')}
               </label>
+              <label className="flex items-center gap-2 text-[12px] text-[var(--ink)]">
+                <input
+                  type="checkbox"
+                  checked={Boolean(activity.showQuestionPoints)}
+                  onChange={(e) =>
+                    setActivity((prev) => ({ ...prev, showQuestionPoints: e.target.checked }))
+                  }
+                  className="accent-[var(--accent)]"
+                />
+                {tr('inspectorQuizShowPoints')}
+              </label>
             </div>
           </div>
         ) : tab === 'questions' ? (
-          <div className="hc-code-editor min-h-0 flex-1 overflow-hidden">
-            <CodeMirror
-              value={questionsText}
-              height="100%"
-              theme="light"
-              extensions={extensions}
-              basicSetup={{
-                lineNumbers: true,
-                foldGutter: true,
-                highlightActiveLine: true,
-                bracketMatching: true,
-                autocompletion: true,
-                indentOnInput: true,
-              }}
-              onCreateEditor={(view) => {
-                viewRef.current = view;
-              }}
-              onChange={onQuestionsChange}
-              className="h-full text-[12px]"
-            />
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="flex shrink-0 items-center gap-2 border-b border-[var(--line)] bg-[var(--panel)] px-3 py-1.5">
+              <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-[var(--ink)]">
+                {pointsSummary.valid
+                  ? trf('inspectorQuizTotalPoints', { points: pointsSummary.total })
+                  : tr('inspectorQuizTotalPointsInvalid')}
+              </span>
+              {pointsSummary.valid && (
+                <span className="shrink-0 text-[10px] text-[var(--ink-muted)]">
+                  {trf('inspectorQuizGradedCount', { count: pointsSummary.gradedCount })}
+                </span>
+              )}
+            </div>
+            <div className="hc-code-editor min-h-0 flex-1 overflow-hidden">
+              <CodeMirror
+                value={questionsText}
+                height="100%"
+                theme="light"
+                extensions={extensions}
+                basicSetup={{
+                  lineNumbers: true,
+                  foldGutter: true,
+                  highlightActiveLine: true,
+                  bracketMatching: true,
+                  autocompletion: true,
+                  indentOnInput: true,
+                }}
+                onCreateEditor={(view) => {
+                  viewRef.current = view;
+                }}
+                onChange={onQuestionsChange}
+                className="h-full text-[12px]"
+              />
+            </div>
           </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
@@ -443,6 +499,201 @@ function TabButton({
     >
       {children}
     </button>
+  );
+}
+
+function Token({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone: 'bracket' | 'object' | 'comma' | 'key' | 'string';
+}) {
+  const color =
+    tone === 'bracket'
+      ? 'text-amber-700 bg-amber-50 ring-amber-200'
+      : tone === 'object'
+        ? 'text-sky-700 bg-sky-50 ring-sky-200'
+        : tone === 'comma'
+          ? 'text-rose-700 bg-rose-50 ring-rose-200'
+          : tone === 'key'
+            ? 'text-violet-700 bg-violet-50 ring-violet-200'
+            : 'text-emerald-700 bg-emerald-50 ring-emerald-200';
+  return (
+    <span className={`rounded px-1 py-0.5 font-mono text-[11px] font-semibold ring-1 ${color}`}>
+      {children}
+    </span>
+  );
+}
+
+type HelpMenuLayout = {
+  top: number;
+  left: number;
+  width: number;
+  maxHeight: number;
+};
+
+const HELP_MENU_WIDTH = 304;
+const HELP_MENU_PAD = 8;
+
+function measureHelpMenuLayout(anchor: HTMLElement): HelpMenuLayout {
+  const btn = anchor.getBoundingClientRect();
+  const panel =
+    anchor.closest<HTMLElement>('[data-inspector-panel]') ??
+    anchor.closest<HTMLElement>('[role="dialog"]');
+  const bounds = panel?.getBoundingClientRect() ?? {
+    top: HELP_MENU_PAD,
+    left: HELP_MENU_PAD,
+    right: window.innerWidth - HELP_MENU_PAD,
+    bottom: window.innerHeight - HELP_MENU_PAD,
+    width: window.innerWidth,
+    height: window.innerHeight,
+  };
+
+  const width = Math.min(HELP_MENU_WIDTH, Math.max(240, bounds.width - HELP_MENU_PAD * 2));
+  let left = btn.right - width;
+  left = Math.max(bounds.left + HELP_MENU_PAD, Math.min(left, bounds.right - width - HELP_MENU_PAD));
+  left = Math.max(HELP_MENU_PAD, Math.min(left, window.innerWidth - width - HELP_MENU_PAD));
+
+  const spaceBelow = Math.min(bounds.bottom, window.innerHeight - HELP_MENU_PAD) - (btn.bottom + 4);
+  const spaceAbove = btn.top - 4 - Math.max(bounds.top, HELP_MENU_PAD);
+  const panelCap = Math.max(120, bounds.height - HELP_MENU_PAD * 2);
+  const openUp = spaceBelow < 160 && spaceAbove > spaceBelow;
+  const available = Math.max(100, openUp ? spaceAbove : spaceBelow);
+  const maxHeight = Math.min(available, panelCap);
+  const top = openUp ? btn.top - 4 - maxHeight : btn.bottom + 4;
+
+  return { top, left, width, maxHeight };
+}
+
+function QuestionsSchemaHelp({ tr }: { tr: Translate }) {
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [layout, setLayout] = useState<HelpMenuLayout | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) {
+      setLayout(null);
+      return;
+    }
+    const update = () => {
+      if (!buttonRef.current) return;
+      setLayout(measureHelpMenuLayout(buttonRef.current));
+    };
+    update();
+    const panel =
+      buttonRef.current.closest<HTMLElement>('[data-inspector-panel]') ??
+      buttonRef.current.closest<HTMLElement>('[role="dialog"]');
+    const ro = new ResizeObserver(update);
+    if (panel) ro.observe(panel);
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        ref={buttonRef}
+        type="button"
+        title={tr('inspectorQuizSchemaHelpTitle')}
+        onClick={() => setOpen((v) => !v)}
+        className={`cursor-pointer rounded-md p-1 ${
+          open
+            ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+            : 'text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)]'
+        }`}
+      >
+        <Info className="h-3.5 w-3.5" />
+      </button>
+      {open &&
+        layout &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="fixed z-[120] overflow-y-auto rounded-lg border border-[var(--line)] bg-[var(--stage)] p-3 text-[var(--ink)] shadow-xl"
+            style={{
+              top: layout.top,
+              left: layout.left,
+              width: layout.width,
+              maxHeight: layout.maxHeight,
+            }}
+            role="dialog"
+            aria-label={tr('inspectorQuizSchemaHelpTitle')}
+          >
+            <div className="text-[11px] font-semibold text-[var(--ink)]">
+              {tr('inspectorQuizSchemaHelpTitle')}
+            </div>
+            <p className="mt-1 text-[11px] leading-snug text-[var(--ink-muted)]">
+              {tr('inspectorQuizSchemaHelpIntro')}
+            </p>
+
+            <div className="mt-2.5 rounded-md border border-[var(--line)] bg-[var(--panel)] px-2.5 py-2">
+              <div className="flex flex-wrap items-center gap-1">
+                <Token tone="bracket">[</Token>
+                <Token tone="object">{'{ … }'}</Token>
+                <Token tone="comma">,</Token>
+                <Token tone="object">{'{ … }'}</Token>
+                <Token tone="bracket">]</Token>
+              </div>
+              <p className="mt-1.5 text-[10px] leading-snug text-[var(--ink-muted)]">
+                {tr('inspectorQuizSchemaHelpArray')}
+              </p>
+            </div>
+
+            <div className="mt-2 rounded-md border border-[var(--line)] bg-[var(--panel)] px-2.5 py-2">
+              <div className="flex flex-wrap items-center gap-1">
+                <Token tone="object">{'{'}</Token>
+                <Token tone="key">"id"</Token>
+                <span className="text-[11px] text-[var(--ink-muted)]">:</span>
+                <Token tone="string">"q1"</Token>
+                <Token tone="comma">,</Token>
+                <Token tone="key">"type"</Token>
+                <span className="text-[11px] text-[var(--ink-muted)]">:</span>
+                <Token tone="string">"multiple_choice"</Token>
+                <Token tone="object">{'}'}</Token>
+              </div>
+              <p className="mt-1.5 text-[10px] leading-snug text-[var(--ink-muted)]">
+                {tr('inspectorQuizSchemaHelpObject')}
+              </p>
+            </div>
+
+            <ul className="mt-2 space-y-1 text-[10px] leading-snug text-[var(--ink-muted)]">
+              <li>
+                <span className="font-semibold text-rose-700">
+                  {tr('inspectorQuizSchemaHelpNoTrailing')}
+                </span>
+                {' — '}
+                {tr('inspectorQuizSchemaHelpNoTrailingDetail')}
+              </li>
+              <li>
+                <span className="font-semibold text-sky-700">
+                  {tr('inspectorQuizSchemaHelpComma')}
+                </span>
+                {' — '}
+                {tr('inspectorQuizSchemaHelpCommaDetail')}
+              </li>
+            </ul>
+          </div>,
+          document.body,
+        )}
+    </div>
   );
 }
 
