@@ -64,13 +64,6 @@ export function Toolbar({
   onOpenCourseSettings?: () => void;
 }) {
   const { tr } = usePrefs();
-  const typeLabel =
-    current?.type === 'quiz'
-      ? tr('typeQuiz')
-      : current?.type === 'lab'
-        ? tr('typeLab')
-        : tr('typeLesson');
-
   const insertEnabled = current?.type === 'lesson';
   const codeEnabled =
     current?.type === 'lesson' || current?.type === 'quiz' || current?.type === 'lab';
@@ -126,24 +119,20 @@ export function Toolbar({
           <MonitorCog className="h-5 w-5" />
         </button>
 
-        <div className="mx-1 h-5 w-px bg-[var(--line)]" />
-
-        <div className="flex min-w-0 items-center gap-2">
-          <span
-            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-              current?.type === 'quiz'
-                ? 'bg-[var(--quiz-soft)] text-[var(--quiz)]'
-                : current?.type === 'lab'
-                  ? 'bg-[var(--lab-soft)] text-[var(--lab)]'
-                  : 'bg-[var(--accent-soft)] text-[var(--accent)]'
-            }`}
-          >
-            {typeLabel}
-          </span>
-          <span className="hidden max-w-[280px] truncate text-[12px] text-[var(--ink-muted)] lg:inline">
-            {current?.title}
-          </span>
-        </div>
+        <button
+          type="button"
+          title={codeEnabled ? codeTitle : tr('inspectorCodeUnavailable')}
+          disabled={!codeEnabled}
+          onClick={() => onInspectorTool(inspectorTool === 'code' ? null : 'code')}
+          className={`inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
+            inspectorTool === 'code'
+              ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+              : 'text-[var(--ink-muted)] enabled:hover:bg-black/5 enabled:hover:text-[var(--ink)]'
+          }`}
+        >
+          <Code2 className="h-5 w-5" />
+          <span>{codeTitle}</span>
+        </button>
       </div>
 
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -187,21 +176,6 @@ export function Toolbar({
           >
             <StickyNote className="h-3.5 w-3.5" />
             <span className="hidden xl:inline">{tr('toolNotes')}</span>
-          </button>
-
-          <button
-            type="button"
-            title={codeEnabled ? codeTitle : tr('inspectorCodeUnavailable')}
-            disabled={!codeEnabled}
-            onClick={() => onInspectorTool(inspectorTool === 'code' ? null : 'code')}
-            className={`inline-flex cursor-pointer items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-semibold shadow-sm backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-35 ${
-              inspectorTool === 'code'
-                ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
-                : 'border-[var(--line)] bg-[var(--stage)]/95 text-[var(--ink-muted)] enabled:hover:bg-[var(--panel)] enabled:hover:text-[var(--ink)]'
-            }`}
-          >
-            <Code2 className="h-3.5 w-3.5" />
-            <span className="hidden xl:inline">{codeTitle}</span>
           </button>
         </div>
       </div>

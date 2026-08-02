@@ -5,6 +5,8 @@ import { usePrefs } from '../prefs/PrefsProvider';
 
 export function TitleBar({
   courseTitle,
+  itemType,
+  itemTitle,
   onHome,
   mode = 'library',
   onOpenSettings,
@@ -23,8 +25,11 @@ export function TitleBar({
   onInspectorTogglePin,
 }: {
   courseTitle?: string;
+  /** Current slide kind for the title-bar center (course mode). */
+  itemType?: 'lesson' | 'quiz' | 'lab';
+  itemTitle?: string;
   onHome: () => void;
-  /** library = brand only; course = home + brand lockup */
+  /** library = brand lockup; course = home + course title */
   mode?: 'library' | 'course';
   onOpenSettings: () => void;
   onOpenProfile: () => void;
@@ -46,6 +51,12 @@ export function TitleBar({
   const [sidebarViewMenuOpen, setSidebarViewMenuOpen] = useState(false);
   const [sidebarFullyExpanded, setSidebarFullyExpanded] = useState(false);
   const viewRef = useRef<HTMLDivElement>(null);
+  const typeLabel =
+    itemType === 'quiz'
+      ? tr('typeQuiz')
+      : itemType === 'lab'
+        ? tr('typeLab')
+        : tr('typeLesson');
 
   useEffect(() => {
     if (!viewOpen) {
@@ -79,14 +90,20 @@ export function TitleBar({
             <Hexagon className="h-4 w-4" strokeWidth={2.25} />
           </div>
         )}
-        <div className="leading-tight">
-          <div className="text-[13px] font-semibold tracking-wide text-[var(--ink)]">
-            {tr('appName')}
+        {mode === 'course' ? (
+          <div className="min-w-0 max-w-[14rem] truncate text-[14px] font-bold tracking-wide text-[var(--ink)] sm:max-w-[18rem] lg:max-w-[22rem]">
+            {courseTitle}
           </div>
-          <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-            {tr('appSubtitle')}
+        ) : (
+          <div className="leading-tight">
+            <div className="text-[13px] font-semibold tracking-wide text-[var(--ink)]">
+              {tr('appName')}
+            </div>
+            <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+              {tr('appSubtitle')}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="mx-4 h-5 w-px bg-[var(--line)]" />
@@ -213,9 +230,24 @@ export function TitleBar({
         <span className="cursor-pointer rounded px-2 py-1 hover:bg-black/5">Help</span>
       </nav>
 
-      <div className="min-w-0 flex-1 text-center">
-        {courseTitle && (
-          <span className="truncate text-[13px] font-medium text-[var(--ink)]">{courseTitle}</span>
+      <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2">
+        {mode === 'course' && itemTitle && (
+          <>
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                itemType === 'quiz'
+                  ? 'bg-[var(--quiz-soft)] text-[var(--quiz)]'
+                  : itemType === 'lab'
+                    ? 'bg-[var(--lab-soft)] text-[var(--lab)]'
+                    : 'bg-[var(--accent-soft)] text-[var(--accent)]'
+              }`}
+            >
+              {typeLabel}
+            </span>
+            <span className="hidden max-w-[280px] truncate text-[12px] text-[var(--ink-muted)] sm:inline">
+              {itemTitle}
+            </span>
+          </>
         )}
       </div>
 

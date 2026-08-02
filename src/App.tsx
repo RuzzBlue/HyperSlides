@@ -594,6 +594,8 @@ export default function App() {
       {!fullscreenStage && (
         <TitleBar
           courseTitle={course?.summary.title}
+          itemType={current?.type}
+          itemTitle={current?.title}
           onHome={() => {
             clearCourseSettings();
             setView('home');
