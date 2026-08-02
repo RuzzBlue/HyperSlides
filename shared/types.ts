@@ -20,16 +20,41 @@ export type QuestionType =
   | 'multiple_choice'
   | 'multiple_select'
   | 'true_false'
+  | 'this_or_that'
+  | 'these_or_those'
+  | 'dropdown'
+  | 'fill_blank'
   | 'short_answer'
+  | 'long_answer'
   | 'ordering'
   | 'matching'
-  | 'fill_blank'
+  | 'numeric'
+  | 'rating'
   | 'poll';
+
+export type NumericInputKind = 'number' | 'date' | 'time';
+export type NumericGradeMode = 'exact' | 'range' | 'tolerance';
+export type RatingDisplayType = 'numeric' | 'star' | 'slider';
 
 export interface QuizOption {
   id: string;
   label: string;
 }
+
+/** One select row inside a `dropdown` question. */
+export interface QuizDropdownGroup {
+  id: string;
+  label?: string;
+  options: QuizOption[];
+}
+
+/** Correct value shape for numeric exact / range / tolerance grading. */
+export type NumericGradeSpec = {
+  value?: number | string;
+  min?: number | string;
+  max?: number | string;
+  tolerance?: number;
+};
 
 export interface QuizActivity {
   id: string;
@@ -55,7 +80,15 @@ export interface QuizActivity {
 }
 
 /** Correct answers live in `quizzes/answer-keys/{quizId}.json` (encrypted), not in questions.json. */
-export type QuizCorrectValue = string | string[] | boolean | Record<string, string>;
+export type QuizCorrectValue =
+  | string
+  | string[]
+  | boolean
+  | number
+  | Record<string, string>
+  | NumericGradeSpec;
+
+export type QuizAnswerValue = QuizCorrectValue;
 
 export interface QuizQuestion {
   id: string;
@@ -64,14 +97,34 @@ export interface QuizQuestion {
   options?: QuizOption[];
   /** Right-side options for matching questions */
   matchTargets?: QuizOption[];
+  /** Select groups for `dropdown` questions (one correct option per group). */
+  dropdowns?: QuizDropdownGroup[];
   /**
    * @deprecated Prefer encrypted answer-keys. Still accepted as a migration fallback when no key file exists.
    */
   correct?: QuizCorrectValue;
   explanation?: string;
   points?: number;
-  /** When type is `poll`, allow selecting multiple options (checkbox UI). */
+  /** When type is `poll` or `these_or_those`, allow selecting multiple options. */
   multiSelect?: boolean;
+  /** `numeric` input control: number spinner, date picker, or time picker. */
+  numericInput?: NumericInputKind;
+  /** How the numeric answer key is evaluated. */
+  numericMode?: NumericGradeMode;
+  /** `rating` presentation: number buttons, stars, or slider. */
+  ratingType?: RatingDisplayType;
+  /** `rating` scale bounds (inclusive). */
+  ratingMin?: number;
+  ratingMax?: number;
+  /** `rating` step between options (whole numbers or decimals). */
+  ratingStep?: number;
+  /**
+   * For `rating` numeric/star: allow clearing the selection by clicking the
+   * current value again (stars: third click when half-steps are enabled).
+   */
+  deselect?: boolean;
+  /** Optional placeholder for short/long answer inputs. */
+  placeholder?: string;
 }
 
 export interface LabStep {
@@ -420,7 +473,7 @@ export interface LessonPayload {
 }
 
 export interface QuizAnswerMap {
-  [questionId: string]: string | string[] | boolean | Record<string, string>;
+  [questionId: string]: QuizAnswerValue;
 }
 
 export interface QuizGradeResult {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, CircleHelp, RotateCcw, XCircle } from 'lucide-react';
+import { CheckCircle2, CircleHelp, RotateCcw, Star, StarHalf, XCircle } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import type {
   QuizAnswerMap,
@@ -7,6 +7,7 @@ import type {
   QuizPayload,
   QuizQuestion,
 } from '@shared/types';
+import { isUngradedQuestion, ratingScaleValues } from '@shared/quizQuestions';
 import { usePrefs } from '../prefs/PrefsProvider';
 import type { StringKey } from '../i18n/strings';
 
@@ -74,7 +75,11 @@ export function QuizView({
         const v = answers[q.id];
         if (v === undefined || v === '') return false;
         if (Array.isArray(v)) return v.length > 0;
-        if (q.type === 'matching' && typeof v === 'object' && !Array.isArray(v)) {
+        if (
+          (q.type === 'matching' || q.type === 'dropdown') &&
+          typeof v === 'object' &&
+          !Array.isArray(v)
+        ) {
           return Object.keys(v).length > 0;
         }
         return true;
@@ -201,29 +206,29 @@ export function QuizView({
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-8 py-6">
         {payload.questions.map((q, i) => {
           const graded = resultFor(q.id);
-          const isPoll = q.type === 'poll';
+          const ungraded = isUngradedQuestion(q);
           let cardClass = 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900';
-          if (graded && !isPoll) {
+          if (graded && !ungraded) {
             cardClass = graded.correct
               ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-400/70 dark:border-emerald-400 dark:bg-emerald-950/40 dark:ring-emerald-500/50'
               : 'border-rose-500 bg-rose-50 ring-2 ring-rose-400/70 dark:border-rose-400 dark:bg-rose-950/40 dark:ring-rose-500/50';
-          } else if (graded && isPoll) {
+          } else if (graded && ungraded) {
             cardClass =
               'border-indigo-300 bg-indigo-50/50 ring-1 ring-indigo-200 dark:border-indigo-600 dark:bg-indigo-950/30';
           }
 
-          const showPoints = Boolean(payload.activity.showQuestionPoints) && !isPoll;
+          const showPoints = Boolean(payload.activity.showQuestionPoints) && !ungraded;
 
           return (
             <div key={q.id} className={`relative rounded-2xl border-2 p-5 shadow-sm ${cardClass}`}>
-              {(showPoints || (graded && !isPoll)) && (
+              {(showPoints || (graded && !ungraded)) && (
                 <div className="absolute right-3 top-3 flex items-center gap-1.5">
                   {showPoints && (
                     <span className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--quiz)_35%,transparent)] bg-[var(--quiz-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--quiz)]">
                       {trf('quizQuestionPoints', { points: q.points ?? 1 })}
                     </span>
                   )}
-                  {graded && !isPoll && (
+                  {graded && !ungraded && (
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
                         graded.correct
@@ -244,10 +249,12 @@ export function QuizView({
                   )}
                 </div>
               )}
-              <div className={`mb-3 flex items-start gap-2 ${showPoints || graded ? 'pr-24' : ''}`}>
+              <div
+                className={`mb-3 flex items-start gap-2 ${showPoints || (graded && !ungraded) ? 'pr-24' : ''}`}
+              >
                 <span
                   className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                    graded && !isPoll
+                    graded && !ungraded
                       ? graded.correct
                         ? 'bg-emerald-600 text-white'
                         : 'bg-rose-600 text-white'
@@ -262,8 +269,10 @@ export function QuizView({
                   </div>
                   <div className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
                     {q.type.replace(/_/g, ' ')}
-                    {isPoll && q.multiSelect ? ` · ${tr('quizPollMulti')}` : ''}
-                    {isPoll ? ` · ${tr('quizPollNoAnswer')}` : ''}
+                    {(q.type === 'poll' || q.type === 'these_or_those') && q.multiSelect
+                      ? ` · ${tr('quizPollMulti')}`
+                      : ''}
+                    {ungraded ? ` · ${tr('quizPollNoAnswer')}` : ''}
                   </div>
                 </div>
               </div>
@@ -280,7 +289,7 @@ export function QuizView({
               {graded?.explanation && (
                 <div
                   className={`mt-3 rounded-lg px-3 py-2 text-[13px] ${
-                    graded.correct || isPoll
+                    graded.correct || ungraded
                       ? 'bg-emerald-100/80 text-emerald-950 dark:bg-emerald-900/40 dark:text-emerald-100'
                       : 'bg-rose-100/80 text-rose-950 dark:bg-rose-900/40 dark:text-rose-100'
                   }`}
@@ -360,7 +369,7 @@ function QuestionInput({
 }) {
   if (question.type === 'true_false') {
     return (
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {[true, false].map((v) => {
           const selected = value === v;
           return (
@@ -376,6 +385,247 @@ function QuestionInput({
               }`}
             >
               {v ? tr('quizTrue') : tr('quizFalse')}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (question.type === 'this_or_that') {
+    // Single-select custom binary choice (like true/false with author labels).
+    return (
+      <div className="flex flex-wrap gap-2">
+        {question.options?.map((opt) => {
+          const selected = value === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange(opt.id)}
+              className={`rounded-lg border px-4 py-2 text-sm font-medium ${
+                selected
+                  ? 'border-[var(--quiz)] bg-[#e8eef8] text-[var(--quiz)] dark:border-sky-400 dark:bg-sky-950 dark:text-sky-100'
+                  : 'border-[var(--line)] bg-white text-[var(--ink)] dark:bg-slate-950 dark:text-slate-100'
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (question.type === 'these_or_those') {
+    const selected = Array.isArray(value) ? (value as string[]) : [];
+    return (
+      <div className="flex flex-wrap gap-2">
+        {question.options?.map((opt) => {
+          const on = selected.includes(opt.id);
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              disabled={disabled}
+              onClick={() => onToggle(opt.id)}
+              className={`rounded-lg border px-4 py-2 text-sm font-medium ${
+                on
+                  ? 'border-[var(--quiz)] bg-[#e8eef8] text-[var(--quiz)] dark:border-sky-400 dark:bg-sky-950 dark:text-sky-100'
+                  : 'border-[var(--line)] bg-white text-[var(--ink)] dark:bg-slate-950 dark:text-slate-100'
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (question.type === 'dropdown') {
+    const map =
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? (value as Record<string, string>)
+        : {};
+    const groups = question.dropdowns ?? [];
+    return (
+      <div className="flex w-[min(100%,22rem)] flex-col gap-3">
+        {groups.map((group) => (
+          <label key={group.id} className="flex w-full flex-col gap-1">
+            {group.label ? (
+              <span className="text-[11px] font-medium text-[var(--ink-muted)]">{group.label}</span>
+            ) : null}
+            <select
+              disabled={disabled}
+              value={map[group.id] ?? ''}
+              onChange={(e) => onChange({ ...map, [group.id]: e.target.value })}
+              className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-medium text-[var(--ink)] outline-none focus:border-[var(--quiz)] focus:ring-2 focus:ring-[var(--quiz)] dark:bg-slate-950 dark:text-slate-100"
+            >
+              <option value="">{tr('quizSelectPlaceholder')}</option>
+              {group.options.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
+    );
+  }
+
+  if (question.type === 'long_answer') {
+    return (
+      <textarea
+        disabled={disabled}
+        rows={5}
+        value={typeof value === 'string' ? value : ''}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={question.placeholder || tr('quizTypeLongAnswer')}
+        className="w-full resize-y rounded-lg border border-[var(--line)] bg-[#fafbfd] px-3 py-2 text-sm text-[var(--ink)] outline-none ring-[var(--quiz)] focus:ring-2 dark:bg-slate-950 dark:text-slate-100"
+      />
+    );
+  }
+
+  if (question.type === 'numeric') {
+    const kind = question.numericInput ?? 'number';
+    const inputType = kind === 'date' ? 'date' : kind === 'time' ? 'time' : 'number';
+    const widthClass =
+      kind === 'time' ? 'w-[10.5rem]' : kind === 'date' ? 'w-[11.25rem]' : 'w-full max-w-xs';
+    return (
+      <input
+        type={inputType}
+        disabled={disabled}
+        value={typeof value === 'string' || typeof value === 'number' ? String(value) : ''}
+        onChange={(e) => onChange(e.target.value)}
+        step={kind === 'number' ? 'any' : undefined}
+        className={`${widthClass} rounded-lg border border-[var(--line)] bg-[#fafbfd] px-3 py-2 text-sm text-[var(--ink)] outline-none ring-[var(--quiz)] focus:ring-2 dark:bg-slate-950 dark:text-slate-100`}
+      />
+    );
+  }
+
+  if (question.type === 'rating') {
+    const min = question.ratingMin ?? 1;
+    const max = question.ratingMax ?? 5;
+    const step = question.ratingStep ?? 1;
+    const allowDeselect = Boolean(question.deselect);
+    const selectedRaw = value === '' || value === undefined ? NaN : Number(value);
+    const selected = selectedRaw;
+    const kind = question.ratingType ?? 'numeric';
+    const clear = () => onChange('');
+
+    if (kind === 'star') {
+      const allowHalf = step > 0 && step < 1;
+      const stars = ratingScaleValues(min, max, 1);
+      return (
+        <div className="flex flex-wrap items-center gap-1">
+          {stars.map((n) => {
+            const full = Number.isFinite(selected) && selected >= n;
+            const half =
+              allowHalf &&
+              Number.isFinite(selected) &&
+              !full &&
+              selected >= n - 0.5 &&
+              selected < n;
+            return (
+              <button
+                key={n}
+                type="button"
+                disabled={disabled}
+                title={String(n)}
+                onClick={() => {
+                  if (!Number.isFinite(selected) || selected < n - 0.5) {
+                    onChange(n);
+                    return;
+                  }
+                  if (allowHalf && selected === n) {
+                    onChange(n - 0.5);
+                    return;
+                  }
+                  if (allowHalf && selected === n - 0.5) {
+                    if (allowDeselect) clear();
+                    else onChange(n);
+                    return;
+                  }
+                  if (!allowHalf && selected === n && allowDeselect) {
+                    clear();
+                    return;
+                  }
+                  onChange(n);
+                }}
+                className={`relative cursor-pointer rounded-md p-1 disabled:cursor-not-allowed ${
+                  full || half ? 'text-amber-400' : 'text-slate-300 dark:text-slate-600'
+                }`}
+              >
+                {half ? (
+                  <span className="relative inline-flex h-7 w-7">
+                    <Star
+                      className="absolute inset-0 h-7 w-7 text-slate-300 dark:text-slate-600"
+                      fill="none"
+                      strokeWidth={1.75}
+                    />
+                    <StarHalf className="absolute inset-0 h-7 w-7" fill="currentColor" strokeWidth={1.75} />
+                  </span>
+                ) : (
+                  <Star
+                    className="h-7 w-7"
+                    fill={full ? 'currentColor' : 'none'}
+                    strokeWidth={1.75}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      );
+    }
+
+    if (kind === 'slider') {
+      const current = Number.isFinite(selected) ? selected : min;
+      return (
+        <div className="max-w-md space-y-2">
+          <input
+            type="range"
+            disabled={disabled}
+            min={min}
+            max={max}
+            step={step}
+            value={current}
+            onChange={(e) => onChange(Number(e.target.value))}
+            className="w-full accent-[var(--quiz)]"
+          />
+          <div className="flex justify-between text-[11px] tabular-nums text-[var(--ink-muted)]">
+            <span>{min}</span>
+            <span className="font-semibold text-[var(--quiz)]">{current}</span>
+            <span>{max}</span>
+          </div>
+        </div>
+      );
+    }
+
+    const values = ratingScaleValues(min, max, step);
+    return (
+      <div className="flex flex-wrap gap-2">
+        {values.map((v) => {
+          const on = selected === v;
+          return (
+            <button
+              key={v}
+              type="button"
+              disabled={disabled}
+              onClick={() => {
+                if (on && allowDeselect) clear();
+                else onChange(v);
+              }}
+              className={`min-w-[2.5rem] rounded-lg border px-3 py-2 text-sm font-semibold tabular-nums ${
+                on
+                  ? 'border-[var(--quiz)] bg-[#e8eef8] text-[var(--quiz)] dark:border-sky-400 dark:bg-sky-950 dark:text-sky-100'
+                  : 'border-[var(--line)] bg-white text-[var(--ink)] dark:bg-slate-950 dark:text-slate-100'
+              }`}
+            >
+              {v}
             </button>
           );
         })}
@@ -471,7 +721,7 @@ function QuestionInput({
         disabled={disabled}
         value={typeof value === 'string' ? value : ''}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={tr('quizTypeAnswer')}
+        placeholder={question.placeholder || tr('quizTypeAnswer')}
         className="w-full rounded-lg border border-[var(--line)] bg-[#fafbfd] px-3 py-2 text-sm text-[var(--ink)] outline-none ring-[var(--quiz)] focus:ring-2 dark:bg-slate-950 dark:text-slate-100"
       />
     );

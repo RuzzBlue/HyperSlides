@@ -1,7 +1,7 @@
 {
   "id": "quiz-01",
   "title": "All question types",
-  "description": "Lorem ipsum kitchen-sink quiz covering every graded and poll question type.",
+  "description": "Lorem ipsum kitchen-sink quiz covering every supported question type.",
   "passingScore": 70,
   "allowedRetries": 2,
   "questionsFile": "questions.json",

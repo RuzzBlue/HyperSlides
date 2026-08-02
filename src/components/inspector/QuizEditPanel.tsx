@@ -5,6 +5,7 @@ import { json } from '@codemirror/lang-json';
 import type { EditorView } from '@codemirror/view';
 import { ArrowDown, ArrowUp, Info } from 'lucide-react';
 import type { QuizActivity, QuizAnswerMap, QuizQuestion } from '@shared/types';
+import { isUngradedQuestion } from '@shared/quizQuestions';
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
 import type { StringKey } from '../../i18n/strings';
@@ -50,9 +51,10 @@ function computePointsSummary(text: string): {
     let gradedCount = 0;
     for (const q of value) {
       if (!q || typeof q !== 'object') continue;
-      if ((q as QuizQuestion).type === 'poll') continue;
+      const question = q as QuizQuestion;
+      if (isUngradedQuestion(question)) continue;
       gradedCount += 1;
-      const pts = (q as QuizQuestion).points;
+      const pts = question.points;
       total += typeof pts === 'number' && Number.isFinite(pts) ? pts : 1;
     }
     return { total, gradedCount, valid: true };
@@ -726,9 +728,9 @@ function AnswerKeyCard({
         </div>
       </div>
 
-      {question.type === 'poll' ? (
+      {isUngradedQuestion(question) ? (
         <div className="rounded-md bg-[var(--accent-soft)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--accent)]">
-          {tr('inspectorQuizUngradedPoll')}
+          {tr('inspectorQuizUngradedQuestion')}
         </div>
       ) : (
         <AnswerKeyControls question={question} value={value} onChange={onChange} tr={tr} />
@@ -823,7 +825,197 @@ function AnswerKeyControls({
     );
   }
 
-  if (question.type === 'short_answer' || question.type === 'fill_blank') {
+  if (question.type === 'this_or_that') {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {question.options?.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => onChange(opt.id)}
+            className={`rounded-md border px-3 py-1.5 text-[12px] font-medium ${
+              value === opt.id
+                ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                : 'border-[var(--line)] bg-[var(--stage)] text-[var(--ink)]'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  if (question.type === 'these_or_those') {
+    const selected = Array.isArray(value) ? (value as string[]) : [];
+    return (
+      <div className="flex flex-wrap gap-2">
+        {question.options?.map((opt) => {
+          const on = selected.includes(opt.id);
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => {
+                const next = on
+                  ? selected.filter((id) => id !== opt.id)
+                  : [...selected, opt.id];
+                onChange(next);
+              }}
+              className={`rounded-md border px-3 py-1.5 text-[12px] font-medium ${
+                on
+                  ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                  : 'border-[var(--line)] bg-[var(--stage)] text-[var(--ink)]'
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (question.type === 'dropdown') {
+    const map =
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? (value as Record<string, string>)
+        : {};
+    return (
+      <div className="flex w-[min(100%,22rem)] flex-col gap-2">
+        {(question.dropdowns ?? []).map((group) => (
+          <label key={group.id} className="flex w-full flex-col gap-1">
+            <span className="text-[10px] font-semibold uppercase text-[var(--ink-muted)]">
+              {group.label || group.id}
+            </span>
+            <select
+              value={map[group.id] ?? ''}
+              onChange={(e) => onChange({ ...map, [group.id]: e.target.value })}
+              className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2 py-1.5 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+            >
+              <option value="">{tr('quizSelectPlaceholder')}</option>
+              {group.options.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
+    );
+  }
+
+  if (question.type === 'numeric') {
+    const mode = question.numericMode ?? 'exact';
+    const spec =
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? (value as { value?: string | number; min?: string | number; max?: string | number; tolerance?: number })
+        : { value: value as string | number | undefined };
+    const inputType =
+      question.numericInput === 'date'
+        ? 'date'
+        : question.numericInput === 'time'
+          ? 'time'
+          : 'number';
+    const fieldWidth =
+      inputType === 'time' ? 'w-[10.5rem]' : inputType === 'date' ? 'w-[11.25rem]' : 'w-full min-w-[6rem] flex-1';
+    if (mode === 'range') {
+      return (
+        <div className="flex flex-wrap items-end gap-2">
+          <label className={fieldWidth}>
+            <span className="mb-1 block text-[10px] font-semibold uppercase text-[var(--ink-muted)]">
+              {tr('inspectorQuizNumericMin')}
+            </span>
+            <input
+              type={inputType}
+              value={spec.min ?? ''}
+              onChange={(e) => onChange({ ...spec, min: e.target.value })}
+              className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1.5 text-[12px] outline-none focus:border-[var(--accent)]"
+            />
+          </label>
+          <label className={fieldWidth}>
+            <span className="mb-1 block text-[10px] font-semibold uppercase text-[var(--ink-muted)]">
+              {tr('inspectorQuizNumericMax')}
+            </span>
+            <input
+              type={inputType}
+              value={spec.max ?? ''}
+              onChange={(e) => onChange({ ...spec, max: e.target.value })}
+              className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1.5 text-[12px] outline-none focus:border-[var(--accent)]"
+            />
+          </label>
+        </div>
+      );
+    }
+    if (mode === 'tolerance') {
+      return (
+        <div className="flex flex-wrap items-end gap-2">
+          <label className={fieldWidth}>
+            <span className="mb-1 block text-[10px] font-semibold uppercase text-[var(--ink-muted)]">
+              {tr('inspectorQuizNumericValue')}
+            </span>
+            <input
+              type={inputType}
+              value={spec.value ?? ''}
+              onChange={(e) => onChange({ ...spec, value: e.target.value })}
+              className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1.5 text-[12px] outline-none focus:border-[var(--accent)]"
+            />
+          </label>
+          <label className="w-28 shrink-0">
+            <span className="mb-1 block text-[10px] font-semibold uppercase text-[var(--ink-muted)]">
+              {tr('inspectorQuizNumericTolerance')}
+            </span>
+            <input
+              type="number"
+              step="any"
+              value={spec.tolerance ?? ''}
+              onChange={(e) =>
+                onChange({ ...spec, tolerance: Number(e.target.value) || 0 })
+              }
+              className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1.5 text-[12px] outline-none focus:border-[var(--accent)]"
+            />
+          </label>
+        </div>
+      );
+    }
+    const widthClass =
+      inputType === 'time' ? 'w-[10.5rem]' : inputType === 'date' ? 'w-[11.25rem]' : 'w-full';
+    return (
+      <label className="block">
+        <span className="mb-1 block text-[10px] font-semibold uppercase text-[var(--ink-muted)]">
+          {tr('inspectorQuizNumericValue')}
+        </span>
+        <input
+          type={inputType}
+          value={spec.value ?? ''}
+          onChange={(e) => onChange({ value: e.target.value })}
+          className={`${widthClass} rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1.5 text-[12px] outline-none focus:border-[var(--accent)]`}
+        />
+      </label>
+    );
+  }
+
+  if (question.type === 'rating') {
+    return (
+      <label className="block">
+        <span className="mb-1 block text-[10px] font-semibold uppercase text-[var(--ink-muted)]">
+          {tr('inspectorQuizRatingCorrect')}
+        </span>
+        <input
+          type="number"
+          step={question.ratingStep ?? 1}
+          min={question.ratingMin}
+          max={question.ratingMax}
+          value={typeof value === 'number' || typeof value === 'string' ? value : ''}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1.5 text-[12px] outline-none focus:border-[var(--accent)]"
+        />
+      </label>
+    );
+  }
+
+  if (question.type === 'fill_blank') {
     const stored = Array.isArray(value) ? (value as string[]).join(', ') : '';
     const shown = draft ?? stored;
     return (

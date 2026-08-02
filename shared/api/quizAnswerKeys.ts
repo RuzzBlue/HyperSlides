@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { QuizAnswerMap, QuizQuestion } from '../types.ts';
+import { isUngradedQuestion } from '../quizQuestions.ts';
 
 /** Envelope written to `quizzes/answer-keys/{quizId}.json`. */
 export type EncryptedAnswerKeyFile = {
@@ -103,7 +104,7 @@ export function extractAnswersFromQuestions(
 ): QuizAnswerKeyDocument {
   const answers: QuizAnswerMap = {};
   for (const q of questions) {
-    if (q.type === 'poll') continue;
+    if (isUngradedQuestion(q)) continue;
     if (q.correct === undefined) continue;
     answers[q.id] = q.correct as QuizAnswerMap[string];
   }
@@ -122,7 +123,7 @@ export function applyAnswerKeyToQuestions(
 ): QuizQuestion[] {
   if (!key) return questions;
   return questions.map((q) => {
-    if (q.type === 'poll') return q;
+    if (isUngradedQuestion(q)) return q;
     if (key.answers[q.id] === undefined) return q;
     return { ...q, correct: key.answers[q.id] };
   });
@@ -150,6 +151,12 @@ export function randomizeQuestionOptions(questions: QuizQuestion[]): QuizQuestio
     }
     if (next.matchTargets?.length) {
       next.matchTargets = shuffleInPlace([...next.matchTargets]);
+    }
+    if (next.dropdowns?.length) {
+      next.dropdowns = next.dropdowns.map((group) => ({
+        ...group,
+        options: group.options?.length ? shuffleInPlace([...group.options]) : group.options,
+      }));
     }
     return next;
   });

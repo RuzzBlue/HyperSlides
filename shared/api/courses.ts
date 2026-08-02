@@ -28,6 +28,11 @@ import {
   readEncryptedAnswerKey,
   stripCorrectFromQuestions,
 } from './quizAnswerKeys.ts';
+import {
+  gradeNumericAnswer,
+  gradeRatingAnswer,
+  isUngradedQuestion,
+} from '../quizQuestions.ts';
 
 /** Convert package widgets + strip full-document wrappers for in-app React staging. */
 function prepareLessonFragment(raw: string): string {
@@ -508,9 +513,7 @@ export function gradeQuiz(
 
   for (const q of questions) {
     const points = q.points ?? 1;
-    maxScore += q.type === 'poll' ? 0 : points;
-
-    if (q.type === 'poll') {
+    if (isUngradedQuestion(q)) {
       results.push({
         questionId: q.id,
         correct: true,
@@ -521,6 +524,7 @@ export function gradeQuiz(
       continue;
     }
 
+    maxScore += points;
     const given = answers[q.id];
     const expected = q.correct;
     let correct = false;
@@ -533,12 +537,25 @@ export function gradeQuiz(
         givenArr.every((v, i) => v === expectedArr[i]);
     } else if (q.type === 'multiple_select') {
       correct = normalizeAnswer(given) === normalizeAnswer(expected);
-    } else if (q.type === 'matching') {
+    } else if (q.type === 'this_or_that') {
+      // Single-select buttons (custom true/false labels). Multiple accepted ids allowed.
+      if (Array.isArray(expected)) {
+        correct = expected.map(String).includes(String(given ?? ''));
+      } else {
+        correct = normalizeAnswer(given) === normalizeAnswer(expected);
+      }
+    } else if (q.type === 'these_or_those') {
       correct = normalizeAnswer(given) === normalizeAnswer(expected);
-    } else if (q.type === 'short_answer' || q.type === 'fill_blank') {
+    } else if (q.type === 'matching' || q.type === 'dropdown') {
+      correct = normalizeAnswer(given) === normalizeAnswer(expected);
+    } else if (q.type === 'fill_blank') {
       const accepted = Array.isArray(expected) ? expected : [expected];
       const g = normalizeAnswer(given);
       correct = accepted.some((a) => normalizeAnswer(a) === g);
+    } else if (q.type === 'numeric') {
+      correct = gradeNumericAnswer(q, given, expected);
+    } else if (q.type === 'rating') {
+      correct = gradeRatingAnswer(given, expected);
     } else {
       correct = normalizeAnswer(given) === normalizeAnswer(expected);
     }

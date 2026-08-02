@@ -18,7 +18,7 @@
       }
     ],
     "explanation": "Placeholder explanation · option B is marked correct for the demo.",
-    "points": 0
+    "points": 1
   },
   {
     "id": "q2",
@@ -54,13 +54,149 @@
   },
   {
     "id": "q4",
-    "type": "short_answer",
-    "prompt": "Type a short answer · what word fills “lorem ______”?",
-    "explanation": "Accepted answers: ipsum.",
-    "points": 0
+    "type": "this_or_that",
+    "prompt": "Would you rather explore layouts or components first?",
+    "options": [
+      {
+        "id": "a",
+        "label": "Layouts"
+      },
+      {
+        "id": "b",
+        "label": "Components"
+      }
+    ],
+    "explanation": "Single-select this-or-that · Layouts is marked correct for the demo.",
+    "points": 1
   },
   {
     "id": "q5",
+    "type": "these_or_those",
+    "prompt": "Pick any demo directions that fit this slide kit.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Layouts"
+      },
+      {
+        "id": "b",
+        "label": "Chaos"
+      },
+      {
+        "id": "c",
+        "label": "Components"
+      }
+    ],
+    "multiSelect": true,
+    "explanation": "These-or-those multi-select · Layouts and Components are correct.",
+    "points": 1
+  },
+  {
+    "id": "q6",
+    "type": "dropdown",
+    "prompt": "Pick a theme and mode for the demo stage.",
+    "dropdowns": [
+      {
+        "id": "d1",
+        "label": "Theme",
+        "options": [
+          {
+            "id": "teal",
+            "label": "Teal"
+          },
+          {
+            "id": "neon",
+            "label": "Neon"
+          },
+          {
+            "id": "paper",
+            "label": "Paper"
+          }
+        ]
+      },
+      {
+        "id": "d2",
+        "label": "Mode",
+        "options": [
+          {
+            "id": "light",
+            "label": "Light"
+          },
+          {
+            "id": "dark",
+            "label": "Dark"
+          },
+          {
+            "id": "auto",
+            "label": "Auto"
+          }
+        ]
+      }
+    ],
+    "explanation": "Theme = Teal, Mode = Light.",
+    "points": 2
+  },
+  {
+    "id": "q7",
+    "type": "fill_blank",
+    "prompt": "Never forget the demo ________ phrase.",
+    "explanation": "Any of: lorem, ipsum, placeholder.",
+    "points": 1
+  },
+  {
+    "id": "q8",
+    "type": "numeric",
+    "prompt": "What is 2 + 2?",
+    "numericInput": "number",
+    "numericMode": "exact",
+    "explanation": "Exact answer · 4.",
+    "points": 1
+  },
+  {
+    "id": "q9",
+    "type": "numeric",
+    "prompt": "About how many interactive widgets are showcased in this demo course? (tolerance ±2)",
+    "numericInput": "number",
+    "numericMode": "tolerance",
+    "explanation": "Target 12 with ±2 tolerance.",
+    "points": 1
+  },
+  {
+    "id": "q10",
+    "type": "numeric",
+    "prompt": "What time does the demo standup start?",
+    "numericInput": "time",
+    "numericMode": "exact",
+    "explanation": "Ungraded time input demo · try 09:30.",
+    "points": 0
+  },
+  {
+    "id": "q11",
+    "type": "numeric",
+    "prompt": "What is the demo course launch date?",
+    "numericInput": "date",
+    "numericMode": "exact",
+    "explanation": "Ungraded date input demo · try 2026-01-15.",
+    "points": 0
+  },
+  {
+    "id": "q12",
+    "type": "short_answer",
+    "prompt": "In a few words, what do you want to try first in HyperClass?",
+    "placeholder": "Type a short reflection…",
+    "explanation": "Ungraded short reflection.",
+    "points": 0
+  },
+  {
+    "id": "q13",
+    "type": "long_answer",
+    "prompt": "Describe how you might use this demo course to train a new team member.",
+    "placeholder": "Write a longer response…",
+    "explanation": "Ungraded long answer.",
+    "points": 0
+  },
+  {
+    "id": "q14",
     "type": "ordering",
     "prompt": "Put these lorem steps in order.",
     "options": [
@@ -81,7 +217,7 @@
     "points": 2
   },
   {
-    "id": "q6",
+    "id": "q15",
     "type": "matching",
     "prompt": "Match each placeholder term.",
     "options": [
@@ -108,14 +244,7 @@
     "points": 2
   },
   {
-    "id": "q7",
-    "type": "fill_blank",
-    "prompt": "Never forget the demo ________ phrase.",
-    "explanation": "Any of: lorem, ipsum, placeholder.",
-    "points": 1
-  },
-  {
-    "id": "q8",
+    "id": "q16",
     "type": "poll",
     "prompt": "Which demo habit will you try first? (ungraded poll)",
     "options": [
@@ -135,7 +264,7 @@
     "points": 0
   },
   {
-    "id": "q9",
+    "id": "q17",
     "type": "poll",
     "prompt": "Pick any that apply · multi-select poll.",
     "options": [
@@ -153,6 +282,40 @@
       }
     ],
     "multiSelect": true,
+    "points": 0
+  },
+  {
+    "id": "q18",
+    "type": "rating",
+    "prompt": "Rate this kitchen-sink quiz with number buttons (ungraded).",
+    "ratingType": "numeric",
+    "ratingMin": 1,
+    "ratingMax": 5,
+    "ratingStep": 1,
+    "deselect": false,
+    "points": 0
+  },
+  {
+    "id": "q19",
+    "type": "rating",
+    "prompt": "How many stars would you give the HyperClass demo experience?",
+    "ratingType": "star",
+    "ratingMin": 1,
+    "ratingMax": 5,
+    "ratingStep": 0.5,
+    "deselect": true,
+    "explanation": "Ungraded star rating · half-steps and deselect enabled.",
+    "points": 0
+  },
+  {
+    "id": "q20",
+    "type": "rating",
+    "prompt": "How confident do you feel using these question types? (0 = none, 1 = fully)",
+    "ratingType": "slider",
+    "ratingMin": 0,
+    "ratingMax": 1,
+    "ratingStep": 0.1,
+    "explanation": "Ungraded slider rating.",
     "points": 0
   }
 ]
