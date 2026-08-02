@@ -133,6 +133,8 @@ export function Toolbar({
           <Code2 className="h-5 w-5" />
           <span>{codeTitle}</span>
         </button>
+
+        <div className="mx-1 h-5 w-px bg-[var(--line)]" />
       </div>
 
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">

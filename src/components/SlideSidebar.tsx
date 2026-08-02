@@ -1082,8 +1082,8 @@ function TreeHeader({
         }`}
       >
         <span className={`min-w-0 flex-1 truncate text-left ${moduleTitle}`}>{label}</span>
-        <EditBtn node={node} actions={actions} />
       </button>
+      <EditBtn node={node} actions={actions} />
     </div>
   );
 }
@@ -1328,11 +1328,8 @@ function NavigatorThumb({
               <CheckCircle2 className="absolute bottom-1.5 right-1.5 h-3.5 w-3.5 text-[var(--success)]" />
             )}
           </div>
-          <div className="flex min-w-0 items-center gap-1 px-0.5">
-            <div className="min-w-0 flex-1 truncate text-left text-[11px] font-medium text-[var(--ink)]">
-              {item.title}
-            </div>
-            <EditBtn node={node} actions={actions} />
+          <div className="min-w-0 truncate px-0.5 pr-7 text-left text-[11px] font-medium text-[var(--ink)]">
+            {item.title}
           </div>
           {!compact && (
             <div className="truncate whitespace-nowrap px-0.5 text-left text-[10px] capitalize text-[var(--ink-muted)]">
@@ -1340,6 +1337,9 @@ function NavigatorThumb({
             </div>
           )}
         </button>
+        <div className="absolute right-1.5 top-1.5 z-10">
+          <EditBtn node={node} actions={actions} />
+        </div>
       </div>
     </div>
   );
@@ -1570,8 +1570,8 @@ function OverviewItem({
         >
           {item.title}
         </span>
-        <EditBtn node={node} actions={actions} />
       </button>
+      <EditBtn node={node} actions={actions} />
     </div>
   );
 }

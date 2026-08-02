@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FileQuestion, Loader2, X } from 'lucide-react';
+import { Loader2, Puzzle, X } from 'lucide-react';
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
 
@@ -80,7 +80,7 @@ export function QuestionTemplatePickerButton({
           open ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--ink-muted)]'
         }`}
       >
-        <FileQuestion className="h-4 w-4" />
+        <Puzzle width={18} height={18} />
       </button>
       {open && anchorRef.current && (
         <QuestionTemplateMenu
@@ -189,7 +189,7 @@ function QuestionTemplateMenu({
         aria-label={tr('inspectorQuizTemplates')}
       >
         <div className="flex shrink-0 items-center gap-2 border-b border-[var(--line)] bg-[var(--panel)] px-3 py-2">
-          <FileQuestion className="h-4 w-4 shrink-0 text-[var(--accent)]" />
+          <Puzzle width={18} height={18} className="shrink-0 text-[var(--accent)]" />
           <div className="min-w-0 flex-1">
             <div className="text-[12px] font-semibold text-[var(--ink)]">
               {tr('inspectorQuizTemplates')}

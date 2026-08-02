@@ -19,6 +19,7 @@ import {
   Pin,
   Shapes,
   Sparkles,
+  SquareArrowOutUpRight,
   Table2,
   Type,
   X,
@@ -56,26 +57,6 @@ export type NotesContext = {
 export type { CodeContext };
 export type { QuizEditContext };
 export type { LabEditContext };
-
-/** Two overlapped windows — float / overlay affordance. */
-function FloatWindowsIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <rect x="8" y="8" width="12" height="12" rx="1.5" />
-      <path d="M6 16V6.5A1.5 1.5 0 0 1 7.5 5H16" />
-      <rect x="4" y="4" width="12" height="12" rx="1.5" />
-    </svg>
-  );
-}
 
 const TOOL_META: Record<InspectorTool, { labelKey: StringKey; icon: ReactNode }> = {
   graphs: { labelKey: 'toolGraphs', icon: <BarChart3 className="h-4 w-4" /> },
@@ -263,7 +244,11 @@ export function Inspector({
           }}
           className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)] dark:hover:bg-white/10"
         >
-          {mode === 'docked' ? <FloatWindowsIcon className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+          {mode === 'docked' ? (
+            <SquareArrowOutUpRight width={16} height={16} />
+          ) : (
+            <Pin className="h-4 w-4" />
+          )}
         </button>
         {isCode && (
           <button

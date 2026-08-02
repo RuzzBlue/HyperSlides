@@ -240,11 +240,29 @@ export function readLabSource(
     ? readJson<LabRubric>(rubricPath)
     : ({ id: `rubric-${labId}`, labId, title: activity.title, steps: [] } satisfies LabRubric);
 
-  const sections: LabSectionSource[] = (activity.sections ?? []).map((sec) => {
+  let sections: LabSectionSource[] = (activity.sections ?? []).map((sec) => {
     const abs = path.join(labDir, sec.file);
     const html = fs.existsSync(abs) ? fs.readFileSync(abs, 'utf-8') : '';
     return { ...sec, html };
   });
+
+  // Match LabView: empty sections fall back to instructions.html (or a placeholder),
+  // so the editor shows the same "Instructions" content learners see.
+  if (sections.length === 0) {
+    const instructionsFile = activity.instructionsFile || 'instructions.html';
+    const instructionsPath = path.join(labDir, instructionsFile);
+    const html = fs.existsSync(instructionsPath)
+      ? fs.readFileSync(instructionsPath, 'utf-8')
+      : '<p>No instructions provided.</p>';
+    sections = [
+      {
+        id: 'instructions',
+        title: 'Instructions',
+        file: instructionsFile,
+        html,
+      },
+    ];
+  }
 
   return { labId, activity, sections, rubric };
 }

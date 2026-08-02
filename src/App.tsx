@@ -594,6 +594,7 @@ export default function App() {
       {!fullscreenStage && (
         <TitleBar
           courseTitle={course?.summary.title}
+          courseAuthor={course?.summary.author}
           itemType={current?.type}
           itemTitle={current?.title}
           onHome={() => {

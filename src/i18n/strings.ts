@@ -3,6 +3,7 @@ import type { AppLocale } from '@shared/types';
 const en = {
   appName: 'HyperClass',
   appSubtitle: 'WebDeck Presenter',
+  courseByAuthor: 'By {author}',
   library: 'Library',
   settings: 'Settings',
   courseLibrary: 'Course Library',
@@ -121,6 +122,7 @@ const en = {
   inspectorQuizRetries: 'Allowed retries',
   inspectorQuizRetriesHint: 'Use 0 for unlimited retries',
   inspectorQuizRandomize: 'Randomize answer order',
+  inspectorQuizOptionsTab: 'Quiz options',
   inspectorQuizQuestionsTab: 'Questions',
   inspectorQuizAnswersTab: 'Answer keys',
   inspectorQuizLoadError: 'Failed to load quiz',
@@ -422,6 +424,7 @@ const en = {
 const es: Record<keyof typeof en, string> = {
   appName: 'HyperClass',
   appSubtitle: 'WebDeck Presenter',
+  courseByAuthor: 'Por {author}',
   library: 'Biblioteca',
   settings: 'Ajustes',
   courseLibrary: 'Biblioteca de cursos',
@@ -540,6 +543,7 @@ const es: Record<keyof typeof en, string> = {
   inspectorQuizRetries: 'Reintentos permitidos',
   inspectorQuizRetriesHint: 'Usa 0 para reintentos ilimitados',
   inspectorQuizRandomize: 'Aleatorizar el orden de las respuestas',
+  inspectorQuizOptionsTab: 'Opciones del quiz',
   inspectorQuizQuestionsTab: 'Preguntas',
   inspectorQuizAnswersTab: 'Claves de respuesta',
   inspectorQuizLoadError: 'No se pudo cargar el cuestionario',

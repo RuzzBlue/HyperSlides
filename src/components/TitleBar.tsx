@@ -5,6 +5,7 @@ import { usePrefs } from '../prefs/PrefsProvider';
 
 export function TitleBar({
   courseTitle,
+  courseAuthor,
   itemType,
   itemTitle,
   onHome,
@@ -25,6 +26,7 @@ export function TitleBar({
   onInspectorTogglePin,
 }: {
   courseTitle?: string;
+  courseAuthor?: string;
   /** Current slide kind for the title-bar center (course mode). */
   itemType?: 'lesson' | 'quiz' | 'lab';
   itemTitle?: string;
@@ -46,7 +48,7 @@ export function TitleBar({
   onInspectorShow?: () => void;
   onInspectorTogglePin?: () => void;
 }) {
-  const { tr } = usePrefs();
+  const { tr, trf } = usePrefs();
   const [viewOpen, setViewOpen] = useState(false);
   const [sidebarViewMenuOpen, setSidebarViewMenuOpen] = useState(false);
   const [sidebarFullyExpanded, setSidebarFullyExpanded] = useState(false);
@@ -91,8 +93,15 @@ export function TitleBar({
           </div>
         )}
         {mode === 'course' ? (
-          <div className="min-w-0 max-w-[14rem] truncate text-[14px] font-bold tracking-wide text-[var(--ink)] sm:max-w-[18rem] lg:max-w-[22rem]">
-            {courseTitle}
+          <div className="min-w-0 max-w-[14rem] leading-tight sm:max-w-[18rem] lg:max-w-[22rem]">
+            <div className="truncate text-[14px] font-bold tracking-wide text-[var(--ink)]">
+              {courseTitle}
+            </div>
+            {courseAuthor ? (
+              <div className="truncate text-[10px] text-[var(--ink-muted)]">
+                {trf('courseByAuthor', { author: courseAuthor })}
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="leading-tight">

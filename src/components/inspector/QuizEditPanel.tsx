@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
 import type { EditorView } from '@codemirror/view';
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import type { QuizActivity, QuizAnswerMap, QuizQuestion } from '@shared/types';
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
@@ -20,7 +20,7 @@ type QuizSourceResponse = {
   answers: QuizAnswerMap;
 };
 
-type QuizTab = 'questions' | 'answers';
+type QuizTab = 'options' | 'questions' | 'answers';
 
 type Translate = (key: StringKey) => string;
 
@@ -61,8 +61,7 @@ export function QuizEditPanel({
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tabError, setTabError] = useState<string | null>(null);
-  const [tab, setTab] = useState<QuizTab>('questions');
-  const [expanded, setExpanded] = useState(false);
+  const [tab, setTab] = useState<QuizTab>('options');
 
   const viewRef = useRef<EditorView | null>(null);
   const activityRef = useRef(activity);
@@ -102,7 +101,7 @@ export function QuizEditPanel({
     setLoaded(false);
     setError(null);
     setTabError(null);
-    setTab('questions');
+    setTab('options');
     onFileLabel(null);
     void (async () => {
       const res = await apiFetch<QuizSourceResponse>({
@@ -259,7 +258,7 @@ export function QuizEditPanel({
       return;
     }
     setTabError(null);
-    setTab('questions');
+    setTab(next);
   };
 
   const setAnswerValue = (questionId: string, value: QuizAnswerMap[string]) => {
@@ -276,97 +275,10 @@ export function QuizEditPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-[var(--line)] bg-[var(--panel)] px-3 py-2">
-        <div className="flex items-end gap-2">
-          <label className="min-w-0 flex-1">
-            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-              {tr('inspectorQuizTitle')}
-            </span>
-            <input
-              type="text"
-              value={activity.title}
-              onChange={(e) => setActivity((prev) => ({ ...prev, title: e.target.value }))}
-              className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
-            />
-          </label>
-          <label className="w-20 shrink-0">
-            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-              {tr('inspectorQuizPassing')}
-            </span>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={activity.passingScore ?? 70}
-              onChange={(e) =>
-                setActivity((prev) => ({ ...prev, passingScore: Number(e.target.value) || 0 }))
-              }
-              className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
-            />
-          </label>
-          <button
-            type="button"
-            title={expanded ? tr('inspectorQuizFewerOptions') : tr('inspectorQuizMoreOptions')}
-            onClick={() => setExpanded((v) => !v)}
-            className="shrink-0 cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)] dark:hover:bg-white/10"
-          >
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-        </div>
-
-        {expanded && (
-          <div className="mt-2.5 space-y-2.5">
-            <label className="block">
-              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-                {tr('inspectorQuizDescription')}
-              </span>
-              <textarea
-                rows={2}
-                value={activity.description ?? ''}
-                onChange={(e) =>
-                  setActivity((prev) => ({ ...prev, description: e.target.value }))
-                }
-                className="w-full resize-none rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
-              />
-            </label>
-            <div className="flex items-end gap-3">
-              <label className="w-28 shrink-0">
-                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-                  {tr('inspectorQuizRetries')}
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  value={activity.allowedRetries ?? 0}
-                  onChange={(e) =>
-                    setActivity((prev) => ({
-                      ...prev,
-                      allowedRetries: Number(e.target.value) || 0,
-                    }))
-                  }
-                  className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
-                />
-                <span className="mt-1 block text-[9px] leading-tight text-[var(--ink-muted)]">
-                  {tr('inspectorQuizRetriesHint')}
-                </span>
-              </label>
-              <label className="flex items-center gap-2 pb-1.5 text-[12px] text-[var(--ink)]">
-                <input
-                  type="checkbox"
-                  checked={Boolean(activity.randomizeAnswers)}
-                  onChange={(e) =>
-                    setActivity((prev) => ({ ...prev, randomizeAnswers: e.target.checked }))
-                  }
-                  className="accent-[var(--accent)]"
-                />
-                {tr('inspectorQuizRandomize')}
-              </label>
-            </div>
-          </div>
-        )}
-      </div>
-
       <div className="flex shrink-0 items-center gap-1 border-b border-[var(--line)] bg-[var(--panel)] px-2 py-1.5">
+        <TabButton active={tab === 'options'} onClick={() => switchTab('options')}>
+          {tr('inspectorQuizOptionsTab')}
+        </TabButton>
         <TabButton active={tab === 'questions'} onClick={() => switchTab('questions')}>
           {tr('inspectorQuizQuestionsTab')}
         </TabButton>
@@ -382,7 +294,87 @@ export function QuizEditPanel({
       )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {tab === 'questions' ? (
+        {tab === 'options' ? (
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+            <div className="space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
+                  {tr('inspectorQuizTitle')}
+                </span>
+                <input
+                  type="text"
+                  value={activity.title}
+                  onChange={(e) => setActivity((prev) => ({ ...prev, title: e.target.value }))}
+                  className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
+                  {tr('inspectorQuizDescription')}
+                </span>
+                <textarea
+                  rows={3}
+                  value={activity.description ?? ''}
+                  onChange={(e) =>
+                    setActivity((prev) => ({ ...prev, description: e.target.value }))
+                  }
+                  className="w-full resize-none rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+                />
+              </label>
+              <div className="flex flex-wrap items-start gap-3">
+                <label className="w-28 shrink-0">
+                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
+                    {tr('inspectorQuizPassing')}
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={activity.passingScore ?? 70}
+                    onChange={(e) =>
+                      setActivity((prev) => ({
+                        ...prev,
+                        passingScore: Number(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+                  />
+                </label>
+                <label className="w-28 shrink-0">
+                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
+                    {tr('inspectorQuizRetries')}
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={activity.allowedRetries ?? 0}
+                    onChange={(e) =>
+                      setActivity((prev) => ({
+                        ...prev,
+                        allowedRetries: Number(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+                  />
+                  <span className="mt-1 block text-[9px] leading-tight text-[var(--ink-muted)]">
+                    {tr('inspectorQuizRetriesHint')}
+                  </span>
+                </label>
+              </div>
+              <label className="flex items-center gap-2 text-[12px] text-[var(--ink)]">
+                <input
+                  type="checkbox"
+                  checked={Boolean(activity.randomizeAnswers)}
+                  onChange={(e) =>
+                    setActivity((prev) => ({ ...prev, randomizeAnswers: e.target.checked }))
+                  }
+                  className="accent-[var(--accent)]"
+                />
+                {tr('inspectorQuizRandomize')}
+              </label>
+            </div>
+          </div>
+        ) : tab === 'questions' ? (
           <div className="hc-code-editor min-h-0 flex-1 overflow-hidden">
             <CodeMirror
               value={questionsText}
