@@ -32,13 +32,21 @@ async function bootApi() {
     const { handleApiRequest } = require('../shared/api/handleApiRequest.ts');
     return handleApiRequest(req, { appRoot });
   });
+
+  ipcMain.on('hyperclass:set-min-width', (_event, width) => {
+    if (!mainWindow || typeof width !== 'number' || !Number.isFinite(width)) return;
+    // Never allow below the app-wide hard floor (870).
+    const next = Math.max(870, Math.min(1800, Math.ceil(width)));
+    const [, minHeight] = mainWindow.getMinimumSize();
+    mainWindow.setMinimumSize(next, minHeight || 700);
+  });
 }
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1480,
     height: 920,
-    minWidth: 1100,
+    minWidth: 870,
     minHeight: 700,
     backgroundColor: '#e8eaed',
     title: 'HyperClass',

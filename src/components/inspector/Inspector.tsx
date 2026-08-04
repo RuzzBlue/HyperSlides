@@ -9,19 +9,25 @@ import {
 import {
   BarChart3,
   Bold,
+  CheckCircle2,
+  CircleDashed,
   Code2,
   Film,
   Heading1,
+  LibraryBig,
   List,
   Maximize2,
   Minimize2,
   StickyNote,
   Pin,
+  Radio,
   Shapes,
   Sparkles,
   SquareArrowOutUpRight,
   Table2,
+  Trophy,
   Type,
+  Users,
   X,
 } from 'lucide-react';
 import { apiFetch } from '../../api/client';
@@ -42,9 +48,22 @@ export type InspectorTool =
   | 'media'
   | 'animations'
   | 'notes'
+  | 'activities'
+  | 'connect'
+  | 'progress'
   | 'code';
 
 export type InspectorMode = 'docked' | 'floating';
+
+/** Tools that stay available across lesson / quiz / lab slides. */
+export function isCourseLevelInspectorTool(tool: InspectorTool): boolean {
+  return (
+    tool === 'notes' ||
+    tool === 'activities' ||
+    tool === 'connect' ||
+    tool === 'progress'
+  );
+}
 
 export const INSPECTOR_DOCK_WIDTH = 320;
 
@@ -66,6 +85,9 @@ const TOOL_META: Record<InspectorTool, { labelKey: StringKey; icon: ReactNode }>
   media: { labelKey: 'toolMedia', icon: <Film className="h-4 w-4" /> },
   animations: { labelKey: 'toolAnimations', icon: <Sparkles className="h-4 w-4" /> },
   notes: { labelKey: 'toolNotes', icon: <StickyNote className="h-4 w-4" /> },
+  activities: { labelKey: 'toolActivities', icon: <LibraryBig className="h-4 w-4" /> },
+  connect: { labelKey: 'toolConnect', icon: <Radio className="h-4 w-4" /> },
+  progress: { labelKey: 'toolProgress', icon: <Trophy className="h-4 w-4" /> },
   code: { labelKey: 'toolCode', icon: <Code2 className="h-4 w-4" /> },
 };
 
@@ -986,6 +1008,12 @@ function InspectorBody({ tool }: { tool: InspectorTool }) {
       return <MediaPanel />;
     case 'animations':
       return <AnimationsPanel />;
+    case 'activities':
+      return <ActivitiesPanel />;
+    case 'connect':
+      return <ConnectPanel />;
+    case 'progress':
+      return <ProgressPanel />;
     case 'notes':
       return null;
     case 'code':
@@ -1254,6 +1282,154 @@ function AnimationsPanel() {
             <option value="after">After previous</option>
           </DemoSelect>
         </Field>
+      </Section>
+    </>
+  );
+}
+
+function ComingSoonBanner({ children }: { children: ReactNode }) {
+  return (
+    <div className="mb-4 rounded-lg border border-dashed border-[var(--line)] bg-[var(--accent-soft)]/60 px-3 py-2.5 text-[11px] leading-snug text-[var(--accent)]">
+      {children}
+    </div>
+  );
+}
+
+function ActivitiesPanel() {
+  const { tr } = usePrefs();
+  return (
+    <>
+      <ComingSoonBanner>{tr('inspectorActivitiesComingSoon')}</ComingSoonBanner>
+      <Section title={tr('inspectorActivitiesQuizzes')}>
+        <Field label={tr('inspectorActivitiesDefaultPassing')}>
+          <DemoInput type="number" defaultValue={70} min={0} max={100} disabled />
+        </Field>
+        <label className="flex items-center gap-2 text-[12px] text-[var(--ink-muted)]">
+          <input type="checkbox" disabled className="accent-[var(--accent)]" />
+          {tr('inspectorActivitiesShowScores')}
+        </label>
+      </Section>
+      <Section title={tr('inspectorActivitiesLabs')}>
+        <label className="flex items-center gap-2 text-[12px] text-[var(--ink-muted)]">
+          <input type="checkbox" disabled defaultChecked className="accent-[var(--accent)]" />
+          {tr('inspectorActivitiesRequireEvidence')}
+        </label>
+        <label className="flex items-center gap-2 text-[12px] text-[var(--ink-muted)]">
+          <input type="checkbox" disabled className="accent-[var(--accent)]" />
+          {tr('inspectorActivitiesLockUntilPass')}
+        </label>
+      </Section>
+    </>
+  );
+}
+
+function ConnectPanel() {
+  const { tr } = usePrefs();
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-4 px-2 py-6 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
+        <Users className="h-7 w-7" />
+      </div>
+      <div className="space-y-1.5">
+        <div className="text-[14px] font-semibold text-[var(--ink)]">{tr('toolConnect')}</div>
+        <p className="max-w-[16rem] text-[12px] leading-relaxed text-[var(--ink-muted)]">
+          {tr('inspectorConnectComingSoon')}
+        </p>
+      </div>
+      <div className="w-full max-w-[16rem] space-y-2 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3 text-left opacity-60">
+        <Field label={tr('inspectorConnectSessionCode')}>
+          <DemoInput placeholder="ABCD-1234" disabled />
+        </Field>
+        <button
+          type="button"
+          disabled
+          className="w-full cursor-not-allowed rounded-md bg-[var(--accent)] px-3 py-2 text-[12px] font-semibold text-white opacity-70"
+        >
+          {tr('inspectorConnectStart')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ProgressPanel() {
+  const { tr } = usePrefs();
+  const quizzes = [
+    { id: 'q1', title: 'Kitchen-sink quiz', score: '86%', status: 'passed' as const },
+    { id: 'q2', title: 'Module check-in', score: '—', status: 'todo' as const },
+  ];
+  const labs = [
+    { id: 'l1', title: 'First lab walkthrough', status: 'done' as const },
+    { id: 'l2', title: 'Practice evaluation', status: 'todo' as const },
+  ];
+
+  return (
+    <>
+      <ComingSoonBanner>{tr('inspectorProgressComingSoon')}</ComingSoonBanner>
+
+      <div className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+            {tr('inspectorProgressOverall')}
+          </div>
+          <Trophy className="h-4 w-4 text-amber-500" />
+        </div>
+        <div className="mb-1.5 flex items-end justify-between">
+          <span className="text-[22px] font-semibold tabular-nums leading-none text-[var(--ink)]">42%</span>
+          <span className="text-[11px] text-[var(--ink-muted)]">{tr('inspectorProgressComplete')}</span>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
+          <div className="h-full w-[42%] rounded-full bg-[var(--accent)]" />
+        </div>
+      </div>
+
+      <Section title={tr('inspectorProgressQuizzes')}>
+        <div className="space-y-2">
+          {quizzes.map((q) => (
+            <div
+              key={q.id}
+              className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--stage)] px-2.5 py-2"
+            >
+              {q.status === 'passed' ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+              ) : (
+                <CircleDashed className="h-4 w-4 shrink-0 text-[var(--ink-muted)]" />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[12px] font-medium text-[var(--ink)]">{q.title}</div>
+                <div className="text-[10px] text-[var(--ink-muted)]">
+                  {q.status === 'passed' ? tr('inspectorProgressPassed') : tr('inspectorProgressNotStarted')}
+                </div>
+              </div>
+              <span className="shrink-0 text-[12px] font-semibold tabular-nums text-[var(--ink)]">
+                {q.score}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title={tr('inspectorProgressLabs')}>
+        <div className="space-y-2">
+          {labs.map((lab) => (
+            <div
+              key={lab.id}
+              className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--stage)] px-2.5 py-2"
+            >
+              {lab.status === 'done' ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+              ) : (
+                <CircleDashed className="h-4 w-4 shrink-0 text-[var(--ink-muted)]" />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[12px] font-medium text-[var(--ink)]">{lab.title}</div>
+                <div className="text-[10px] text-[var(--ink-muted)]">
+                  {lab.status === 'done' ? tr('inspectorProgressCompleted') : tr('inspectorProgressNotStarted')}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </Section>
     </>
   );

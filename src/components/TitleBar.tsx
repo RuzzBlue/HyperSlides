@@ -76,24 +76,24 @@ export function TitleBar({
   const courseMenus = mode === 'course';
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-3 border-b border-[var(--line)] bg-[linear-gradient(180deg,var(--chrome-top),var(--chrome))] px-4">
-      <div className="flex items-center gap-2">
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-[var(--line)] bg-[linear-gradient(180deg,var(--chrome-top),var(--chrome))] px-3 sm:gap-3 sm:px-4">
+      <div className="flex min-w-0 shrink items-center gap-2">
         {mode === 'course' ? (
           <button
             type="button"
             onClick={onHome}
             title={tr('library')}
-            className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg bg-[var(--accent)] text-white shadow-sm hover:brightness-110"
+            className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-[var(--accent)] text-white shadow-sm hover:brightness-110"
           >
             <Home className="h-4 w-4" strokeWidth={2.25} />
           </button>
         ) : (
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--accent)] text-white shadow-sm">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)] text-white shadow-sm">
             <Hexagon className="h-4 w-4" strokeWidth={2.25} />
           </div>
         )}
         {mode === 'course' ? (
-          <div className="min-w-0 max-w-[14rem] leading-tight sm:max-w-[18rem] lg:max-w-[22rem]">
+          <div className="min-w-0 max-w-[9rem] leading-tight sm:max-w-[14rem] lg:max-w-[18rem] xl:max-w-[22rem]">
             <div className="truncate text-[14px] font-bold tracking-wide text-[var(--ink)]">
               {courseTitle}
             </div>
@@ -108,16 +108,16 @@ export function TitleBar({
             <div className="text-[13px] font-semibold tracking-wide text-[var(--ink)]">
               {tr('appName')}
             </div>
-            <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            <div className="hidden text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)] sm:block">
               {tr('appSubtitle')}
             </div>
           </div>
         )}
       </div>
 
-      <div className="mx-4 h-5 w-px bg-[var(--line)]" />
+      <div className="mx-4 h-5 w-px shrink-0 bg-[var(--line)]" />
 
-      <nav className="flex items-center gap-1 text-[12px] text-[var(--ink-muted)]">
+      <nav className="flex shrink-0 items-center gap-1 text-[12px] text-[var(--ink-muted)]">
         <span className="cursor-pointer rounded px-2 py-1 hover:bg-black/5">File</span>
         <span className="cursor-pointer rounded px-2 py-1 hover:bg-black/5">Edit</span>
 
@@ -239,7 +239,7 @@ export function TitleBar({
         <span className="cursor-pointer rounded px-2 py-1 hover:bg-black/5">Help</span>
       </nav>
 
-      <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2">
+      <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-1 sm:px-2">
         {mode === 'course' && itemTitle && (
           <>
             <span
@@ -253,19 +253,19 @@ export function TitleBar({
             >
               {typeLabel}
             </span>
-            <span className="hidden max-w-[280px] truncate text-[12px] text-[var(--ink-muted)] sm:inline">
+            <span className="hidden max-w-[12rem] truncate text-[12px] text-[var(--ink-muted)] md:inline lg:max-w-[20rem] xl:max-w-[280px]">
               {itemTitle}
             </span>
           </>
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <button
           type="button"
           onClick={onOpenSettings}
           title={tr('settings')}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1 text-[12px] font-medium text-[var(--ink)] shadow-sm hover:bg-[var(--panel)]"
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[var(--line)] bg-[var(--stage)] px-2 py-1 text-[12px] font-medium text-[var(--ink)] shadow-sm hover:bg-[var(--panel)] sm:px-2.5"
         >
           <Settings className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">{tr('settings')}</span>

@@ -26,6 +26,7 @@ import {
 } from './components/SlideSidebar';
 import {
   Inspector,
+  isCourseLevelInspectorTool,
   type InspectorMode,
   type InspectorTool,
 } from './components/inspector/Inspector';
@@ -37,6 +38,7 @@ import type { InsertKind } from './components/AddContentButton';
 import { StageZoomFrame } from './components/ZoomControl';
 import { usePrefs } from './prefs/PrefsProvider';
 import type { ContentZoomPreset } from '@shared/types';
+import { APP_MIN_WIDTH_PX } from './layoutConstants';
 
 type ViewMode = 'home' | 'present';
 type SettingsTab = 'profile' | 'appearance' | 'settings' | 'presenter';
@@ -75,6 +77,10 @@ export default function App() {
   useEffect(() => {
     if (settings.contentZoom) setContentZoomState(settings.contentZoom);
   }, [settings.contentZoom]);
+
+  useEffect(() => {
+    window.hyperclass?.setMinWidth?.(APP_MIN_WIDTH_PX);
+  }, []);
 
   useEffect(() => {
     setSidebarWidth(clampNavigatorSidebarWidth(settings.navigatorSidebarWidth ?? NAVIGATOR_SIDEBAR_DEFAULT_WIDTH));
@@ -294,8 +300,8 @@ export default function App() {
         });
         return;
       }
-      // Docked insert tools push the stage; notes can stay at current zoom unless docked insert tools need space.
-      if (inspectorMode === 'docked' && tool !== 'notes') {
+      // Docked insert tools push the stage; course-level panels keep current zoom.
+      if (inspectorMode === 'docked' && !isCourseLevelInspectorTool(tool)) {
         setZoomBeforeInspector((prev) => {
           if (prev) return prev;
           if (contentZoom !== 'full-width') {
@@ -312,7 +318,12 @@ export default function App() {
   const handleInspectorMode = useCallback(
     (mode: InspectorMode) => {
       setInspectorMode(mode);
-      if (mode === 'docked' && inspectorTool && inspectorTool !== 'notes' && inspectorTool !== 'code') {
+      if (
+        mode === 'docked' &&
+        inspectorTool &&
+        !isCourseLevelInspectorTool(inspectorTool) &&
+        inspectorTool !== 'code'
+      ) {
         setZoomBeforeInspector((prev) => {
           if (prev) {
             setContentZoom('full-width');
@@ -442,7 +453,7 @@ export default function App() {
   );
 
   useEffect(() => {
-    if (!current || !inspectorTool || inspectorTool === 'notes') return;
+    if (!current || !inspectorTool || isCourseLevelInspectorTool(inspectorTool)) return;
     const codeOk =
       inspectorTool === 'code' &&
       (current.type === 'lesson' || current.type === 'quiz' || current.type === 'lab');
