@@ -558,6 +558,9 @@ export type PresenterMenuMode =
 /** Thumbnail navigator vs compact outline in the left course sidebar. */
 export type SidebarViewMode = 'navigator' | 'overview';
 
+/** Where sidebar numbering applies when the matching toggle is on. */
+export type SidebarNumberViews = 'navigator' | 'overview' | 'both';
+
 export interface AppPrefs {
   autoAdvanceAfterQuiz: boolean;
   rememberLastCourse: boolean;
@@ -568,7 +571,14 @@ export interface AppPrefs {
   showSidebarHeaderCount: boolean;
   /** Show Navigator ↔ Overview switcher in the left sidebar header. */
   showSidebarViewToggle: boolean;
+  /** Show slide numbers in the selected sidebar view(s). */
   showSlideNumbers: boolean;
+  /** Which sidebar layouts show slide numbers when enabled. */
+  slideNumberViews: SidebarNumberViews;
+  /** Prefix module/unit titles with hierarchical numbers (1. / 1.1). */
+  showStructureNumbers: boolean;
+  /** Which sidebar layouts show module/unit numbers when enabled. */
+  structureNumberViews: SidebarNumberViews;
   /**
    * When true, opening a course applies that course’s language / color defaults for the session
    * (user.json defaults are restored when returning to the library).

@@ -144,6 +144,7 @@ export function SlideSidebar({
   progress,
   onSelect,
   showSlideNumbers = true,
+  showStructureNumbers = false,
   showHeaderCount = true,
   showHeaderViewToggle = false,
   onSidebarViewChange,
@@ -161,6 +162,7 @@ export function SlideSidebar({
   progress: ProgressState | null;
   onSelect: (i: number) => void;
   showSlideNumbers?: boolean;
+  showStructureNumbers?: boolean;
   /** Title + slide count in the sidebar header. */
   showHeaderCount?: boolean;
   /** Navigator ↔ Overview switcher in the sidebar header. */
@@ -355,6 +357,7 @@ export function SlideSidebar({
           progress={progress}
           onSelect={onSelect}
           showSlideNumbers={showSlideNumbers}
+          showStructureNumbers={showStructureNumbers}
           compact={compact}
           actions={actions}
           expansion={expansion}
@@ -365,6 +368,8 @@ export function SlideSidebar({
           sequence={sequence}
           index={index}
           onSelect={onSelect}
+          showSlideNumbers={showSlideNumbers}
+          showStructureNumbers={showStructureNumbers}
           compact={compact}
           actions={actions}
           expansion={expansion}
@@ -1088,6 +1093,10 @@ function TreeHeader({
   );
 }
 
+function structureLabel(title: string, prefix: string | null): string {
+  return prefix ? `${prefix} ${title}` : title;
+}
+
 function NavigatorList({
   tree,
   sequence,
@@ -1095,6 +1104,7 @@ function NavigatorList({
   progress,
   onSelect,
   showSlideNumbers,
+  showStructureNumbers,
   compact,
   actions,
   expansion,
@@ -1105,6 +1115,7 @@ function NavigatorList({
   progress: ProgressState | null;
   onSelect: (i: number) => void;
   showSlideNumbers: boolean;
+  showStructureNumbers: boolean;
   compact: boolean;
   actions: StructureActions;
   expansion: ReturnType<typeof useTreeExpansion>;
@@ -1146,6 +1157,11 @@ function NavigatorList({
       <DropLine dest={{ kind: 'modules', index: 0 }} actions={actions} />
       {tree.map((mod, mi) => {
         const moduleOpen = isModuleOpen(mod.id);
+        const moduleNum = mi + 1;
+        const moduleLabel = structureLabel(
+          mod.title,
+          showStructureNumbers ? `${moduleNum}.` : null,
+        );
         const moduleNode: StructureMenuNode = {
           target: { kind: 'module', moduleId: mod.id },
           title: mod.title,
@@ -1157,7 +1173,7 @@ function NavigatorList({
             <TreeHeader
               level={0}
               open={moduleOpen}
-              label={mod.title}
+              label={moduleLabel}
               onToggle={() => toggleModule(mod.id)}
               onSelect={() => selectModule(mod)}
               selected={!moduleOpen && moduleContainsIndex(mod, index)}
@@ -1170,6 +1186,10 @@ function NavigatorList({
                 <DropLine dest={{ kind: 'units', moduleId: mod.id, index: 0 }} actions={actions} />
                 {mod.units.map((unit, ui) => {
                   const unitOpen = isUnitOpen(mod.id, unit.id);
+                  const unitLabel = structureLabel(
+                    unit.title,
+                    showStructureNumbers ? `${moduleNum}.${ui + 1}` : null,
+                  );
                   const unitNode: StructureMenuNode = {
                     target: { kind: 'unit', moduleId: mod.id, unitId: unit.id },
                     title: unit.title,
@@ -1181,7 +1201,7 @@ function NavigatorList({
                       <TreeHeader
                         level={1}
                         open={unitOpen}
-                        label={unit.title}
+                        label={unitLabel}
                         onToggle={() => toggleUnit(mod.id, unit.id)}
                         onSelect={() => selectUnit(mod, unit.id)}
                         selected={!unitOpen && unitContainsIndex(unit, index)}
@@ -1350,6 +1370,8 @@ function OverviewList({
   sequence,
   index,
   onSelect,
+  showSlideNumbers,
+  showStructureNumbers,
   compact,
   actions,
   expansion,
@@ -1358,6 +1380,8 @@ function OverviewList({
   sequence: SequenceItem[];
   index: number;
   onSelect: (i: number) => void;
+  showSlideNumbers: boolean;
+  showStructureNumbers: boolean;
   compact: boolean;
   actions: StructureActions;
   expansion: ReturnType<typeof useTreeExpansion>;
@@ -1400,6 +1424,11 @@ function OverviewList({
         <DropLine dest={{ kind: 'modules', index: 0 }} actions={actions} />
         {tree.map((mod, mi) => {
           const moduleOpen = isModuleOpen(mod.id);
+          const moduleNum = mi + 1;
+          const moduleLabel = structureLabel(
+            mod.title,
+            showStructureNumbers ? `${moduleNum}.` : null,
+          );
           const moduleNode: StructureMenuNode = {
             target: { kind: 'module', moduleId: mod.id },
             title: mod.title,
@@ -1412,7 +1441,7 @@ function OverviewList({
                 <TreeHeader
                   level={0}
                   open={moduleOpen}
-                  label={mod.title}
+                  label={moduleLabel}
                   onToggle={() => toggleModule(mod.id)}
                   onSelect={() => selectModule(mod)}
                   dense
@@ -1429,6 +1458,10 @@ function OverviewList({
                     />
                     {mod.units.map((unit, ui) => {
                       const unitOpen = isUnitOpen(mod.id, unit.id);
+                      const unitLabel = structureLabel(
+                        unit.title,
+                        showStructureNumbers ? `${moduleNum}.${ui + 1}` : null,
+                      );
                       const unitNode: StructureMenuNode = {
                         target: { kind: 'unit', moduleId: mod.id, unitId: unit.id },
                         title: unit.title,
@@ -1440,7 +1473,7 @@ function OverviewList({
                           <TreeHeader
                             level={1}
                             open={unitOpen}
-                            label={unit.title}
+                            label={unitLabel}
                             onToggle={() => toggleUnit(mod.id, unit.id)}
                             onSelect={() => selectUnit(mod, unit.id)}
                             dense
@@ -1468,6 +1501,7 @@ function OverviewList({
                                     item={item}
                                     active={item.index === index}
                                     onSelect={onSelect}
+                                    showSlideNumbers={showSlideNumbers}
                                     compact={compact}
                                     actions={actions}
                                   />
@@ -1502,6 +1536,7 @@ function OverviewList({
                           item={item}
                           active={item.index === index}
                           onSelect={onSelect}
+                          showSlideNumbers={showSlideNumbers}
                           compact={compact}
                           actions={actions}
                         />
@@ -1532,12 +1567,14 @@ function OverviewItem({
   item,
   active,
   onSelect,
+  showSlideNumbers,
   compact,
   actions,
 }: {
   item: SequenceItem;
   active: boolean;
   onSelect: (i: number) => void;
+  showSlideNumbers: boolean;
   compact: boolean;
   actions: StructureActions;
 }) {
@@ -1548,6 +1585,7 @@ function OverviewItem({
       : item.type === 'lab'
         ? 'border-l-[3px] border-l-[var(--lab)] bg-[var(--lab-soft)] text-[var(--lab)]'
         : 'border-l-[3px] border-l-transparent bg-transparent text-[var(--ink)] hover:bg-black/5 dark:hover:bg-white/5';
+  const label = showSlideNumbers ? `${item.index + 1}. ${item.title}` : item.title;
 
   return (
     <div
@@ -1559,7 +1597,7 @@ function OverviewItem({
         type="button"
         data-slide-index={item.index}
         onClick={() => onSelect(item.index)}
-        title={item.title}
+        title={label}
         className={`flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 px-1.5 py-1.5 text-left transition ${tint}`}
       >
         {!compact && <TypeIcon type={item.type} />}
@@ -1568,7 +1606,7 @@ function OverviewItem({
             item.type === 'lesson' ? 'font-medium text-[var(--ink)]' : 'font-semibold'
           }`}
         >
-          {item.title}
+          {label}
         </span>
       </button>
       <EditBtn node={node} actions={actions} />

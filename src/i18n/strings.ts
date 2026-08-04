@@ -48,7 +48,11 @@ const en = {
   defaultSidebarView: 'Default sidebar view',
   showSidebarHeaderCount: 'Display header with slides count',
   showSidebarViewToggle: 'Show sidebar view toggle in header',
-  showSlideNumbers: 'Show slide numbers in navigator',
+  showSlideNumbers: 'Show slide numbers in',
+  showStructureNumbers: 'Number modules/units in',
+  sidebarNumberScopeNavigator: 'navigator',
+  sidebarNumberScopeOverview: 'overview',
+  sidebarNumberScopeBoth: 'Navigator+overview',
   structureEdit: 'Edit',
   structureDuplicate: 'Duplicate',
   structureDelete: 'Delete',
@@ -75,6 +79,8 @@ const en = {
   useCourseSettingsWarning:
     'Off: the app ignores course language/theme defaults entirely. Lessons may not match the author’s intended look or language.',
   appearanceLockedByCourse: 'Locked by the current course',
+  appearanceOverriddenByCourseSettings:
+    'These settings are disabled while Use course settings is on — the open course can override theme, language, and accent.',
   presenterSettings: 'Presenter',
   presenterMenu: 'Presenter menu',
   presenterFixedFooter: 'Fixed footer',
@@ -520,7 +526,11 @@ const es: Record<keyof typeof en, string> = {
   defaultSidebarView: 'Vista predeterminada de la barra',
   showSidebarHeaderCount: 'Mostrar encabezado con número de diapositivas',
   showSidebarViewToggle: 'Mostrar selector de vista en el encabezado',
-  showSlideNumbers: 'Mostrar números de diapositiva en el navegador',
+  showSlideNumbers: 'Mostrar números de diapositiva en',
+  showStructureNumbers: 'Numerar módulos/unidades en',
+  sidebarNumberScopeNavigator: 'navegador',
+  sidebarNumberScopeOverview: 'resumen',
+  sidebarNumberScopeBoth: 'Navegador+resumen',
   structureEdit: 'Editar',
   structureDuplicate: 'Duplicar',
   structureDelete: 'Eliminar',
@@ -547,6 +557,8 @@ const es: Record<keyof typeof en, string> = {
   useCourseSettingsWarning:
     'Desactivado: la app ignora por completo los valores del curso. Las lecciones pueden no coincidir con el aspecto o idioma previstos por el autor.',
   appearanceLockedByCourse: 'Bloqueado por el curso actual',
+  appearanceOverriddenByCourseSettings:
+    'Estos ajustes están desactivados mientras Usar ajustes del curso esté activo: el curso abierto puede sobrescribir tema, idioma y acento.',
   presenterSettings: 'Presentador',
   presenterMenu: 'Menú del presentador',
   presenterFixedFooter: 'Pie fijo',

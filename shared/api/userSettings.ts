@@ -20,8 +20,11 @@ const DEFAULT_SETTINGS: AppPrefs = {
   autoAdvanceAfterQuiz: false,
   rememberLastCourse: true,
   showSidebarHeaderCount: true,
-  showSidebarViewToggle: false,
+  showSidebarViewToggle: true,
   showSlideNumbers: true,
+  slideNumberViews: 'navigator',
+  showStructureNumbers: true,
+  structureNumberViews: 'both',
   useCourseSettings: true,
   contentZoom: '100',
   presenterMenu: 'fixed-footer',
@@ -78,6 +81,15 @@ function normalizeSettings(raw: Partial<AppPrefs> | undefined): AppPrefs {
   }
   if (raw?.showDemoCourse === undefined) {
     merged.showDemoCourse = DEFAULT_SETTINGS.showDemoCourse;
+  }
+  if (raw?.slideNumberViews === undefined) {
+    merged.slideNumberViews = DEFAULT_SETTINGS.slideNumberViews;
+  }
+  if (raw?.showStructureNumbers === undefined) {
+    merged.showStructureNumbers = DEFAULT_SETTINGS.showStructureNumbers;
+  }
+  if (raw?.structureNumberViews === undefined) {
+    merged.structureNumberViews = DEFAULT_SETTINGS.structureNumberViews;
   }
   return merged;
 }

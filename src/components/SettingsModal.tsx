@@ -18,6 +18,7 @@ import type {
   AppearancePrefs,
   AppPrefs,
   PresenterMenuMode,
+  SidebarNumberViews,
   SidebarViewMode,
   UserProfile,
 } from '@shared/types';
@@ -256,6 +257,7 @@ export function SettingsModal({
                     tr={tr}
                     locks={appearanceLocks}
                     courseSettingsActive={courseSettingsActive}
+                    useCourseSettings={draftSettings.useCourseSettings}
                   />
                 )}
                 {tab === 'settings' && (
@@ -439,12 +441,14 @@ function AppearanceTab({
   tr,
   locks,
   courseSettingsActive,
+  useCourseSettings,
 }: {
   draft: AppearancePrefs;
   setDraft: (v: AppearancePrefs) => void;
   tr: (k: StringKey) => string;
   locks: { theme: boolean; locale: boolean; accent: boolean };
   courseSettingsActive: boolean;
+  useCourseSettings: boolean;
 }) {
   const themeLocked = courseSettingsActive && locks.theme;
   const localeLocked = courseSettingsActive && locks.locale;
@@ -452,6 +456,14 @@ function AppearanceTab({
 
   return (
     <div>
+      {useCourseSettings && (
+        <div
+          role="status"
+          className="mb-4 rounded-xl border border-amber-300/80 bg-amber-50/90 px-3 py-2.5 text-[12px] leading-relaxed text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-100"
+        >
+          {tr('appearanceOverriddenByCourseSettings')}
+        </div>
+      )}
       <Field
         label={tr('accentColor')}
         hint={accentLocked ? tr('appearanceLockedByCourse') : undefined}
@@ -637,7 +649,6 @@ function AppSettingsTab({
       | 'useCourseSettings'
       | 'autoAdvanceAfterQuiz'
       | 'rememberLastCourse'
-      | 'showSlideNumbers'
       | 'showDemoCourse',
     label: string,
   ) => (
@@ -669,6 +680,47 @@ function AppSettingsTab({
       )}
     </div>
   );
+
+  const numberScopeRow = (
+    enabledKey: 'showSlideNumbers' | 'showStructureNumbers',
+    viewsKey: 'slideNumberViews' | 'structureNumberViews',
+    label: string,
+  ) => {
+    const enabled = Boolean(draft[enabledKey]);
+    const views = (draft[viewsKey] ?? 'navigator') as SidebarNumberViews;
+    return (
+      <div
+        key={enabledKey}
+        className="flex flex-wrap items-center gap-x-2 gap-y-2 rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-3"
+      >
+        <label className="inline-flex cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => setDraft({ ...draft, [enabledKey]: e.target.checked })}
+            className="h-4 w-4 accent-[var(--accent)]"
+          />
+          <span className="text-[13px] text-[var(--ink)]">{label}</span>
+        </label>
+        <select
+          disabled={!enabled}
+          value={views}
+          onChange={(e) =>
+            setDraft({
+              ...draft,
+              [viewsKey]: e.target.value as SidebarNumberViews,
+            })
+          }
+          className="cursor-pointer rounded-md border border-[var(--line)] bg-[var(--stage)] px-2 py-1 text-[12px] font-medium text-[var(--ink)] outline-none focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-45"
+          aria-label={label}
+        >
+          <option value="navigator">{tr('sidebarNumberScopeNavigator')}</option>
+          <option value="overview">{tr('sidebarNumberScopeOverview')}</option>
+          <option value="both">{tr('sidebarNumberScopeBoth')}</option>
+        </select>
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -740,7 +792,12 @@ function AppSettingsTab({
           </div>
         </div>
 
-        {toggleRow('showSlideNumbers', tr('showSlideNumbers'))}
+        {numberScopeRow(
+          'showStructureNumbers',
+          'structureNumberViews',
+          tr('showStructureNumbers'),
+        )}
+        {numberScopeRow('showSlideNumbers', 'slideNumberViews', tr('showSlideNumbers'))}
       </div>
 
       <div className="mt-6 rounded-xl border border-rose-200/80 bg-rose-50/60 p-4 dark:border-rose-900/50 dark:bg-rose-950/30">

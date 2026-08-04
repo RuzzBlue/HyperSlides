@@ -11,6 +11,7 @@ import type {
   QuizPayload,
   SequenceItem,
 } from '@shared/types';
+import { sidebarNumbersActive } from '@shared/sidebarNumbers';
 import { AppShell } from './components/AppShell';
 import { HomeView } from './components/HomeView';
 import { LabView } from './components/LabView';
@@ -665,7 +666,16 @@ export default function App() {
             index={index}
             progress={progress}
             onSelect={goTo}
-            showSlideNumbers={settings.showSlideNumbers}
+            showSlideNumbers={sidebarNumbersActive(
+              settings.showSlideNumbers,
+              settings.slideNumberViews,
+              settings.sidebarView ?? 'navigator',
+            )}
+            showStructureNumbers={sidebarNumbersActive(
+              settings.showStructureNumbers,
+              settings.structureNumberViews,
+              settings.sidebarView ?? 'navigator',
+            )}
             showHeaderCount={settings.showSidebarHeaderCount !== false}
             showHeaderViewToggle={Boolean(settings.showSidebarViewToggle)}
             onSidebarViewChange={(next) => {
