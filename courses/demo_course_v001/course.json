@@ -43,7 +43,7 @@
             {
               "type": "lesson",
               "id": "lesson-04",
-              "title": "3 concepts",
+              "title": "3 Rows",
               "file": "lesson-04.html",
               "durationMinutes": 3
             },
@@ -401,6 +401,18 @@
               "title": "Possible next features",
               "file": "lesson-01.html",
               "durationMinutes": 3
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-02",
+              "title": "Slide",
+              "file": "lesson-02.html"
+            },
+            {
+              "type": "lesson",
+              "id": "lesson-03",
+              "title": "Slide",
+              "file": "lesson-03.html"
             }
           ]
         }
