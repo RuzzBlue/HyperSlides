@@ -582,6 +582,11 @@ export interface AppPrefs {
   navigatorSidebarWidth: number;
   /** Default left sidebar layout while presenting (navigator thumbnails vs overview outline). */
   sidebarView: SidebarViewMode;
+  /**
+   * When true, show the built-in HyperClass demo course in the library.
+   * The demo course can never be deleted; this only toggles visibility.
+   */
+  showDemoCourse: boolean;
 }
 
 export interface UserState {
@@ -596,6 +601,8 @@ declare global {
       fetch: (req: ApiRequest) => Promise<ApiResponse>;
       platform: string;
       isElectron: true;
+      /** Update BrowserWindow minimum width (Electron only). */
+      setMinWidth?: (width: number) => void;
     };
   }
 }

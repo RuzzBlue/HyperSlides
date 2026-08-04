@@ -633,7 +633,12 @@ function AppSettingsTab({
   };
 
   const toggleRow = (
-    key: 'useCourseSettings' | 'autoAdvanceAfterQuiz' | 'rememberLastCourse' | 'showSlideNumbers',
+    key:
+      | 'useCourseSettings'
+      | 'autoAdvanceAfterQuiz'
+      | 'rememberLastCourse'
+      | 'showSlideNumbers'
+      | 'showDemoCourse',
     label: string,
   ) => (
     <div key={key}>
@@ -657,6 +662,11 @@ function AppSettingsTab({
           {draft.useCourseSettings ? tr('useCourseSettingsHint') : tr('useCourseSettingsWarning')}
         </p>
       )}
+      {key === 'showDemoCourse' && (
+        <p className="mt-1.5 px-1 text-[11px] leading-relaxed text-[var(--ink-muted)]">
+          {tr('showDemoCourseHint')}
+        </p>
+      )}
     </div>
   );
 
@@ -666,6 +676,7 @@ function AppSettingsTab({
         {toggleRow('useCourseSettings', tr('useCourseSettings'))}
         {toggleRow('autoAdvanceAfterQuiz', tr('autoAdvanceQuiz'))}
         {toggleRow('rememberLastCourse', tr('rememberLastCourse'))}
+        {toggleRow('showDemoCourse', tr('showDemoCourse'))}
 
         <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-3">
           <div className="flex flex-wrap items-start justify-between gap-3">

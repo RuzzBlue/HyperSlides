@@ -112,6 +112,7 @@ const fallbackSettings: AppPrefs = {
   presenterMenu: 'fixed-footer',
   navigatorSidebarWidth: 260,
   sidebarView: 'navigator',
+  showDemoCourse: true,
 };
 
 export function PrefsProvider({ children }: { children: ReactNode }) {

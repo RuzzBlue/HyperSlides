@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   ArrowRight,
@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import type { CourseSummary } from '@shared/types';
+import { isDemoCourseId } from '@shared/demoCourse';
 import { apiFetch } from '../api/client';
 import { usePrefs } from '../prefs/PrefsProvider';
 import { ImportExportModal } from './ImportExportModal';
@@ -43,11 +44,19 @@ export function HomeView({
   onOpen: (id: string) => void;
   onRefresh: () => void | Promise<void>;
 }) {
-  const { tr, trf, appearance, save } = usePrefs();
+  const { tr, trf, appearance, settings, save } = usePrefs();
   const layout: LayoutMode = appearance.libraryView === 'list' ? 'list' : 'cards';
   const setLayout = (next: LayoutMode) => {
     void save({ appearance: { libraryView: next } });
   };
+
+  const visibleCourses = useMemo(
+    () =>
+      settings.showDemoCourse === false
+        ? courses.filter((c) => !isDemoCourseId(c.id))
+        : courses,
+    [courses, settings.showDemoCourse],
+  );
   const [importOpen, setImportOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [newTemplateId, setNewTemplateId] = useState<string | undefined>();
@@ -75,7 +84,7 @@ export function HomeView({
   };
 
   const confirmDelete = async () => {
-    if (!pendingDelete) return;
+    if (!pendingDelete || isDemoCourseId(pendingDelete.id)) return;
     setDeleting(true);
     setDeleteError(null);
     const res = await apiFetch<{ id: string; folder: string }>({
@@ -224,13 +233,14 @@ export function HomeView({
 
         {layout === 'cards' ? (
           <div className="grid gap-4 md:grid-cols-2">
-            {courses.map((c, i) => (
+            {visibleCourses.map((c, i) => (
               <CourseCard
                 key={c.id}
                 course={c}
                 index={i}
                 accent={appearance.accentColor}
                 onOpen={onOpen}
+                canDelete={!isDemoCourseId(c.id)}
                 onDelete={() => {
                   setDeleteError(null);
                   setPendingDelete(c);
@@ -238,7 +248,7 @@ export function HomeView({
                 tr={tr}
               />
             ))}
-            {!courses.length && !error && (
+            {!visibleCourses.length && !error && (
               <div className="col-span-full rounded-2xl border border-dashed border-[var(--line)] bg-[var(--stage)]/60 px-6 py-16 text-center text-[var(--ink-muted)]">
                 {loading ? tr('loadingCourses') : tr('noCourses')}
               </div>
@@ -254,7 +264,7 @@ export function HomeView({
               <span className="sr-only">{tr('deleteCourse')}</span>
             </div>
             <div className="h-px w-full bg-[var(--line)]/70" />
-            {courses.map((c, i) => (
+            {visibleCourses.map((c, i) => (
               <motion.div
                 key={c.id}
                 initial={{ opacity: 0 }}
@@ -289,20 +299,24 @@ export function HomeView({
                     {formatModified(c.modifiedAt)}
                   </span>
                 </button>
-                <button
-                  type="button"
-                  title={tr('deleteCourse')}
-                  onClick={() => {
-                    setDeleteError(null);
-                    setPendingDelete(c);
-                  }}
-                  className="inline-flex h-8 w-8 cursor-pointer items-center justify-center justify-self-end rounded-md text-[var(--ink-muted)] hover:bg-rose-500/10 hover:text-rose-600"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                {isDemoCourseId(c.id) ? (
+                  <span className="justify-self-end" aria-hidden />
+                ) : (
+                  <button
+                    type="button"
+                    title={tr('deleteCourse')}
+                    onClick={() => {
+                      setDeleteError(null);
+                      setPendingDelete(c);
+                    }}
+                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center justify-self-end rounded-md text-[var(--ink-muted)] hover:bg-rose-500/10 hover:text-rose-600"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </motion.div>
             ))}
-            {!courses.length && !error && (
+            {!visibleCourses.length && !error && (
               <div className="px-1 py-12 text-center text-[var(--ink-muted)]">
                 {loading ? tr('loadingCourses') : tr('noCourses')}
               </div>
@@ -460,6 +474,7 @@ function CourseCard({
   index: i,
   accent,
   onOpen,
+  canDelete,
   onDelete,
   tr,
 }: {
@@ -467,6 +482,7 @@ function CourseCard({
   index: number;
   accent: string;
   onOpen: (id: string) => void;
+  canDelete: boolean;
   onDelete: () => void;
   tr: (key: StringKey) => string;
 }) {
@@ -477,17 +493,19 @@ function CourseCard({
       transition={{ delay: 0.08 * i, duration: 0.35 }}
       className="group relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--stage)] text-left shadow-[0_10px_30px_rgba(28,31,38,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(28,31,38,0.12)]"
     >
-      <button
-        type="button"
-        title={tr('deleteCourse')}
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
-        className="absolute right-2.5 top-2.5 z-10 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md bg-black/25 text-white opacity-0 backdrop-blur-sm transition group-hover:opacity-100 hover:bg-rose-600"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
+      {canDelete ? (
+        <button
+          type="button"
+          title={tr('deleteCourse')}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="absolute right-2.5 top-2.5 z-10 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md bg-black/25 text-white opacity-0 backdrop-blur-sm transition group-hover:opacity-100 hover:bg-rose-600"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
       <button type="button" onClick={() => onOpen(c.id)} className="w-full cursor-pointer text-left">
         <div
           className="h-28 px-5 pb-4 pt-5"

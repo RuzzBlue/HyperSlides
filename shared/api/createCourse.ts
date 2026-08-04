@@ -17,6 +17,7 @@ import {
 } from '../colorUtils.ts';
 import { getCoursesRoot, listCourses, loadCourse } from './courses.ts';
 import { WELCOME_SLIDE_HTML } from './slideTemplate.ts';
+import { DEMO_COURSE_ID, isDemoCourseId } from '../demoCourse.ts';
 
 export type ThemeTemplateInfo = {
   id: string;
@@ -641,6 +642,9 @@ export function deleteCourse(
 ): { id: string; folder: string } {
   const summary = listCourses(appRoot).find((c) => c.id === courseId || c.folder === courseId);
   if (!summary) throw new Error('Course not found');
+  if (isDemoCourseId(summary.id) || summary.folder === DEMO_COURSE_ID) {
+    throw new Error('The HyperClass demo course cannot be deleted');
+  }
 
   const coursesRoot = path.resolve(getCoursesRoot(appRoot));
   const abs = path.resolve(path.join(coursesRoot, summary.folder));

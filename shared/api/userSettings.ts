@@ -27,6 +27,7 @@ const DEFAULT_SETTINGS: AppPrefs = {
   presenterMenu: 'fixed-footer',
   navigatorSidebarWidth: 260,
   sidebarView: 'navigator',
+  showDemoCourse: true,
 };
 
 function ensureDir(dir: string) {
@@ -74,6 +75,9 @@ function normalizeSettings(raw: Partial<AppPrefs> | undefined): AppPrefs {
       legacyToggle !== undefined
         ? Boolean(legacyToggle)
         : DEFAULT_SETTINGS.showSidebarViewToggle;
+  }
+  if (raw?.showDemoCourse === undefined) {
+    merged.showDemoCourse = DEFAULT_SETTINGS.showDemoCourse;
   }
   return merged;
 }
