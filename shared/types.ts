@@ -558,7 +558,7 @@ export type PresenterMenuMode =
 /** Thumbnail navigator vs compact outline in the left course sidebar. */
 export type SidebarViewMode = 'navigator' | 'overview';
 
-/** Where sidebar numbering applies when the matching toggle is on. */
+/** Where sidebar numbering / marks apply when the matching toggle is on. */
 export type SidebarNumberViews = 'navigator' | 'overview' | 'both';
 
 export interface AppPrefs {
@@ -579,6 +579,10 @@ export interface AppPrefs {
   showStructureNumbers: boolean;
   /** Which sidebar layouts show module/unit numbers when enabled. */
   structureNumberViews: SidebarNumberViews;
+  /** Show completion checkmarks in the selected sidebar view(s). */
+  showCompletionMarks: boolean;
+  /** Which sidebar layouts show completion marks when enabled. */
+  completionMarkViews: SidebarNumberViews;
   /**
    * When true, opening a course applies that course’s language / color defaults for the session
    * (user.json defaults are restored when returning to the library).

@@ -145,6 +145,7 @@ export function SlideSidebar({
   onSelect,
   showSlideNumbers = true,
   showStructureNumbers = false,
+  showCompletionMarks = true,
   showHeaderCount = true,
   showHeaderViewToggle = false,
   onSidebarViewChange,
@@ -163,6 +164,7 @@ export function SlideSidebar({
   onSelect: (i: number) => void;
   showSlideNumbers?: boolean;
   showStructureNumbers?: boolean;
+  showCompletionMarks?: boolean;
   /** Title + slide count in the sidebar header. */
   showHeaderCount?: boolean;
   /** Navigator ↔ Overview switcher in the sidebar header. */
@@ -358,6 +360,7 @@ export function SlideSidebar({
           onSelect={onSelect}
           showSlideNumbers={showSlideNumbers}
           showStructureNumbers={showStructureNumbers}
+          showCompletionMarks={showCompletionMarks}
           compact={compact}
           actions={actions}
           expansion={expansion}
@@ -367,9 +370,11 @@ export function SlideSidebar({
           tree={tree}
           sequence={sequence}
           index={index}
+          progress={progress}
           onSelect={onSelect}
           showSlideNumbers={showSlideNumbers}
           showStructureNumbers={showStructureNumbers}
+          showCompletionMarks={showCompletionMarks}
           compact={compact}
           actions={actions}
           expansion={expansion}
@@ -1097,6 +1102,14 @@ function structureLabel(title: string, prefix: string | null): string {
   return prefix ? `${prefix} ${title}` : title;
 }
 
+function itemIsComplete(item: SequenceItem, progress: ProgressState | null): boolean {
+  if (progress?.completedKeys?.includes(item.key)) return true;
+  if (item.type === 'quiz' && item.activityId && progress?.quizScores?.[item.activityId]) {
+    return true;
+  }
+  return false;
+}
+
 function NavigatorList({
   tree,
   sequence,
@@ -1105,6 +1118,7 @@ function NavigatorList({
   onSelect,
   showSlideNumbers,
   showStructureNumbers,
+  showCompletionMarks,
   compact,
   actions,
   expansion,
@@ -1116,6 +1130,7 @@ function NavigatorList({
   onSelect: (i: number) => void;
   showSlideNumbers: boolean;
   showStructureNumbers: boolean;
+  showCompletionMarks: boolean;
   compact: boolean;
   actions: StructureActions;
   expansion: ReturnType<typeof useTreeExpansion>;
@@ -1227,6 +1242,7 @@ function NavigatorList({
                                 progress={progress}
                                 onSelect={onSelect}
                                 showSlideNumbers={showSlideNumbers}
+                                showCompletionMarks={showCompletionMarks}
                                 compact={compact}
                                 actions={actions}
                               />
@@ -1264,6 +1280,7 @@ function NavigatorList({
                         progress={progress}
                         onSelect={onSelect}
                         showSlideNumbers={showSlideNumbers}
+                        showCompletionMarks={showCompletionMarks}
                         compact={compact}
                         actions={actions}
                       />
@@ -1295,6 +1312,7 @@ function NavigatorThumb({
   progress,
   onSelect,
   showSlideNumbers,
+  showCompletionMarks,
   compact,
   actions,
 }: {
@@ -1303,11 +1321,11 @@ function NavigatorThumb({
   progress: ProgressState | null;
   onSelect: (i: number) => void;
   showSlideNumbers: boolean;
+  showCompletionMarks: boolean;
   compact: boolean;
   actions: StructureActions;
 }) {
-  const done = progress?.completedKeys?.includes(item.key);
-  const quizDone = item.type === 'quiz' && progress?.quizScores?.[item.activityId!];
+  const done = showCompletionMarks && itemIsComplete(item, progress);
   const node = nodeFromItem(item);
 
   return (
@@ -1344,7 +1362,7 @@ function NavigatorThumb({
                 {item.index + 1}
               </span>
             )}
-            {(done || quizDone) && (
+            {done && (
               <CheckCircle2 className="absolute bottom-1.5 right-1.5 h-3.5 w-3.5 text-[var(--success)]" />
             )}
           </div>
@@ -1369,9 +1387,11 @@ function OverviewList({
   tree,
   sequence,
   index,
+  progress,
   onSelect,
   showSlideNumbers,
   showStructureNumbers,
+  showCompletionMarks,
   compact,
   actions,
   expansion,
@@ -1379,9 +1399,11 @@ function OverviewList({
   tree: OverviewModule[];
   sequence: SequenceItem[];
   index: number;
+  progress: ProgressState | null;
   onSelect: (i: number) => void;
   showSlideNumbers: boolean;
   showStructureNumbers: boolean;
+  showCompletionMarks: boolean;
   compact: boolean;
   actions: StructureActions;
   expansion: ReturnType<typeof useTreeExpansion>;
@@ -1500,8 +1522,10 @@ function OverviewList({
                                   <OverviewItem
                                     item={item}
                                     active={item.index === index}
+                                    progress={progress}
                                     onSelect={onSelect}
                                     showSlideNumbers={showSlideNumbers}
+                                    showCompletionMarks={showCompletionMarks}
                                     compact={compact}
                                     actions={actions}
                                   />
@@ -1535,8 +1559,10 @@ function OverviewList({
                         <OverviewItem
                           item={item}
                           active={item.index === index}
+                          progress={progress}
                           onSelect={onSelect}
                           showSlideNumbers={showSlideNumbers}
+                          showCompletionMarks={showCompletionMarks}
                           compact={compact}
                           actions={actions}
                         />
@@ -1566,15 +1592,19 @@ function OverviewList({
 function OverviewItem({
   item,
   active,
+  progress,
   onSelect,
   showSlideNumbers,
+  showCompletionMarks,
   compact,
   actions,
 }: {
   item: SequenceItem;
   active: boolean;
+  progress: ProgressState | null;
   onSelect: (i: number) => void;
   showSlideNumbers: boolean;
+  showCompletionMarks: boolean;
   compact: boolean;
   actions: StructureActions;
 }) {
@@ -1586,6 +1616,7 @@ function OverviewItem({
         ? 'border-l-[3px] border-l-[var(--lab)] bg-[var(--lab-soft)] text-[var(--lab)]'
         : 'border-l-[3px] border-l-transparent bg-transparent text-[var(--ink)] hover:bg-black/5 dark:hover:bg-white/5';
   const label = showSlideNumbers ? `${item.index + 1}. ${item.title}` : item.title;
+  const done = showCompletionMarks && itemIsComplete(item, progress);
 
   return (
     <div
@@ -1608,6 +1639,13 @@ function OverviewItem({
         >
           {label}
         </span>
+        {showCompletionMarks && (
+          <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+            {done ? (
+              <CheckCircle2 className="h-3.5 w-3.5 text-[var(--success)]" aria-label="Completed" />
+            ) : null}
+          </span>
+        )}
       </button>
       <EditBtn node={node} actions={actions} />
     </div>

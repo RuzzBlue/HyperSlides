@@ -1,6 +1,6 @@
 import type { SidebarNumberViews, SidebarViewMode } from './types.ts';
 
-/** Whether numbering should appear for the active sidebar layout. */
+/** Whether numbering / marks should appear for the active sidebar layout. */
 export function sidebarNumbersActive(
   enabled: boolean | undefined,
   views: SidebarNumberViews | undefined,

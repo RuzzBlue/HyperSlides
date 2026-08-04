@@ -676,6 +676,11 @@ export default function App() {
               settings.structureNumberViews,
               settings.sidebarView ?? 'navigator',
             )}
+            showCompletionMarks={sidebarNumbersActive(
+              settings.showCompletionMarks,
+              settings.completionMarkViews,
+              settings.sidebarView ?? 'navigator',
+            )}
             showHeaderCount={settings.showSidebarHeaderCount !== false}
             showHeaderViewToggle={Boolean(settings.showSidebarViewToggle)}
             onSidebarViewChange={(next) => {

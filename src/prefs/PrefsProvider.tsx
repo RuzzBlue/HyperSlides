@@ -110,6 +110,8 @@ const fallbackSettings: AppPrefs = {
   slideNumberViews: 'navigator',
   showStructureNumbers: true,
   structureNumberViews: 'both',
+  showCompletionMarks: true,
+  completionMarkViews: 'both',
   useCourseSettings: true,
   contentZoom: '100',
   presenterMenu: 'fixed-footer',

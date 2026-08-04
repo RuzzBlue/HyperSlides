@@ -682,8 +682,8 @@ function AppSettingsTab({
   );
 
   const numberScopeRow = (
-    enabledKey: 'showSlideNumbers' | 'showStructureNumbers',
-    viewsKey: 'slideNumberViews' | 'structureNumberViews',
+    enabledKey: 'showSlideNumbers' | 'showStructureNumbers' | 'showCompletionMarks',
+    viewsKey: 'slideNumberViews' | 'structureNumberViews' | 'completionMarkViews',
     label: string,
   ) => {
     const enabled = Boolean(draft[enabledKey]);
@@ -798,6 +798,11 @@ function AppSettingsTab({
           tr('showStructureNumbers'),
         )}
         {numberScopeRow('showSlideNumbers', 'slideNumberViews', tr('showSlideNumbers'))}
+        {numberScopeRow(
+          'showCompletionMarks',
+          'completionMarkViews',
+          tr('showCompletionMarks'),
+        )}
       </div>
 
       <div className="mt-6 rounded-xl border border-rose-200/80 bg-rose-50/60 p-4 dark:border-rose-900/50 dark:bg-rose-950/30">

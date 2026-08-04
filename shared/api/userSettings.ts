@@ -25,6 +25,8 @@ const DEFAULT_SETTINGS: AppPrefs = {
   slideNumberViews: 'navigator',
   showStructureNumbers: true,
   structureNumberViews: 'both',
+  showCompletionMarks: true,
+  completionMarkViews: 'both',
   useCourseSettings: true,
   contentZoom: '100',
   presenterMenu: 'fixed-footer',
@@ -90,6 +92,12 @@ function normalizeSettings(raw: Partial<AppPrefs> | undefined): AppPrefs {
   }
   if (raw?.structureNumberViews === undefined) {
     merged.structureNumberViews = DEFAULT_SETTINGS.structureNumberViews;
+  }
+  if (raw?.showCompletionMarks === undefined) {
+    merged.showCompletionMarks = DEFAULT_SETTINGS.showCompletionMarks;
+  }
+  if (raw?.completionMarkViews === undefined) {
+    merged.completionMarkViews = DEFAULT_SETTINGS.completionMarkViews;
   }
   return merged;
 }
