@@ -45,7 +45,7 @@ type ViewMode = 'home' | 'present';
 type SettingsTab = 'profile' | 'appearance' | 'settings' | 'presenter';
 
 export default function App() {
-  const { settings, tr, applyCourseSettings, clearCourseSettings, save } = usePrefs();
+  const { settings, tr, applyCourseSettings, clearCourseSettings, save, profile } = usePrefs();
   const [view, setView] = useState<ViewMode>('home');
   const [courses, setCourses] = useState<CourseSummary[]>([]);
   const [course, setCourse] = useState<Omit<LoadedCourse, 'rootPath'> | null>(null);
@@ -746,6 +746,7 @@ export default function App() {
                         slideBg={current.bg}
                         slideIndex={index}
                         slideTotal={course.sequence.length}
+                        slideContainer={course.packageManifest?.extras?.slideContainer}
                       />
                     )}
                     {!loading && current?.type === 'quiz' && quiz && course && (
@@ -881,6 +882,22 @@ export default function App() {
                 : null
             }
             onLabSaved={onLabSaved}
+            progressContext={
+              course
+                ? {
+                    courseId: course.summary.id,
+                    sequence: course.sequence,
+                    progress,
+                    learner: {
+                      userId: profile?.userId ?? '',
+                      displayName:
+                        profile?.displayName?.trim() ||
+                        [profile?.firstName, profile?.lastName].filter(Boolean).join(' ').trim() ||
+                        '',
+                    },
+                  }
+                : null
+            }
           />
         )}
       </div>
@@ -930,6 +947,22 @@ export default function App() {
               : null
           }
           onLabSaved={onLabSaved}
+          progressContext={
+            course
+              ? {
+                  courseId: course.summary.id,
+                  sequence: course.sequence,
+                  progress,
+                  learner: {
+                    userId: profile?.userId ?? '',
+                    displayName:
+                      profile?.displayName?.trim() ||
+                      [profile?.firstName, profile?.lastName].filter(Boolean).join(' ').trim() ||
+                      '',
+                  },
+                }
+              : null
+          }
         />
       )}
 
@@ -939,6 +972,11 @@ export default function App() {
         initialTab={settingsTab}
         onTabChange={setSettingsTab}
         onProgressReset={() => void handleProgressReset()}
+        showPresentationShortcut
+        onOpenPresentationSettings={() => {
+          setSettingsOpen(false);
+          setCourseSettingsOpen(true);
+        }}
       />
 
       <CourseSettingsModal

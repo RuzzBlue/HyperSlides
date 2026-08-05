@@ -5,20 +5,33 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Info, Lock, Palette, Settings2, Upload, X } from 'lucide-react';
-import type { AppLocale, CourseSummary, LoadedCourse, ThemeBgSpec } from '@shared/types';
+import { Info, Lock, Palette, Settings2, ToggleRight, Upload, X } from 'lucide-react';
+import type {
+  AppLocale,
+  CourseExtras,
+  CourseSummary,
+  LoadedCourse,
+  SlideContainerEditMode,
+  ThemeBgSpec,
+} from '@shared/types';
 import {
   accentGradientDark,
   accentGradientLight,
   accentSolidDark,
   accentSolidLight,
 } from '@shared/colorUtils';
+import {
+  DEFAULT_SLIDE_CONTAINER_CSS,
+  DEFAULT_SLIDE_CONTAINER_FIELDS,
+  normalizeCourseExtras,
+  slideContainerFieldsToCss,
+} from '@shared/slideContainer';
 import { apiFetch } from '../api/client';
 import type { StringKey } from '../i18n/strings';
 import { usePrefs } from '../prefs/PrefsProvider';
 import { themeAssetUrl } from './theme/themeUtils';
 
-type Tab = 'info' | 'theme' | 'course' | 'security';
+type Tab = 'info' | 'theme' | 'course' | 'extras' | 'security';
 type ThemeSource = 'template' | 'custom';
 type BgMode = 'solid' | 'gradient' | 'css';
 
@@ -789,6 +802,7 @@ export function CourseSettingsModal({
   const [authorEnabled, setAuthorEnabled] = useState(false);
   const [authorPassword, setAuthorPassword] = useState('');
   const [authorHint, setAuthorHint] = useState('');
+  const [extras, setExtras] = useState<CourseExtras>(() => normalizeCourseExtras(undefined));
 
   useEffect(() => {
     if (!open) return;
@@ -850,6 +864,7 @@ export function CourseSettingsModal({
       setAuthorEnabled(pkg?.authorLock?.enabled ?? false);
       setAuthorHint(pkg?.authorLock?.hint ?? '');
       setAuthorPassword('');
+      setExtras(normalizeCourseExtras(pkg?.extras));
     } else {
       setTitle(DEMO_DEFAULTS.title);
       setSubtitle(DEMO_DEFAULTS.subtitle);
@@ -894,6 +909,7 @@ export function CourseSettingsModal({
       setAuthorEnabled(false);
       setAuthorPassword('');
       setAuthorHint('');
+      setExtras(normalizeCourseExtras(undefined));
     }
 
     void (async () => {
@@ -1024,6 +1040,7 @@ export function CourseSettingsModal({
         accessPasswordConfigured: Boolean(accessPassword),
         authorPasswordConfigured: Boolean(authorPassword),
       },
+      extras: normalizeCourseExtras(extras),
     };
   };
 
@@ -1098,7 +1115,7 @@ export function CourseSettingsModal({
             initial={{ opacity: 0, y: 14, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
-            className="relative flex max-h-[min(90vh,720px)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--stage)] shadow-[var(--shadow)]"
+            className="relative flex max-h-[min(90vh,760px)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--stage)] shadow-[var(--shadow)]"
           >
             <div className="flex shrink-0 items-center justify-between border-b border-[var(--line)] px-5 py-3">
               <h2 className="text-[15px] font-semibold text-[var(--ink)]">{modalTitle}</h2>
@@ -1111,12 +1128,13 @@ export function CourseSettingsModal({
               </button>
             </div>
 
-            <div className="flex shrink-0 gap-1 border-b border-[var(--line)] px-4 pt-3">
+            <div className="flex shrink-0 flex-wrap gap-1 border-b border-[var(--line)] px-4 pt-3">
               {(
                 [
                   ['info', tr('newCourseTabInfo'), <Info className="h-3.5 w-3.5" />],
                   ['theme', tr('newCourseTabTheme'), <Palette className="h-3.5 w-3.5" />],
                   ['course', tr('newCourseTabCourseSettings'), <Settings2 className="h-3.5 w-3.5" />],
+                  ['extras', tr('newCourseTabExtras'), <ToggleRight className="h-[18px] w-[18px]" />],
                   ['security', tr('newCourseTabSecurity'), <Lock className="h-3.5 w-3.5" />],
                 ] as const
               ).map(([id, label, icon]) => (
@@ -1469,6 +1487,554 @@ export function CourseSettingsModal({
                     pageSize={pageSize}
                     setPageSize={setPageSize}
                   />
+                </div>
+              )}
+
+              {tab === 'extras' && (
+                <div className="space-y-4">
+                  <div className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+                      {tr('extrasSlideContainer')}
+                    </div>
+                    <p className="text-[11px] text-[var(--ink-muted)]">{tr('extrasSlideContainerHint')}</p>
+                    <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[var(--ink)]">
+                      <input
+                        type="checkbox"
+                        className="accent-[var(--accent)]"
+                        checked={Boolean(extras.slideContainer?.enabled)}
+                        onChange={(e) =>
+                          setExtras((prev) => ({
+                            ...prev,
+                            slideContainer: {
+                              ...(prev.slideContainer ?? normalizeCourseExtras(undefined).slideContainer!),
+                              enabled: e.target.checked,
+                              editMode: prev.slideContainer?.editMode ?? 'fields',
+                              fields: {
+                                ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                ...(prev.slideContainer?.fields ?? {}),
+                              },
+                              customCss: prev.slideContainer?.customCss ?? DEFAULT_SLIDE_CONTAINER_CSS,
+                            },
+                          }))
+                        }
+                      />
+                      {tr('extrasContainerEnabled')}
+                    </label>
+
+                    {extras.slideContainer?.enabled && (
+                      <>
+                        <Field label={tr('extrasEditMode')}>
+                          <div className="flex gap-1 rounded-lg border border-[var(--line)] bg-[var(--stage)] p-0.5">
+                            {([
+                              ['fields', tr('extrasEditFields')],
+                              ['css', tr('extrasEditCss')],
+                            ] as const).map(([mode, label]) => (
+                              <button
+                                key={mode}
+                                type="button"
+                                onClick={() =>
+                                  setExtras((prev) => {
+                                    const shell =
+                                      prev.slideContainer ??
+                                      normalizeCourseExtras(undefined).slideContainer!;
+                                    const fields = {
+                                      ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                      ...(shell.fields ?? {}),
+                                    };
+                                    return {
+                                      ...prev,
+                                      slideContainer: {
+                                        ...shell,
+                                        enabled: true,
+                                        editMode: mode as SlideContainerEditMode,
+                                        fields,
+                                        // Keep CSS in sync with current fields when opening Custom CSS.
+                                        customCss:
+                                          mode === 'css'
+                                            ? slideContainerFieldsToCss(fields)
+                                            : (shell.customCss ?? DEFAULT_SLIDE_CONTAINER_CSS),
+                                      },
+                                    };
+                                  })
+                                }
+                                className={`flex-1 cursor-pointer rounded-md px-2 py-1.5 text-[12px] font-semibold ${
+                                  (extras.slideContainer?.editMode ?? 'fields') === mode
+                                    ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+                                    : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        </Field>
+
+                        {(extras.slideContainer?.editMode ?? 'fields') === 'fields' ? (
+                          <div className="space-y-3">
+                            <Field label={tr('extrasBgColor')}>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="color"
+                                  value={
+                                    extras.slideContainer?.fields?.backgroundColor?.startsWith('#')
+                                      ? extras.slideContainer.fields.backgroundColor
+                                      : '#f9f9f9'
+                                  }
+                                  onChange={(e) =>
+                                    setExtras((prev) => ({
+                                      ...prev,
+                                      slideContainer: {
+                                        ...(prev.slideContainer!),
+                                        fields: {
+                                          ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                          ...(prev.slideContainer?.fields ?? {}),
+                                          backgroundColor: e.target.value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                  className="h-9 w-12 cursor-pointer rounded border border-[var(--line)] bg-[var(--stage)]"
+                                />
+                                <input
+                                  className={inputClass}
+                                  value={extras.slideContainer?.fields?.backgroundColor ?? ''}
+                                  onChange={(e) =>
+                                    setExtras((prev) => ({
+                                      ...prev,
+                                      slideContainer: {
+                                        ...(prev.slideContainer!),
+                                        fields: {
+                                          ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                          ...(prev.slideContainer?.fields ?? {}),
+                                          backgroundColor: e.target.value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                              </div>
+                            </Field>
+                            <div className="grid grid-cols-2 gap-3">
+                              <Field label={tr('extrasWidth')}>
+                                <input
+                                  className={inputClass}
+                                  value={extras.slideContainer?.fields?.width ?? 'auto'}
+                                  onChange={(e) =>
+                                    setExtras((prev) => ({
+                                      ...prev,
+                                      slideContainer: {
+                                        ...(prev.slideContainer!),
+                                        fields: {
+                                          ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                          ...(prev.slideContainer?.fields ?? {}),
+                                          width: e.target.value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                              </Field>
+                              <Field label={tr('extrasHeight')}>
+                                <input
+                                  className={inputClass}
+                                  disabled={Boolean(extras.slideContainer?.fields?.fillViewportHeight)}
+                                  value={extras.slideContainer?.fields?.height ?? 'auto'}
+                                  onChange={(e) =>
+                                    setExtras((prev) => ({
+                                      ...prev,
+                                      slideContainer: {
+                                        ...(prev.slideContainer!),
+                                        fields: {
+                                          ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                          ...(prev.slideContainer?.fields ?? {}),
+                                          height: e.target.value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                              </Field>
+                            </div>
+                            <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[var(--ink)]">
+                              <input
+                                type="checkbox"
+                                className="accent-[var(--accent)]"
+                                checked={Boolean(extras.slideContainer?.fields?.fillViewportHeight)}
+                                onChange={(e) =>
+                                  setExtras((prev) => ({
+                                    ...prev,
+                                    slideContainer: {
+                                      ...(prev.slideContainer!),
+                                      fields: {
+                                        ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                        ...(prev.slideContainer?.fields ?? {}),
+                                        fillViewportHeight: e.target.checked,
+                                      },
+                                    },
+                                  }))
+                                }
+                              />
+                              {tr('extrasFillViewport')}
+                            </label>
+                            <SizeWithUnit
+                              label={tr('extrasPadding')}
+                              value={extras.slideContainer?.fields?.padding ?? '2rem'}
+                              onChange={(v) =>
+                                setExtras((prev) => ({
+                                  ...prev,
+                                  slideContainer: {
+                                    ...(prev.slideContainer!),
+                                    fields: {
+                                      ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                      ...(prev.slideContainer?.fields ?? {}),
+                                      padding: v,
+                                    },
+                                  },
+                                }))
+                              }
+                            />
+                            <div className="grid grid-cols-2 gap-3">
+                              <Field label={tr('extrasBorderStyle')}>
+                                <select
+                                  className={inputClass}
+                                  value={extras.slideContainer?.fields?.borderStyle ?? 'none'}
+                                  onChange={(e) =>
+                                    setExtras((prev) => ({
+                                      ...prev,
+                                      slideContainer: {
+                                        ...(prev.slideContainer!),
+                                        fields: {
+                                          ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                          ...(prev.slideContainer?.fields ?? {}),
+                                          borderStyle: e.target.value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <option value="none">none</option>
+                                  <option value="solid">solid</option>
+                                  <option value="dashed">dashed</option>
+                                  <option value="dotted">dotted</option>
+                                  <option value="double">double</option>
+                                </select>
+                              </Field>
+                              <SizeWithUnit
+                                label={tr('extrasBorderWidth')}
+                                value={extras.slideContainer?.fields?.borderWidth ?? '0px'}
+                                onChange={(v) =>
+                                  setExtras((prev) => ({
+                                    ...prev,
+                                    slideContainer: {
+                                      ...(prev.slideContainer!),
+                                      fields: {
+                                        ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                        ...(prev.slideContainer?.fields ?? {}),
+                                        borderWidth: v,
+                                      },
+                                    },
+                                  }))
+                                }
+                              />
+                            </div>
+                            <Field label={tr('extrasBorderColor')}>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="color"
+                                  value={
+                                    extras.slideContainer?.fields?.borderColor?.startsWith('#')
+                                      ? extras.slideContainer.fields.borderColor
+                                      : '#e2e8f0'
+                                  }
+                                  onChange={(e) =>
+                                    setExtras((prev) => ({
+                                      ...prev,
+                                      slideContainer: {
+                                        ...(prev.slideContainer!),
+                                        fields: {
+                                          ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                          ...(prev.slideContainer?.fields ?? {}),
+                                          borderColor: e.target.value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                  className="h-9 w-12 cursor-pointer rounded border border-[var(--line)] bg-[var(--stage)]"
+                                />
+                                <input
+                                  className={inputClass}
+                                  value={extras.slideContainer?.fields?.borderColor ?? ''}
+                                  onChange={(e) =>
+                                    setExtras((prev) => ({
+                                      ...prev,
+                                      slideContainer: {
+                                        ...(prev.slideContainer!),
+                                        fields: {
+                                          ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                          ...(prev.slideContainer?.fields ?? {}),
+                                          borderColor: e.target.value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                              </div>
+                            </Field>
+                            <SizeWithUnit
+                              label={tr('extrasBorderRadius')}
+                              value={extras.slideContainer?.fields?.borderRadius ?? '15px'}
+                              onChange={(v) =>
+                                setExtras((prev) => ({
+                                  ...prev,
+                                  slideContainer: {
+                                    ...(prev.slideContainer!),
+                                    fields: {
+                                      ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                      ...(prev.slideContainer?.fields ?? {}),
+                                      borderRadius: v,
+                                    },
+                                  },
+                                }))
+                              }
+                            />
+                            <div className="grid grid-cols-2 gap-3">
+                              <SizeWithUnit
+                                label={tr('extrasShadowBlur')}
+                                value={extras.slideContainer?.fields?.shadowBlur ?? '24px'}
+                                onChange={(v) =>
+                                  setExtras((prev) => ({
+                                    ...prev,
+                                    slideContainer: {
+                                      ...(prev.slideContainer!),
+                                      fields: {
+                                        ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                        ...(prev.slideContainer?.fields ?? {}),
+                                        shadowBlur: v,
+                                      },
+                                    },
+                                  }))
+                                }
+                              />
+                              <SizeWithUnit
+                                label={tr('extrasShadowSpread')}
+                                value={extras.slideContainer?.fields?.shadowSpread ?? '0px'}
+                                onChange={(v) =>
+                                  setExtras((prev) => ({
+                                    ...prev,
+                                    slideContainer: {
+                                      ...(prev.slideContainer!),
+                                      fields: {
+                                        ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                        ...(prev.slideContainer?.fields ?? {}),
+                                        shadowSpread: v,
+                                      },
+                                    },
+                                  }))
+                                }
+                              />
+                              <SizeWithUnit
+                                label={tr('extrasShadowOffsetX')}
+                                value={extras.slideContainer?.fields?.shadowOffsetX ?? '0px'}
+                                onChange={(v) =>
+                                  setExtras((prev) => ({
+                                    ...prev,
+                                    slideContainer: {
+                                      ...(prev.slideContainer!),
+                                      fields: {
+                                        ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                        ...(prev.slideContainer?.fields ?? {}),
+                                        shadowOffsetX: v,
+                                      },
+                                    },
+                                  }))
+                                }
+                              />
+                              <SizeWithUnit
+                                label={tr('extrasShadowOffsetY')}
+                                value={extras.slideContainer?.fields?.shadowOffsetY ?? '8px'}
+                                onChange={(v) =>
+                                  setExtras((prev) => ({
+                                    ...prev,
+                                    slideContainer: {
+                                      ...(prev.slideContainer!),
+                                      fields: {
+                                        ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                        ...(prev.slideContainer?.fields ?? {}),
+                                        shadowOffsetY: v,
+                                      },
+                                    },
+                                  }))
+                                }
+                              />
+                            </div>
+                            <Field label={tr('extrasShadowColor')}>
+                              <input
+                                className={inputClass}
+                                value={extras.slideContainer?.fields?.shadowColor ?? ''}
+                                onChange={(e) =>
+                                  setExtras((prev) => ({
+                                    ...prev,
+                                    slideContainer: {
+                                      ...(prev.slideContainer!),
+                                      fields: {
+                                        ...DEFAULT_SLIDE_CONTAINER_FIELDS,
+                                        ...(prev.slideContainer?.fields ?? {}),
+                                        shadowColor: e.target.value,
+                                      },
+                                    },
+                                  }))
+                                }
+                              />
+                            </Field>
+                          </div>
+                        ) : (
+                          <Field label={tr('extrasCustomCss')} hint={tr('extrasCustomCssHint')}>
+                            <textarea
+                              rows={8}
+                              className={`${inputClass} font-mono text-[11px]`}
+                              value={extras.slideContainer?.customCss ?? DEFAULT_SLIDE_CONTAINER_CSS}
+                              onChange={(e) =>
+                                setExtras((prev) => ({
+                                  ...prev,
+                                  slideContainer: {
+                                    ...(prev.slideContainer!),
+                                    customCss: e.target.value,
+                                  },
+                                }))
+                              }
+                            />
+                          </Field>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <div className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3 opacity-95">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+                        {tr('extrasIndexSlide')}
+                      </div>
+                      <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]">
+                        {tr('extrasComingSoon')}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[var(--ink-muted)]">{tr('extrasIndexSlideHint')}</p>
+                    <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[var(--ink)]">
+                      <input
+                        type="checkbox"
+                        className="accent-[var(--accent)]"
+                        checked={Boolean(extras.indexSlide?.enabled)}
+                        onChange={(e) =>
+                          setExtras((prev) => ({
+                            ...prev,
+                            indexSlide: {
+                              ...(prev.indexSlide ?? {}),
+                              enabled: e.target.checked,
+                              placement: prev.indexSlide?.placement ?? 'first',
+                              style: prev.indexSlide?.style ?? 'default',
+                            },
+                          }))
+                        }
+                      />
+                      {tr('newCourseEnabled')}
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label={tr('extrasIndexPlacement')}>
+                        <select
+                          className={inputClass}
+                          disabled={!extras.indexSlide?.enabled}
+                          value={extras.indexSlide?.placement ?? 'first'}
+                          onChange={(e) =>
+                            setExtras((prev) => ({
+                              ...prev,
+                              indexSlide: {
+                                ...(prev.indexSlide ?? {}),
+                                enabled: prev.indexSlide?.enabled ?? false,
+                                placement: e.target.value as 'first' | 'after-title',
+                                style: prev.indexSlide?.style ?? 'default',
+                              },
+                            }))
+                          }
+                        >
+                          <option value="first">{tr('extrasIndexFirst')}</option>
+                          <option value="after-title">{tr('extrasIndexAfterTitle')}</option>
+                        </select>
+                      </Field>
+                      <Field label={tr('extrasIndexStyle')}>
+                        <select
+                          className={inputClass}
+                          disabled={!extras.indexSlide?.enabled}
+                          value={extras.indexSlide?.style ?? 'default'}
+                          onChange={(e) =>
+                            setExtras((prev) => ({
+                              ...prev,
+                              indexSlide: {
+                                ...(prev.indexSlide ?? {}),
+                                enabled: prev.indexSlide?.enabled ?? false,
+                                placement: prev.indexSlide?.placement ?? 'first',
+                                style: e.target.value,
+                              },
+                            }))
+                          }
+                        >
+                          <option value="default">{tr('extrasIndexStyleDefault')}</option>
+                          <option value="compact">{tr('extrasIndexStyleCompact')}</option>
+                          <option value="cards">{tr('extrasIndexStyleCards')}</option>
+                        </select>
+                      </Field>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3 opacity-95">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+                        {tr('extrasEndSlide')}
+                      </div>
+                      <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]">
+                        {tr('extrasComingSoon')}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[var(--ink-muted)]">{tr('extrasEndSlideHint')}</p>
+                    <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[var(--ink)]">
+                      <input
+                        type="checkbox"
+                        className="accent-[var(--accent)]"
+                        checked={Boolean(extras.endSlide?.enabled)}
+                        onChange={(e) =>
+                          setExtras((prev) => ({
+                            ...prev,
+                            endSlide: {
+                              ...(prev.endSlide ?? {}),
+                              enabled: e.target.checked,
+                              style: prev.endSlide?.style ?? 'default',
+                            },
+                          }))
+                        }
+                      />
+                      {tr('newCourseEnabled')}
+                    </label>
+                    <Field label={tr('extrasEndStyle')}>
+                      <select
+                        className={inputClass}
+                        disabled={!extras.endSlide?.enabled}
+                        value={extras.endSlide?.style ?? 'default'}
+                        onChange={(e) =>
+                          setExtras((prev) => ({
+                            ...prev,
+                            endSlide: {
+                              ...(prev.endSlide ?? {}),
+                              enabled: prev.endSlide?.enabled ?? false,
+                              style: e.target.value,
+                            },
+                          }))
+                        }
+                      >
+                        <option value="default">{tr('extrasEndStyleDefault')}</option>
+                        <option value="summary">{tr('extrasEndStyleSummary')}</option>
+                        <option value="minimal">{tr('extrasEndStyleMinimal')}</option>
+                      </select>
+                    </Field>
+                  </div>
                 </div>
               )}
 

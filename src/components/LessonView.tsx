@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, type CSSProperties } from 'react';
-import type { CourseTheme } from '@shared/types';
+import type { CourseTheme, SlideContainerPrefs } from '@shared/types';
+import { slideContainerAppliedCss } from '@shared/slideContainer';
 import { usePrefs } from '../prefs/PrefsProvider';
 import { PortalsRenderer } from './lesson/InteractiveWidgets';
 import { ThemeDecorations } from './theme/ThemeDecorations';
@@ -19,6 +20,7 @@ export function LessonView({
   slideBg,
   slideIndex,
   slideTotal,
+  slideContainer,
 }: {
   html: string;
   title: string;
@@ -28,6 +30,8 @@ export function LessonView({
   slideBg?: string;
   slideIndex?: number;
   slideTotal?: number;
+  /** Content-shell prefs from package manifest extras (styles the div inside article). */
+  slideContainer?: SlideContainerPrefs | null;
 }) {
   const { appearance } = usePrefs();
   const mode = resolveAppearanceMode(appearance.theme);
@@ -35,14 +39,15 @@ export function LessonView({
   const stageId = useMemo(() => `lesson-stage-${uid}`, [uid]);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const variant =
-    slideBg?.trim() || detectSlideBgFromHtml(html) || 'default';
+  const variant = slideBg?.trim() || detectSlideBgFromHtml(html) || 'default';
   const pair = resolveBgPair(theme, variant);
   const activeSpec = mode === 'dark' ? pair?.dark : pair?.light;
   const lightBg = bgSpecToCss(pair?.light, courseFolder);
   const darkBg = bgSpecToCss(pair?.dark, courseFolder);
   const cssBgStyle = bgSpecToStyle(activeSpec, courseFolder);
   const isCssBg = activeSpec?.type === 'css';
+
+  const shellKey = JSON.stringify(slideContainer ?? null);
 
   /**
    * Only write HTML when the lesson fragment changes.
@@ -52,6 +57,17 @@ export function LessonView({
   useEffect(() => {
     if (contentRef.current) contentRef.current.innerHTML = html;
   }, [html]);
+
+  /**
+   * Apply content-shell styles on the first div inside article (never the article).
+   * Off / empty CSS → clear inline styles so behavior matches the default shell.
+   */
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const css = slideContainerAppliedCss(slideContainer);
+    el.style.cssText = css;
+  }, [shellKey, html, slideContainer]);
 
   useEffect(() => {
     if (!theme?.fonts?.google) return;

@@ -39,6 +39,7 @@ import { QuizEditPanel, type QuizEditContext } from './QuizEditPanel';
 import { QuestionTemplatePickerButton } from './QuestionTemplatePicker';
 import { LabEditPanel, type LabEditContext } from './LabEditPanel';
 import { LabSectionTemplatePickerButton } from './LabSectionTemplatePicker';
+import { ProgressPanel, type ProgressContext } from './ProgressPanel';
 
 export type InspectorTool =
   | 'graphs'
@@ -66,6 +67,7 @@ export function isCourseLevelInspectorTool(tool: InspectorTool): boolean {
 }
 
 export const INSPECTOR_DOCK_WIDTH = 320;
+export const INSPECTOR_PROGRESS_DOCK_WIDTH = 470;
 
 export type NotesContext = {
   courseId: string;
@@ -76,6 +78,7 @@ export type NotesContext = {
 export type { CodeContext };
 export type { QuizEditContext };
 export type { LabEditContext };
+export type { ProgressContext };
 
 const TOOL_META: Record<InspectorTool, { labelKey: StringKey; icon: ReactNode }> = {
   graphs: { labelKey: 'toolGraphs', icon: <BarChart3 className="h-4 w-4" /> },
@@ -96,6 +99,7 @@ type FloatSize = {
   height: number;
   minWidth: number;
   minHeight: number;
+  maxWidth?: number;
   resizable: 'height' | 'both';
 };
 
@@ -112,7 +116,21 @@ function floatSizeForTool(tool: InspectorTool): FloatSize {
   if (tool === 'code') {
     return { width: 680, height: 520, minWidth: 420, minHeight: 300, resizable: 'both' };
   }
+  if (tool === 'progress') {
+    return {
+      width: INSPECTOR_PROGRESS_DOCK_WIDTH,
+      height: 560,
+      minWidth: 420,
+      minHeight: 360,
+      maxWidth: 720,
+      resizable: 'both',
+    };
+  }
   return { width: 360, height: 480, minWidth: 320, minHeight: 280, resizable: 'height' };
+}
+
+function dockWidthForTool(tool: InspectorTool): number {
+  return tool === 'progress' ? INSPECTOR_PROGRESS_DOCK_WIDTH : INSPECTOR_DOCK_WIDTH;
 }
 
 export function Inspector({
@@ -128,6 +146,7 @@ export function Inspector({
   onQuizSaved,
   labEditContext,
   onLabSaved,
+  progressContext,
   floatResetToken = 0,
   floatInsets,
 }: {
@@ -143,6 +162,7 @@ export function Inspector({
   onQuizSaved?: (quizId: string) => void;
   labEditContext?: LabEditContext | null;
   onLabSaved?: (labId: string) => void;
+  progressContext?: ProgressContext | null;
   /** Bump to re-center a floating inspector on screen. */
   floatResetToken?: number;
   /** Content area insets for Code expand-to-fill (title/toolbar/sidebar/status). */
@@ -152,6 +172,7 @@ export function Inspector({
   const meta = TOOL_META[tool];
   const isNotes = tool === 'notes';
   const isCode = tool === 'code';
+  const isProgress = tool === 'progress';
   const editKind: 'lesson' | 'quiz' | 'lab' | null = !isCode
     ? null
     : quizEditContext
@@ -351,6 +372,10 @@ export function Inspector({
           <div className="flex flex-1 items-center justify-center px-4 text-center text-[12px] text-[var(--ink-muted)]">
             {tr('inspectorCodeUnavailable')}
           </div>
+        ) : isProgress ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-3">
+            <ProgressPanel context={progressContext ?? null} />
+          </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
             <InspectorBody tool={tool} />
@@ -403,6 +428,15 @@ export function Inspector({
               </button>
             </div>
           </>
+        ) : isProgress ? (
+          <span className="text-[10px] text-[var(--ink-muted)]">
+            {progressContext?.progress?.updatedAt
+              ? tr('inspectorProgressUpdated').replace(
+                  '{when}',
+                  new Date(progressContext.progress.updatedAt).toLocaleString(),
+                )
+              : tr('inspectorProgressLive')}
+          </span>
         ) : (
           <>
             <span className="text-[10px] text-[var(--ink-muted)]">{tr('inspectorDemoHint')}</span>
@@ -437,7 +471,7 @@ export function Inspector({
     <aside
       data-inspector-panel
       className="flex h-full shrink-0 flex-col border-l border-[var(--line)] bg-[var(--stage)] shadow-[-8px_0_24px_rgba(28,31,38,0.06)]"
-      style={{ width: INSPECTOR_DOCK_WIDTH }}
+      style={{ width: dockWidthForTool(tool) }}
     >
       {panel}
     </aside>
@@ -558,7 +592,8 @@ function FloatingShell({
         if (edge.includes('n')) nextY = drag.current.sy + (drag.current.sh - size.minHeight);
         nextH = size.minHeight;
       }
-      nextW = Math.min(nextW, window.innerWidth - 16);
+      const maxW = size.maxWidth ?? window.innerWidth - 16;
+      nextW = Math.min(nextW, maxW, window.innerWidth - 16);
       nextH = Math.min(nextH, window.innerHeight - 16);
       setPos({ x: nextX, y: nextY });
       setWidth(nextW);
@@ -575,7 +610,7 @@ function FloatingShell({
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, [size.minHeight, size.minWidth]);
+  }, [size.minHeight, size.minWidth, size.maxWidth]);
 
   const startResize = (edge: ResizeEdge, cursor: string) => (e: ReactPointerEvent) => {
     e.preventDefault();
@@ -1013,7 +1048,7 @@ function InspectorBody({ tool }: { tool: InspectorTool }) {
     case 'connect':
       return <ConnectPanel />;
     case 'progress':
-      return <ProgressPanel />;
+      return null;
     case 'notes':
       return null;
     case 'code':
@@ -1349,88 +1384,5 @@ function ConnectPanel() {
         </button>
       </div>
     </div>
-  );
-}
-
-function ProgressPanel() {
-  const { tr } = usePrefs();
-  const quizzes = [
-    { id: 'q1', title: 'Kitchen-sink quiz', score: '86%', status: 'passed' as const },
-    { id: 'q2', title: 'Module check-in', score: '—', status: 'todo' as const },
-  ];
-  const labs = [
-    { id: 'l1', title: 'First lab walkthrough', status: 'done' as const },
-    { id: 'l2', title: 'Practice evaluation', status: 'todo' as const },
-  ];
-
-  return (
-    <>
-      <ComingSoonBanner>{tr('inspectorProgressComingSoon')}</ComingSoonBanner>
-
-      <div className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-            {tr('inspectorProgressOverall')}
-          </div>
-          <Trophy className="h-4 w-4 text-amber-500" />
-        </div>
-        <div className="mb-1.5 flex items-end justify-between">
-          <span className="text-[22px] font-semibold tabular-nums leading-none text-[var(--ink)]">42%</span>
-          <span className="text-[11px] text-[var(--ink-muted)]">{tr('inspectorProgressComplete')}</span>
-        </div>
-        <div className="h-2 overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
-          <div className="h-full w-[42%] rounded-full bg-[var(--accent)]" />
-        </div>
-      </div>
-
-      <Section title={tr('inspectorProgressQuizzes')}>
-        <div className="space-y-2">
-          {quizzes.map((q) => (
-            <div
-              key={q.id}
-              className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--stage)] px-2.5 py-2"
-            >
-              {q.status === 'passed' ? (
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
-              ) : (
-                <CircleDashed className="h-4 w-4 shrink-0 text-[var(--ink-muted)]" />
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[12px] font-medium text-[var(--ink)]">{q.title}</div>
-                <div className="text-[10px] text-[var(--ink-muted)]">
-                  {q.status === 'passed' ? tr('inspectorProgressPassed') : tr('inspectorProgressNotStarted')}
-                </div>
-              </div>
-              <span className="shrink-0 text-[12px] font-semibold tabular-nums text-[var(--ink)]">
-                {q.score}
-              </span>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section title={tr('inspectorProgressLabs')}>
-        <div className="space-y-2">
-          {labs.map((lab) => (
-            <div
-              key={lab.id}
-              className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--stage)] px-2.5 py-2"
-            >
-              {lab.status === 'done' ? (
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
-              ) : (
-                <CircleDashed className="h-4 w-4 shrink-0 text-[var(--ink-muted)]" />
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[12px] font-medium text-[var(--ink)]">{lab.title}</div>
-                <div className="text-[10px] text-[var(--ink-muted)]">
-                  {lab.status === 'done' ? tr('inspectorProgressCompleted') : tr('inspectorProgressNotStarted')}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Section>
-    </>
   );
 }

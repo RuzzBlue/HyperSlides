@@ -207,6 +207,62 @@ export interface CoursePackageManifest {
   passwordLock?: { enabled: boolean; hint?: string };
   /** Author/edit lock (enforcement TBD). */
   authorLock?: { enabled: boolean; hint?: string };
+  /** Optional presentation extras (slide shell, future index/end slides). */
+  extras?: CourseExtras;
+}
+
+/** How authors edit the lesson content shell (div inside article.lesson-stage). */
+export type SlideContainerEditMode = 'fields' | 'css';
+
+export interface SlideContainerFields {
+  backgroundColor?: string;
+  width?: string;
+  height?: string;
+  /** When true, use a slide-like min-height that fits the stage without scrolling. */
+  fillViewportHeight?: boolean;
+  padding?: string;
+  borderStyle?: string;
+  borderWidth?: string;
+  borderColor?: string;
+  borderRadius?: string;
+  shadowBlur?: string;
+  shadowOffsetX?: string;
+  shadowOffsetY?: string;
+  shadowSpread?: string;
+  shadowColor?: string;
+}
+
+/**
+ * Styles the first content div inside `<article class="lesson-stage">`
+ * (the shell around lesson HTML — not the article itself, not the editable source).
+ */
+export interface SlideContainerPrefs {
+  enabled: boolean;
+  editMode: SlideContainerEditMode;
+  fields?: SlideContainerFields;
+  /** Raw CSS declarations applied when editMode is `css`. */
+  customCss?: string;
+}
+
+export type IndexSlidePlacement = 'first' | 'after-title';
+
+/** Layout stub — auto index slide generation not implemented yet. */
+export interface IndexSlidePrefs {
+  enabled?: boolean;
+  placement?: IndexSlidePlacement;
+  style?: string;
+}
+
+/** Layout stub — end/summary slide generation not implemented yet. */
+export interface EndSlidePrefs {
+  enabled?: boolean;
+  style?: string;
+}
+
+export interface CourseExtras {
+  slideContainer?: SlideContainerPrefs;
+  indexSlide?: IndexSlidePrefs;
+  endSlide?: EndSlidePrefs;
 }
 
 export interface CourseLessonRef {
@@ -493,22 +549,87 @@ export interface QuizGradeResult {
   allowedRetries?: number;
 }
 
+/** One graded quiz submission (plaintext after decrypt / encrypted on disk). */
+export interface QuizAttemptRecord {
+  percent: number;
+  passed: boolean;
+  at: string;
+  answers?: QuizAnswerMap;
+  results?: QuizGradeResult['results'];
+  attemptBlob?: {
+    v: 1;
+    alg: 'aes-256-gcm';
+    iv: string;
+    tag: string;
+    data: string;
+  };
+}
+
+/** Aggregated quiz progress for a learner (latest attempt + full history). */
+export interface QuizProgressRecord {
+  /** Latest attempt percent (mirrored for overview KPIs). */
+  percent: number;
+  passed: boolean;
+  at: string;
+  /** Number of graded submissions for this quiz. */
+  attempts?: number;
+  /**
+   * Latest submitted answers (API/client only after decrypt).
+   * On disk these live inside `attemptBlob` (AES-GCM), same idea as course answer-keys.
+   */
+  answers?: QuizAnswerMap;
+  /** Per-question results from the latest graded attempt (API/client after decrypt). */
+  results?: QuizGradeResult['results'];
+  /**
+   * Encrypted `{ answers, results }` envelope for the latest attempt.
+   * Opaque to hand-edited files; decrypted by the API when reading progress.
+   */
+  attemptBlob?: {
+    v: 1;
+    alg: 'aes-256-gcm';
+    iv: string;
+    tag: string;
+    data: string;
+  };
+  /**
+   * Every graded attempt (oldest → newest). Each entry is sealed like `attemptBlob`
+   * so Progress Review can step through history without plaintext on disk.
+   */
+  attemptHistory?: QuizAttemptRecord[];
+}
+
+/**
+ * Learner lab evidence (screenshots / files / URLs). Reserved until uploads ship;
+ * Progress review will render these when present.
+ */
+export interface LabEvidenceItem {
+  id: string;
+  method: 'screenshot' | 'url' | 'written' | 'confirmation' | 'file';
+  /** Relative path under data/ once screenshot/file upload is implemented. */
+  path?: string;
+  url?: string;
+  note?: string;
+  at: string;
+}
+
+/**
+ * Per-course progress for one learner on this device.
+ *
+ * Today: `data/progress/{courseId}.json` (single local profile).
+ * Multi-user (planned): `data/progress/{learnerId}/{courseId}.json` keyed by `learnerId`.
+ * Host sessions (planned): mirrored under `data/sessions/{sessionId}/…` for instructor review.
+ */
 export interface ProgressState {
   courseId: string;
+  /** Owning local learner — optional until multi-profile lands; stamp when known. */
+  learnerId?: string;
   currentIndex: number;
   completedKeys: string[];
-  quizScores: Record<
-    string,
-    {
-      percent: number;
-      passed: boolean;
-      at: string;
-      /** Number of graded submissions stored on the user profile (not in the course package). */
-      attempts?: number;
-    }
-  >;
+  quizScores: Record<string, QuizProgressRecord>;
   labChecked: Record<string, string[]>;
   labPassed: Record<string, boolean>;
+  /** Optional evidence bundles per lab id (future uploads). */
+  labEvidence?: Record<string, LabEvidenceItem[]>;
   updatedAt: string;
 }
 

@@ -51,7 +51,7 @@ Supported question types (see the kitchen-sink demo quiz under `courses/demo_cou
 | `poll` | Opinion (ungraded) |
 | `rating` | Numeric, star (incl. half-steps), or slider |
 
-Answer keys live under `quizzes/answer-keys/` (not shipped in learner-facing question files).
+Answer keys live under `quizzes/answer-keys/` (AES-encrypted, not in learner-facing question files). Learner quiz responses are stored encrypted in `data/progress/{courseId}.json` (`attemptBlob`) and decrypted by the API for the Progress inspector.
 
 ## Sidebar & settings
 
@@ -65,6 +65,8 @@ Gear → **App** prefs (saved in `data/user.json`):
 Appearance can be overridden by the open course when **Use course settings** is on.
 
 Visit progress: leaving a slide marks it complete (`completedKeys`); quizzes/labs also update progress from pass/interact. Checks appear in Navigator and Overview when enabled.
+
+**Progress inspector** (Trophy in the toolbar, ~470px dock): live KPIs for the local learner, overview lists for quizzes/labs, and a Review pane for per-question responses / lab rubric status. New quiz grades store answers + results for review. Types reserve `learnerId` and `labEvidence` for upcoming multi-profile and host-session grading.
 
 ## Course package layout
 

@@ -27,6 +27,7 @@ import {
   writeProgress,
   writeSlideNotes,
 } from './courses.ts';
+import { appendQuizAttempt } from './progressCrypto.ts';
 import { listLessonTemplates, readLessonTemplateSource } from './lessonTemplates.ts';
 import {
   addLabSection,
@@ -411,15 +412,20 @@ export async function handleApiRequest(
         answers,
         quiz.activity.passingScore ?? 70,
       );
+      const user = readUserState(ctx.appRoot);
+      const at = new Date().toISOString();
+      const nextRecord = appendQuizAttempt(prior, {
+        percent: result.percent,
+        passed: result.passed,
+        at,
+        answers,
+        results: result.results,
+      });
       writeProgress(ctx.appRoot, segments[1], {
+        learnerId: progress.learnerId ?? user.profile.userId,
         quizScores: {
           ...progress.quizScores,
-          [segments[3]]: {
-            percent: result.percent,
-            passed: result.passed,
-            at: new Date().toISOString(),
-            attempts: attemptsUsed + 1,
-          },
+          [segments[3]]: nextRecord,
         },
       });
       return {
@@ -427,7 +433,7 @@ export async function handleApiRequest(
         status: 200,
         data: {
           ...result,
-          attempts: attemptsUsed + 1,
+          attempts: nextRecord.attempts ?? attemptsUsed + 1,
           allowedRetries,
         },
       };
@@ -444,7 +450,16 @@ export async function handleApiRequest(
     }
 
     if (method === 'PUT' && segments[0] === 'courses' && segments[2] === 'progress') {
-      const next = writeProgress(ctx.appRoot, segments[1], (body ?? {}) as object);
+      const current = readProgress(ctx.appRoot, segments[1]);
+      const user = readUserState(ctx.appRoot);
+      const patch = (body ?? {}) as object;
+      const next = writeProgress(ctx.appRoot, segments[1], {
+        ...patch,
+        learnerId:
+          (patch as { learnerId?: string }).learnerId ??
+          current.learnerId ??
+          user.profile.userId,
+      });
       return { ok: true, status: 200, data: next };
     }
 

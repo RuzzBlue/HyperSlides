@@ -28,6 +28,7 @@ import {
   readEncryptedAnswerKey,
   stripCorrectFromQuestions,
 } from './quizAnswerKeys.ts';
+import { sealQuizScores, unsealQuizScores } from './progressCrypto.ts';
 import {
   gradeNumericAnswer,
   gradeRatingAnswer,
@@ -595,11 +596,12 @@ export function readProgress(appRoot: string, courseId: string): ProgressState {
     };
   }
   const raw = readJson<ProgressState>(file);
+  const quizScores = unsealQuizScores(courseId, raw.quizScores ?? {});
   return {
     ...raw,
     labPassed: raw.labPassed ?? {},
     labChecked: raw.labChecked ?? {},
-    quizScores: raw.quizScores ?? {},
+    quizScores,
     completedKeys: raw.completedKeys ?? [],
   };
 }
@@ -612,14 +614,22 @@ export function writeProgress(
   const dir = path.join(getDataRoot(appRoot), 'progress');
   ensureDir(dir);
   const current = readProgress(appRoot, courseId);
+  const mergedScores = patch.quizScores
+    ? { ...current.quizScores, ...patch.quizScores }
+    : current.quizScores;
   const next: ProgressState = {
     ...current,
     ...patch,
     courseId,
+    quizScores: sealQuizScores(courseId, mergedScores),
     updatedAt: new Date().toISOString(),
   };
   fs.writeFileSync(path.join(dir, `${courseId}.json`), JSON.stringify(next, null, 2), 'utf-8');
-  return next;
+  // Return unsealed copy for API callers (matches GET progress).
+  return {
+    ...next,
+    quizScores: unsealQuizScores(courseId, next.quizScores),
+  };
 }
 
 /** Temporary testing helper — deletes all course progress JSON files under data/progress/. */

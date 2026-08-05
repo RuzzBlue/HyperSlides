@@ -64,6 +64,8 @@ export type CreateCourseInput = {
     authorEnabled?: boolean;
     authorHint?: string;
   };
+  /** Presentation extras (content shell, future index/end slides). */
+  extras?: import('../types.ts').CourseExtras;
 };
 
 export type UpdateCourseInput = CreateCourseInput;
@@ -490,6 +492,7 @@ export function createCourse(appRoot: string, input: CreateCourseInput): CourseS
       enabled: Boolean(input.security?.authorEnabled),
       hint: input.security?.authorHint?.trim() || undefined,
     },
+    ...(input.extras ? { extras: input.extras } : {}),
   };
   writeJson(path.join(rootPath, 'manifest.json'), packageManifest);
 
@@ -574,6 +577,11 @@ export function updateCourse(
       enabled: Boolean(input.security?.authorEnabled),
       hint: input.security?.authorHint?.trim() || undefined,
     };
+    if (input.extras !== undefined) {
+      pkg.extras = input.extras;
+    } else {
+      // Keep any existing extras when older clients omit the field.
+    }
     writeJson(packagePath, pkg);
   }
 

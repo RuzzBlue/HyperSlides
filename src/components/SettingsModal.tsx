@@ -4,6 +4,7 @@ import {
   Check,
   Copy,
   Monitor,
+  MonitorCog,
   Moon,
   Palette,
   Presentation,
@@ -35,6 +36,8 @@ export function SettingsModal({
   initialTab = 'appearance',
   onTabChange,
   onProgressReset,
+  showPresentationShortcut = false,
+  onOpenPresentationSettings,
 }: {
   open: boolean;
   onClose: () => void;
@@ -43,6 +46,9 @@ export function SettingsModal({
   onTabChange?: (tab: TabId) => void;
   /** Called after all course progress files are wiped (testing helper). */
   onProgressReset?: () => void;
+  /** When viewing a course — show shortcut to course settings. */
+  showPresentationShortcut?: boolean;
+  onOpenPresentationSettings?: () => void;
 }) {
   const { profile, appearance, settings, tr, save, appearanceLocks, courseSettingsActive } =
     usePrefs();
@@ -216,6 +222,20 @@ export function SettingsModal({
                   label={tr('presenterSettings')}
                   onClick={() => selectTab('presenter')}
                 />
+                {showPresentationShortcut && (
+                  <button
+                    type="button"
+                    title={tr('presentationSettingsHint')}
+                    onClick={() => {
+                      onClose();
+                      onOpenPresentationSettings?.();
+                    }}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-medium text-[var(--ink-muted)] transition hover:bg-black/5 hover:text-[var(--ink)]"
+                  >
+                    <MonitorCog className="h-4 w-4" />
+                    {tr('presentationSettings')}
+                  </button>
+                )}
               </nav>
             </aside>
 
