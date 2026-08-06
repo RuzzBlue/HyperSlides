@@ -22,6 +22,8 @@ import { DEMO_COURSE_ID, isDemoCourseId } from '../demoCourse.ts';
 export type ThemeTemplateInfo = {
   id: string;
   name: string;
+  /** Theme accent from theme.json (for linking cover color). */
+  accent?: string;
 };
 
 export type CreateCourseCustomTheme = {
@@ -29,6 +31,8 @@ export type CreateCourseCustomTheme = {
   displayFont: string;
   bodyFont: string;
   googleFontsUrl: string;
+  /** Relative path under theme/ for local @font-face CSS (e.g. fonts.css). */
+  localCss?: string;
   quiz?: string;
   lab?: string;
   bgMode?: 'solid' | 'gradient' | 'css';
@@ -40,6 +44,15 @@ export type CreateCourseCustomTheme = {
   bgCssTextDark?: string;
 };
 
+export type ThemeFontUpload = {
+  filename: string;
+  dataBase64: string;
+  /** CSS font-family name; derived from filename when omitted. */
+  family?: string;
+  /** Which role(s) this file should fill when building a custom theme. */
+  role?: 'display' | 'body' | 'both';
+};
+
 export type CreateCourseInput = {
   title: string;
   subtitle?: string;
@@ -49,6 +62,10 @@ export type CreateCourseInput = {
   themeSource: 'template' | 'custom';
   themeTemplateId?: string;
   customTheme?: CreateCourseCustomTheme;
+  /** When true with a template theme, patch theme.accent to match coverAccent after copy. */
+  linkAccentAndCover?: boolean;
+  /** Font files to store under theme/fonts/ (custom themes). */
+  themeFonts?: ThemeFontUpload[];
   /** Applied for both template and custom themes (overrides template defaults). */
   watermark?: ThemeWatermark;
   pageNumber?: ThemePageNumber;
@@ -84,12 +101,38 @@ export function listThemeTemplates(appRoot: string): ThemeTemplateInfo[] {
     if (!fs.existsSync(themePath)) continue;
     try {
       const raw = JSON.parse(fs.readFileSync(themePath, 'utf-8')) as CourseTheme;
-      out.push({ id: d.name, name: raw.name || d.name });
+      out.push({
+        id: d.name,
+        name: raw.name || d.name,
+        accent: typeof raw.accent === 'string' ? raw.accent : undefined,
+      });
     } catch {
       out.push({ id: d.name, name: d.name });
     }
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Standard empty buckets every new course should have on disk. */
+export function ensureCoursePackageDirs(rootPath: string) {
+  const dirs = [
+    path.join(rootPath, 'labs'),
+    path.join(rootPath, 'quizzes'),
+    path.join(rootPath, 'notes'),
+    path.join(rootPath, 'widgets'),
+    path.join(rootPath, 'assets'),
+    path.join(rootPath, 'assets', 'documents'),
+    path.join(rootPath, 'assets', 'images'),
+    path.join(rootPath, 'assets', 'others'),
+    path.join(rootPath, 'theme'),
+  ];
+  for (const dir of dirs) {
+    ensureDir(dir);
+    const keep = path.join(dir, '.gitkeep');
+    if (!fs.existsSync(keep) && fs.readdirSync(dir).length === 0) {
+      fs.writeFileSync(keep, '', 'utf-8');
+    }
+  }
 }
 
 function slugifyBase(title: string): string {
@@ -193,7 +236,8 @@ function buildCustomTheme(input: CreateCourseCustomTheme): { theme: CourseTheme;
     fonts: {
       display: input.displayFont,
       body: input.bodyFont,
-      google: input.googleFontsUrl,
+      google: input.googleFontsUrl || undefined,
+      ...(input.localCss ? { localCss: input.localCss } : {}),
     },
     fontSizeBase: '16px',
     typeScale: {
@@ -342,6 +386,149 @@ export function uploadCourseThemeAsset(
   return { path: rel };
 }
 
+const FONT_EXT = new Set(['.woff2', '.woff', '.ttf', '.otf']);
+
+function fontFormatFromExt(ext: string): string {
+  if (ext === '.woff2') return 'woff2';
+  if (ext === '.woff') return 'woff';
+  if (ext === '.ttf') return 'truetype';
+  if (ext === '.otf') return 'opentype';
+  return 'woff2';
+}
+
+function sanitizeFontFamily(name: string): string {
+  return name.replace(/["']/g, '').trim() || 'Custom Font';
+}
+
+function familyFromFilename(filename: string): string {
+  const base = path.basename(filename).replace(/\.[^.]+$/, '');
+  return sanitizeFontFamily(
+    base
+      .replace(/[-_]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\b\w/g, (c) => c.toUpperCase()) || 'Custom Font',
+  );
+}
+
+/**
+ * Write a font file under theme/fonts/ and append @font-face to theme/fonts.css.
+ * Returns { path, family, localCss }.
+ */
+export function writeThemeFont(
+  themeDir: string,
+  filename: string,
+  dataBase64: string,
+  familyHint?: string,
+): { path: string; family: string; localCss: string } {
+  const fontsDir = path.join(themeDir, 'fonts');
+  ensureDir(fontsDir);
+  const base = path.basename(filename || 'font.woff2').replace(/[^\w.\-]+/g, '_');
+  const ext = path.extname(base).toLowerCase();
+  if (!FONT_EXT.has(ext)) {
+    throw new Error('Font must be .woff2, .woff, .ttf, or .otf');
+  }
+  const safe = base || `font${ext}`;
+  const raw = dataBase64.replace(/^data:[^;]+;base64,/, '');
+  const buf = Buffer.from(raw, 'base64');
+  if (!buf.length) throw new Error('Empty font data');
+  if (buf.length > 8_000_000) throw new Error('Font too large (max ~8MB)');
+  fs.writeFileSync(path.join(fontsDir, safe), buf);
+
+  const family = sanitizeFontFamily(familyHint || familyFromFilename(safe));
+  const relFile = `fonts/${safe}`;
+  const face = `@font-face {
+  font-family: "${family}";
+  src: url("./${relFile}") format("${fontFormatFromExt(ext)}");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+`;
+  const cssPath = path.join(themeDir, 'fonts.css');
+  const prev = fs.existsSync(cssPath) ? fs.readFileSync(cssPath, 'utf-8') : '/* Course theme fonts */\n';
+  if (!prev.includes(`url("./${relFile}")`)) {
+    fs.writeFileSync(cssPath, `${prev.trimEnd()}\n\n${face}`, 'utf-8');
+  }
+  return { path: relFile, family, localCss: 'fonts.css' };
+}
+
+export function uploadCourseThemeFont(
+  appRoot: string,
+  courseId: string,
+  filename: string,
+  dataBase64: string,
+  family?: string,
+): { path: string; family: string; localCss: string } {
+  const loaded = loadCourse(appRoot, courseId);
+  if (!loaded) throw new Error('Course not found');
+  const themeDir = path.join(loaded.rootPath, 'theme');
+  const saved = writeThemeFont(themeDir, filename, dataBase64, family);
+  const themePath = path.join(themeDir, 'theme.json');
+  if (fs.existsSync(themePath)) {
+    try {
+      const theme = JSON.parse(fs.readFileSync(themePath, 'utf-8')) as CourseTheme;
+      theme.fonts = {
+        ...(theme.fonts ?? {}),
+        localCss: saved.localCss,
+      };
+      writeJson(themePath, theme);
+    } catch {
+      // best-effort
+    }
+  }
+  return saved;
+}
+
+export function listCourseThemeFonts(
+  appRoot: string,
+  courseId: string,
+): { files: { path: string; family: string }[]; localCss?: string } {
+  const loaded = loadCourse(appRoot, courseId);
+  if (!loaded) throw new Error('Course not found');
+  const themeDir = path.join(loaded.rootPath, 'theme');
+  const fontsDir = path.join(themeDir, 'fonts');
+  const files: { path: string; family: string }[] = [];
+  if (fs.existsSync(fontsDir)) {
+    for (const name of fs.readdirSync(fontsDir)) {
+      const ext = path.extname(name).toLowerCase();
+      if (!FONT_EXT.has(ext)) continue;
+      files.push({ path: `fonts/${name}`, family: familyFromFilename(name) });
+    }
+  }
+  const localCss = loaded.theme?.fonts?.localCss;
+  return { files, localCss };
+}
+
+function applyThemeFonts(
+  themeDir: string,
+  uploads: ThemeFontUpload[] | undefined,
+): { display?: string; body?: string; localCss?: string } {
+  if (!uploads?.length) return {};
+  let display: string | undefined;
+  let body: string | undefined;
+  let localCss: string | undefined;
+  for (const u of uploads) {
+    const saved = writeThemeFont(themeDir, u.filename, u.dataBase64, u.family);
+    localCss = saved.localCss;
+    const role = u.role ?? 'both';
+    if (role === 'display' || role === 'both') display = `"${saved.family}", system-ui, sans-serif`;
+    if (role === 'body' || role === 'both') body = `"${saved.family}", system-ui, sans-serif`;
+  }
+  return { display, body, localCss };
+}
+
+function patchThemeAccent(themePath: string, accent: string) {
+  if (!fs.existsSync(themePath)) return;
+  try {
+    const theme = JSON.parse(fs.readFileSync(themePath, 'utf-8')) as CourseTheme;
+    theme.accent = accent;
+    writeJson(themePath, theme);
+  } catch {
+    // best-effort
+  }
+}
+
 function applyWatermarkImage(
   themeDir: string,
   themePath: string,
@@ -387,14 +574,7 @@ export function createCourse(appRoot: string, input: CreateCourseInput): CourseS
   }
 
   ensureDir(path.join(rootPath, 'modules', 'module-01', 'unit-01'));
-  ensureDir(path.join(rootPath, 'notes'));
-  ensureDir(path.join(rootPath, 'labs'));
-  ensureDir(path.join(rootPath, 'quizzes'));
-  ensureDir(path.join(rootPath, 'widgets'));
-  ensureDir(path.join(rootPath, 'assets', 'images'));
-  ensureDir(path.join(rootPath, 'assets', 'documents'));
-  ensureDir(path.join(rootPath, 'assets', 'others'));
-  ensureDir(path.join(rootPath, 'theme'));
+  ensureCoursePackageDirs(rootPath);
 
   // Theme
   const themeSource = input.themeSource === 'custom' ? 'custom' : 'template';
@@ -405,10 +585,21 @@ export function createCourse(appRoot: string, input: CreateCourseInput): CourseS
       throw new Error(`Theme template not found: ${templateId}`);
     }
     fs.cpSync(src, path.join(rootPath, 'theme'), { recursive: true });
+    if (input.linkAccentAndCover) {
+      patchThemeAccent(path.join(rootPath, 'theme', 'theme.json'), coverAccent);
+    }
   } else {
     const custom = input.customTheme;
     if (!custom) throw new Error('customTheme is required when themeSource is custom');
-    const { theme, css } = buildCustomTheme(custom);
+    const fontApply = applyThemeFonts(path.join(rootPath, 'theme'), input.themeFonts);
+    const merged: CreateCourseCustomTheme = {
+      ...custom,
+      displayFont: fontApply.display || custom.displayFont,
+      bodyFont: fontApply.body || custom.bodyFont,
+      localCss: fontApply.localCss || custom.localCss,
+      googleFontsUrl: fontApply.localCss && !custom.googleFontsUrl ? '' : custom.googleFontsUrl,
+    };
+    const { theme, css } = buildCustomTheme(merged);
     writeJson(path.join(rootPath, 'theme', 'theme.json'), theme);
     fs.writeFileSync(path.join(rootPath, 'theme', 'theme.css'), css, 'utf-8');
   }
@@ -587,6 +778,7 @@ export function updateCourse(
 
   const themeDir = path.join(rootPath, 'theme');
   ensureDir(themeDir);
+  ensureCoursePackageDirs(rootPath);
   const themeSource = input.themeSource === 'custom' ? 'custom' : 'template';
   if (themeSource === 'template') {
     const templateId = input.themeTemplateId || 'crypto-teal';
@@ -595,10 +787,21 @@ export function updateCourse(
       throw new Error(`Theme template not found: ${templateId}`);
     }
     fs.cpSync(src, themeDir, { recursive: true });
+    if (input.linkAccentAndCover) {
+      patchThemeAccent(path.join(themeDir, 'theme.json'), coverAccent);
+    }
   } else {
     const custom = input.customTheme;
     if (!custom) throw new Error('customTheme is required when themeSource is custom');
-    const { theme, css } = buildCustomTheme(custom);
+    const fontApply = applyThemeFonts(themeDir, input.themeFonts);
+    const merged: CreateCourseCustomTheme = {
+      ...custom,
+      displayFont: fontApply.display || custom.displayFont,
+      bodyFont: fontApply.body || custom.bodyFont,
+      localCss: fontApply.localCss || custom.localCss,
+      googleFontsUrl: fontApply.localCss && !custom.googleFontsUrl ? '' : custom.googleFontsUrl,
+    };
+    const { theme, css } = buildCustomTheme(merged);
     writeJson(path.join(themeDir, 'theme.json'), theme);
     fs.writeFileSync(path.join(themeDir, 'theme.css'), css, 'utf-8');
   }

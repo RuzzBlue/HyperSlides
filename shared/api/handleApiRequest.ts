@@ -39,7 +39,7 @@ import {
   writeLabSource,
   writeQuizSource,
 } from './quizLabSource.ts';
-import { createCourse, deleteCourse, listThemeTemplates, updateCourse, uploadCourseThemeAsset, type CreateCourseInput } from './createCourse.ts';
+import { createCourse, deleteCourse, listCourseThemeFonts, listThemeTemplates, updateCourse, uploadCourseThemeAsset, uploadCourseThemeFont, type CreateCourseInput } from './createCourse.ts';
 import { insertCourseItem, type InsertKind } from './insertCourseItem.ts';
 import {
   deleteStructureNode,
@@ -161,6 +161,54 @@ export async function handleApiRequest(
         return { ok: true, status: 201, data: saved };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to upload theme asset';
+        const status = message === 'Course not found' ? 404 : 400;
+        return { ok: false, status, error: message };
+      }
+    }
+
+    if (
+      method === 'POST' &&
+      segments[0] === 'courses' &&
+      segments.length === 4 &&
+      segments[2] === 'theme' &&
+      segments[3] === 'fonts'
+    ) {
+      try {
+        const payload = (body ?? {}) as {
+          filename?: string;
+          dataBase64?: string;
+          family?: string;
+        };
+        if (!payload.filename || !payload.dataBase64) {
+          return { ok: false, status: 400, error: 'filename and dataBase64 are required' };
+        }
+        const saved = uploadCourseThemeFont(
+          ctx.appRoot,
+          segments[1],
+          payload.filename,
+          payload.dataBase64,
+          payload.family,
+        );
+        return { ok: true, status: 201, data: saved };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to upload theme font';
+        const status = message === 'Course not found' ? 404 : 400;
+        return { ok: false, status, error: message };
+      }
+    }
+
+    if (
+      method === 'GET' &&
+      segments[0] === 'courses' &&
+      segments.length === 4 &&
+      segments[2] === 'theme' &&
+      segments[3] === 'fonts'
+    ) {
+      try {
+        const listed = listCourseThemeFonts(ctx.appRoot, segments[1]);
+        return { ok: true, status: 200, data: listed };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to list theme fonts';
         const status = message === 'Course not found' ? 404 : 400;
         return { ok: false, status, error: message };
       }

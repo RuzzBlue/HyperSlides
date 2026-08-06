@@ -11,6 +11,7 @@ import {
   resolveAppearanceMode,
   resolveBgPair,
 } from './theme/themeUtils';
+import { runInlineScripts } from './lesson/runInlineScripts';
 
 export function LessonView({
   html,
@@ -53,9 +54,13 @@ export function LessonView({
    * Only write HTML when the lesson fragment changes.
    * Re-applying dangerouslySetInnerHTML on theme toggles destroys portal mount nodes
    * (widgets vanish until you navigate away and back).
+   * Re-insert <script> nodes afterward — innerHTML never executes them.
    */
   useEffect(() => {
-    if (contentRef.current) contentRef.current.innerHTML = html;
+    const el = contentRef.current;
+    if (!el) return;
+    el.innerHTML = html;
+    runInlineScripts(el);
   }, [html]);
 
   /**
@@ -72,13 +77,28 @@ export function LessonView({
   useEffect(() => {
     if (!theme?.fonts?.google) return;
     const id = `course-font-${theme.id}`;
-    if (document.getElementById(id)) return;
-    const link = document.createElement('link');
-    link.id = id;
-    link.rel = 'stylesheet';
+    let link = document.getElementById(id) as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement('link');
+      link.id = id;
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
     link.href = theme.fonts.google;
-    document.head.appendChild(link);
   }, [theme]);
+
+  useEffect(() => {
+    if (!theme?.fonts?.localCss || !courseFolder) return;
+    const id = `course-local-font-${theme.id}`;
+    let link = document.getElementById(id) as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement('link');
+      link.id = id;
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
+    link.href = `http://127.0.0.1:8765/courses/${courseFolder}/theme/${theme.fonts.localCss}`;
+  }, [theme, courseFolder]);
 
   useEffect(() => {
     if (!theme?.cssFile) return;

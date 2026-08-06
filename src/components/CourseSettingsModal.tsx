@@ -30,126 +30,25 @@ import { apiFetch } from '../api/client';
 import type { StringKey } from '../i18n/strings';
 import { usePrefs } from '../prefs/PrefsProvider';
 import { themeAssetUrl } from './theme/themeUtils';
+import {
+  THEME_FONT_PRESETS,
+  UPLOADED_FONT_PRESET_ID,
+  familyFromFontFilename,
+  matchThemeFontPreset,
+} from '@shared/themeFonts';
 
 type Tab = 'info' | 'theme' | 'course' | 'extras' | 'security';
 type ThemeSource = 'template' | 'custom';
 type BgMode = 'solid' | 'gradient' | 'css';
 
-type TemplateInfo = { id: string; name: string };
+type TemplateInfo = { id: string; name: string; accent?: string };
 
-const FONT_PRESETS = [
-  {
-    id: 'outfit-serif',
-    label: 'Outfit + Source Serif 4',
-    display: '"Source Serif 4", Georgia, serif',
-    body: '"Outfit", system-ui, sans-serif',
-    google:
-      'https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,600;700&display=swap',
-  },
-  {
-    id: 'dm-sans',
-    label: 'DM Sans',
-    display: '"DM Sans", system-ui, sans-serif',
-    body: '"DM Sans", system-ui, sans-serif',
-    google:
-      'https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap',
-  },
-  {
-    id: 'elegant',
-    label: 'Manrope + Libre Baskerville',
-    display: '"Libre Baskerville", Georgia, serif',
-    body: '"Manrope", system-ui, sans-serif',
-    google:
-      'https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Manrope:wght@400;500;600;700&display=swap',
-  },
-  {
-    id: 'pastel',
-    label: 'Nunito Sans + Fraunces',
-    display: '"Fraunces", Georgia, serif',
-    body: '"Nunito Sans", system-ui, sans-serif',
-    google:
-      'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Nunito+Sans:wght@400;500;600;700&display=swap',
-  },
-  {
-    id: 'inter-merriweather',
-    label: 'Inter + Merriweather',
-    display: '"Merriweather", Georgia, serif',
-    body: '"Inter", system-ui, sans-serif',
-    google:
-      'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:wght@400;700&display=swap',
-  },
-  {
-    id: 'space-plex',
-    label: 'Space Grotesk + IBM Plex Sans',
-    display: '"Space Grotesk", system-ui, sans-serif',
-    body: '"IBM Plex Sans", system-ui, sans-serif',
-    google:
-      'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap',
-  },
-  {
-    id: 'plus-jakarta',
-    label: 'Plus Jakarta Sans',
-    display: '"Plus Jakarta Sans", system-ui, sans-serif',
-    body: '"Plus Jakarta Sans", system-ui, sans-serif',
-    google:
-      'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap',
-  },
-  {
-    id: 'lobster-lato',
-    label: 'Lobster + Lato',
-    display: '"Lobster", cursive',
-    body: '"Lato", system-ui, sans-serif',
-    google:
-      'https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Lobster&display=swap',
-  },
-  {
-    id: 'playfair-source',
-    label: 'Playfair Display + Source Sans 3',
-    display: '"Playfair Display", Georgia, serif',
-    body: '"Source Sans 3", system-ui, sans-serif',
-    google:
-      'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap',
-  },
-  {
-    id: 'rubik',
-    label: 'Rubik',
-    display: '"Rubik", system-ui, sans-serif',
-    body: '"Rubik", system-ui, sans-serif',
-    google: 'https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap',
-  },
-  {
-    id: 'karla-inconsolata',
-    label: 'Karla + Inconsolata',
-    display: '"Inconsolata", monospace',
-    body: '"Karla", system-ui, sans-serif',
-    google:
-      'https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;500;600;700&family=Karla:wght@400;500;600;700&display=swap',
-  },
-  {
-    id: 'bebas-roboto',
-    label: 'Bebas Neue + Roboto',
-    display: '"Bebas Neue", system-ui, sans-serif',
-    body: '"Roboto", system-ui, sans-serif',
-    google:
-      'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto:wght@400;500;700&display=swap',
-  },
-  {
-    id: 'cormorant-montserrat',
-    label: 'Cormorant Garamond + Montserrat',
-    display: '"Cormorant Garamond", Georgia, serif',
-    body: '"Montserrat", system-ui, sans-serif',
-    google:
-      'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700&display=swap',
-  },
-  {
-    id: 'work-literata',
-    label: 'Work Sans + Literata',
-    display: '"Literata", Georgia, serif',
-    body: '"Work Sans", system-ui, sans-serif',
-    google:
-      'https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600;7..72,700&family=Work+Sans:wght@400;500;600;700&display=swap',
-  },
-] as const;
+type PendingThemeFont = {
+  filename: string;
+  dataBase64: string;
+  family: string;
+  role: 'display' | 'body' | 'both';
+};
 
 const DEFAULT_QUIZ_COLOR = '#2f5aa8';
 const DEFAULT_LAB_COLOR = '#6b4f9a';
@@ -208,10 +107,8 @@ function parseCssSize(size: string): { num: string; unit: (typeof SIZE_UNITS)[nu
   return { num: m[1]!, unit };
 }
 
-function matchFontPreset(googleUrl?: string): string {
-  if (!googleUrl) return FONT_PRESETS[0].id;
-  const match = FONT_PRESETS.find((f) => f.google === googleUrl);
-  return match?.id ?? FONT_PRESETS[0].id;
+function matchFontPreset(googleUrl?: string, display?: string, body?: string): string {
+  return matchThemeFontPreset(googleUrl, display, body);
 }
 
 function bgTypeToMode(type?: ThemeBgSpec['type']): BgMode {
@@ -759,9 +656,15 @@ export function CourseSettingsModal({
 
   const [themeSource, setThemeSource] = useState<ThemeSource>('template');
   const [themeTemplateId, setThemeTemplateId] = useState('crypto-teal');
+  const [linkAccentAndCover, setLinkAccentAndCover] = useState(false);
   const [accent, setAccent] = useState(DEMO_DEFAULTS.coverAccent);
-  const [accentTouched, setAccentTouched] = useState(false);
-  const [fontPreset, setFontPreset] = useState<string>(FONT_PRESETS[0].id);
+  const [fontPreset, setFontPreset] = useState<string>(THEME_FONT_PRESETS[0].id);
+  const [uploadedDisplayFamily, setUploadedDisplayFamily] = useState('');
+  const [uploadedBodyFamily, setUploadedBodyFamily] = useState('');
+  const [pendingThemeFonts, setPendingThemeFonts] = useState<PendingThemeFont[]>([]);
+  const [courseThemeFonts, setCourseThemeFonts] = useState<{ path: string; family: string }[]>([]);
+  const [fontLocalCss, setFontLocalCss] = useState<string | undefined>(undefined);
+  const fontFileRef = useRef<HTMLInputElement>(null);
   const [quizColor, setQuizColor] = useState(DEFAULT_QUIZ_COLOR);
   const [labColor, setLabColor] = useState(DEFAULT_LAB_COLOR);
   const [bgMode, setBgMode] = useState<BgMode>('gradient');
@@ -824,9 +727,31 @@ export function CourseSettingsModal({
 
       setThemeSource(isCustom ? 'custom' : 'template');
       setThemeTemplateId(isCustom ? 'crypto-teal' : (course.theme?.id ?? 'crypto-teal'));
-      setAccent(course.theme?.accent ?? m.coverAccent ?? DEMO_DEFAULTS.coverAccent);
-      setAccentTouched(isCustom);
-      setFontPreset(matchFontPreset(course.theme?.fonts?.google));
+      const themeAccent = course.theme?.accent ?? m.coverAccent ?? DEMO_DEFAULTS.coverAccent;
+      const cover = m.coverAccent ?? course.summary.coverAccent ?? DEMO_DEFAULTS.coverAccent;
+      setAccent(themeAccent);
+      setLinkAccentAndCover(
+        isCustom ? themeAccent.toLowerCase() === cover.toLowerCase() : false,
+      );
+      setFontPreset(
+        matchFontPreset(
+          course.theme?.fonts?.google,
+          course.theme?.fonts?.display,
+          course.theme?.fonts?.body,
+        ),
+      );
+      setUploadedDisplayFamily(
+        course.theme?.fonts?.localCss
+          ? (course.theme.fonts.display?.replace(/^"([^"]+)".*$/, '$1') ?? '')
+          : '',
+      );
+      setUploadedBodyFamily(
+        course.theme?.fonts?.localCss
+          ? (course.theme.fonts.body?.replace(/^"([^"]+)".*$/, '$1') ?? '')
+          : '',
+      );
+      setPendingThemeFonts([]);
+      setFontLocalCss(course.theme?.fonts?.localCss);
       setQuizColor(course.theme?.quiz ?? DEFAULT_QUIZ_COLOR);
       setLabColor(course.theme?.lab ?? DEFAULT_LAB_COLOR);
       const bg = hydrateBgFromTheme(course.theme);
@@ -874,8 +799,13 @@ export function CourseSettingsModal({
       setThemeSource('template');
       setThemeTemplateId(initialTemplateId || 'crypto-teal');
       setAccent(DEMO_DEFAULTS.coverAccent);
-      setAccentTouched(false);
-      setFontPreset(FONT_PRESETS[0].id);
+      setLinkAccentAndCover(false);
+      setFontPreset(THEME_FONT_PRESETS[0].id);
+      setUploadedDisplayFamily('');
+      setUploadedBodyFamily('');
+      setPendingThemeFonts([]);
+      setCourseThemeFonts([]);
+      setFontLocalCss(undefined);
       setQuizColor(DEFAULT_QUIZ_COLOR);
       setLabColor(DEFAULT_LAB_COLOR);
       setBgMode('gradient');
@@ -933,6 +863,19 @@ export function CourseSettingsModal({
           }
         }
       }
+      if (isEdit && course) {
+        const fontsRes = await apiFetch<{
+          files: { path: string; family: string }[];
+          localCss?: string;
+        }>({
+          method: 'GET',
+          path: `/api/courses/${course.summary.id}/theme/fonts`,
+        });
+        if (fontsRes.ok && fontsRes.data) {
+          setCourseThemeFonts(fontsRes.data.files);
+          if (fontsRes.data.localCss) setFontLocalCss(fontsRes.data.localCss);
+        }
+      }
     })();
   }, [open, isEdit, course, initialTemplateId, defaultAuthor]);
 
@@ -945,10 +888,20 @@ export function CourseSettingsModal({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose, submitting]);
 
-  /** Keep theme accent aligned with cover until the user customizes it. */
+  /** When linked + custom, keep cover and theme accent in sync. */
   useEffect(() => {
-    if (!accentTouched) setAccent(coverAccent);
-  }, [coverAccent, accentTouched]);
+    if (!open || !linkAccentAndCover || themeSource !== 'custom') return;
+    if (coverAccent.toLowerCase() !== accent.toLowerCase()) {
+      setAccent(coverAccent);
+    }
+  }, [coverAccent, linkAccentAndCover, themeSource, open]);
+
+  /** When linked + template, pull cover from the selected template accent. */
+  useEffect(() => {
+    if (!open || !linkAccentAndCover || themeSource !== 'template') return;
+    const t = templates.find((x) => x.id === themeTemplateId);
+    if (t?.accent) setCoverAccent(t.accent);
+  }, [linkAccentAndCover, themeSource, themeTemplateId, templates, open]);
 
   /** Prefill solid/gradient backgrounds from accent until the user edits them. */
   useEffect(() => {
@@ -962,20 +915,113 @@ export function CourseSettingsModal({
 
   const selectThemeSource = (next: ThemeSource) => {
     setThemeSource(next);
-    if (next === 'custom' && !accentTouched) {
+    if (next === 'custom') {
+      setLinkAccentAndCover(true);
       setAccent(coverAccent);
+    } else {
+      setLinkAccentAndCover(false);
     }
   };
 
   const setThemeAccent = (value: string) => {
-    setAccentTouched(true);
     setAccent(value);
+    if (linkAccentAndCover) setCoverAccent(value);
+  };
+
+  const setCoverAccentLinked = (value: string) => {
+    setCoverAccent(value);
+    if (linkAccentAndCover && themeSource === 'custom') setAccent(value);
+  };
+
+  const toggleLinkAccent = (on: boolean) => {
+    setLinkAccentAndCover(on);
+    if (!on) return;
+    if (themeSource === 'template') {
+      const t = templates.find((x) => x.id === themeTemplateId);
+      if (t?.accent) setCoverAccent(t.accent);
+    } else {
+      setAccent(coverAccent);
+    }
   };
 
   const markBgTouched = () => setBgTouched(true);
 
+  const readFontFile = (file: File): Promise<PendingThemeFont> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = String(reader.result || '');
+        const dataBase64 = result.includes(',') ? result.split(',')[1]! : result;
+        resolve({
+          filename: file.name,
+          dataBase64,
+          family: familyFromFontFilename(file.name),
+          role: 'both',
+        });
+      };
+      reader.onerror = () => reject(new Error('Failed to read font file'));
+      reader.readAsDataURL(file);
+    });
+
+  const onPickFontFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const accepted = Array.from(files).filter((f) =>
+      /\.(woff2?|ttf|otf)$/i.test(f.name),
+    );
+    if (!accepted.length) {
+      setError('Upload a .woff2, .woff, .ttf, or .otf font file');
+      return;
+    }
+    try {
+      if (isEdit && course) {
+        for (const file of accepted) {
+          const pending = await readFontFile(file);
+          const res = await apiFetch<{ path: string; family: string; localCss: string }>({
+            method: 'POST',
+            path: `/api/courses/${course.summary.id}/theme/fonts`,
+            body: {
+              filename: pending.filename,
+              dataBase64: pending.dataBase64,
+              family: pending.family,
+            },
+          });
+          if (!res.ok || !res.data) throw new Error(res.error || 'Font upload failed');
+          const saved = res.data;
+          setCourseThemeFonts((prev) => [
+            ...prev.filter((f) => f.path !== saved.path),
+            { path: saved.path, family: saved.family },
+          ]);
+          setFontLocalCss(saved.localCss);
+          setFontPreset(UPLOADED_FONT_PRESET_ID);
+          setUploadedDisplayFamily(saved.family);
+          setUploadedBodyFamily(saved.family);
+        }
+      } else {
+        const next: PendingThemeFont[] = [];
+        for (const file of accepted) next.push(await readFontFile(file));
+        setPendingThemeFonts((prev) => [...prev, ...next]);
+        setFontPreset(UPLOADED_FONT_PRESET_ID);
+        const last = next[next.length - 1];
+        if (last) {
+          setUploadedDisplayFamily(last.family);
+          setUploadedBodyFamily(last.family);
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Font upload failed');
+    }
+  };
+
   const buildPayload = () => {
-    const font = FONT_PRESETS.find((f) => f.id === fontPreset) ?? FONT_PRESETS[0];
+    const font =
+      fontPreset === UPLOADED_FONT_PRESET_ID
+        ? {
+            id: UPLOADED_FONT_PRESET_ID,
+            display: `"${uploadedDisplayFamily || 'Custom Font'}", system-ui, sans-serif`,
+            body: `"${uploadedBodyFamily || uploadedDisplayFamily || 'Custom Font'}", system-ui, sans-serif`,
+            google: '',
+          }
+        : THEME_FONT_PRESETS.find((f) => f.id === fontPreset) ?? THEME_FONT_PRESETS[0];
     const watermark = {
       enabled: wmEnabled,
       kind: wmKind,
@@ -1000,6 +1046,9 @@ export function CourseSettingsModal({
             displayFont: font.display,
             bodyFont: font.body,
             googleFontsUrl: font.google,
+            ...(fontLocalCss || pendingThemeFonts.length
+              ? { localCss: fontLocalCss || 'fonts.css' }
+              : {}),
             quiz: quizColor,
             lab: labColor,
             bgMode,
@@ -1026,7 +1075,11 @@ export function CourseSettingsModal({
       author,
       themeSource,
       themeTemplateId: themeSource === 'template' ? themeTemplateId : undefined,
+      linkAccentAndCover,
       customTheme,
+      ...(themeSource === 'custom' && pendingThemeFonts.length
+        ? { themeFonts: pendingThemeFonts }
+        : {}),
       watermark,
       ...(wmKind === 'image' && wmPendingImage ? { watermarkImage: wmPendingImage } : {}),
       pageNumber,
@@ -1191,13 +1244,13 @@ export function CourseSettingsModal({
                         <input
                           type="color"
                           value={coverAccent}
-                          onChange={(e) => setCoverAccent(e.target.value)}
+                          onChange={(e) => setCoverAccentLinked(e.target.value)}
                           className="h-9 w-12 cursor-pointer rounded border border-[var(--line)] bg-[var(--panel)]"
                         />
                         <input
                           className={inputClass}
                           value={coverAccent}
-                          onChange={(e) => setCoverAccent(e.target.value)}
+                          onChange={(e) => setCoverAccentLinked(e.target.value)}
                         />
                       </div>
                     </Field>
@@ -1217,6 +1270,22 @@ export function CourseSettingsModal({
                       <option value="custom">{tr('newCourseThemeCustom')}</option>
                     </select>
                   </Field>
+                  <label className="flex cursor-pointer items-start gap-2 text-[12px] text-[var(--ink)]">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 accent-[var(--accent)]"
+                      checked={linkAccentAndCover}
+                      onChange={(e) => toggleLinkAccent(e.target.checked)}
+                    />
+                    <span>
+                      {tr('newCourseLinkAccentCover')}
+                      <span className="mt-0.5 block text-[11px] text-[var(--ink-muted)]">
+                        {themeSource === 'template'
+                          ? tr('newCourseLinkAccentCoverHintTemplate')
+                          : tr('newCourseLinkAccentCoverHintCustom')}
+                      </span>
+                    </span>
+                  </label>
 
                   {themeSource === 'template' ? (
                     <Field label={tr('newCourseThemeTemplate')}>
@@ -1287,13 +1356,76 @@ export function CourseSettingsModal({
                           value={fontPreset}
                           onChange={(e) => setFontPreset(e.target.value)}
                         >
-                          {FONT_PRESETS.map((f) => (
+                          {THEME_FONT_PRESETS.map((f) => (
                             <option key={f.id} value={f.id}>
                               {f.label}
                             </option>
                           ))}
+                          <option value={UPLOADED_FONT_PRESET_ID}>
+                            {tr('newCourseThemeFontUploaded')}
+                          </option>
                         </select>
                       </Field>
+                      <div className="space-y-2 rounded-lg border border-dashed border-[var(--line)] bg-[var(--panel-2)] p-2.5">
+                        <div className="text-[11px] font-medium text-[var(--ink-muted)]">
+                          {tr('newCourseThemeFontUpload')}
+                        </div>
+                        <input
+                          ref={fontFileRef}
+                          type="file"
+                          accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf"
+                          className="hidden"
+                          multiple
+                          onChange={(e) => {
+                            void onPickFontFiles(e.target.files);
+                            e.target.value = '';
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--line)] bg-[var(--panel)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] hover:border-[var(--accent)]"
+                          onClick={() => fontFileRef.current?.click()}
+                        >
+                          <Upload className="h-3.5 w-3.5" />
+                          {tr('newCourseThemeFontUploadBtn')}
+                        </button>
+                        {(pendingThemeFonts.length > 0 || courseThemeFonts.length > 0) && (
+                          <ul className="space-y-1 text-[11px] text-[var(--ink-muted)]">
+                            {courseThemeFonts.map((f) => (
+                              <li key={f.path}>
+                                {f.family}{' '}
+                                <span className="opacity-60">({f.path})</span>
+                              </li>
+                            ))}
+                            {pendingThemeFonts.map((f) => (
+                              <li key={`${f.filename}-${f.family}`}>
+                                {f.family}{' '}
+                                <span className="opacity-60">(pending · {f.filename})</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {fontPreset === UPLOADED_FONT_PRESET_ID && (
+                          <div className="grid grid-cols-2 gap-2 pt-1">
+                            <Field label={tr('newCourseThemeFontDisplay')}>
+                              <input
+                                className={inputClass}
+                                value={uploadedDisplayFamily}
+                                onChange={(e) => setUploadedDisplayFamily(e.target.value)}
+                                placeholder="Display family"
+                              />
+                            </Field>
+                            <Field label={tr('newCourseThemeFontBody')}>
+                              <input
+                                className={inputClass}
+                                value={uploadedBodyFamily}
+                                onChange={(e) => setUploadedBodyFamily(e.target.value)}
+                                placeholder="Body family"
+                              />
+                            </Field>
+                          </div>
+                        )}
+                      </div>
                       <Field label={tr('newCourseBgMode')}>
                         <select
                           className={inputClass}
