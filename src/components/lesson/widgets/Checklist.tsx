@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ComponentType } from 'react';
 import {
   Bookmark,
   Check,
@@ -8,12 +8,78 @@ import {
   Lock,
   PackageCheck,
   Shield,
+  type LucideProps,
 } from 'lucide-react';
 import { attr, childText, field, hasMountItems, queryMountItems } from './mountData';
+import { resolveMountIcon } from './mountIcons';
 
 type ChecklistItem = {
   label: string;
   hint?: string;
+  previewLabel?: string;
+  previewIdle?: string;
+  previewLive?: string;
+  icon?: string;
+};
+
+type GuidedMeta = {
+  eyebrow: string;
+  previewTitle: string;
+  previewFooter: string;
+  previewDone: string;
+};
+
+type LucideComp = ComponentType<LucideProps>;
+
+const GUIDED_PREVIEW_DEFAULTS: {
+  icon: string;
+  Fallback: LucideComp;
+  label: string;
+  idle: string;
+  live: string;
+}[] = [
+  {
+    icon: 'bookmark',
+    Fallback: Bookmark,
+    label: 'Bookmark',
+    idle: 'open from search…',
+    live: 'hyperclass.app/wallet',
+  },
+  {
+    icon: 'globe-2',
+    Fallback: Globe2,
+    label: 'Network',
+    idle: 'Select network',
+    live: 'Ethereum · Mainnet',
+  },
+  {
+    icon: 'key-round',
+    Fallback: KeyRound,
+    label: 'Recipient',
+    idle: 'Paste address',
+    live: '0xA1b2…9fE4',
+  },
+  {
+    icon: 'package-check',
+    Fallback: PackageCheck,
+    label: 'Amount',
+    idle: '0.00',
+    live: '0.01 ETH',
+  },
+  {
+    icon: 'shield',
+    Fallback: Shield,
+    label: 'Approve',
+    idle: 'Review & sign',
+    live: 'Signed · waiting confirm',
+  },
+];
+
+const DEFAULT_GUIDED_META: GuidedMeta = {
+  eyebrow: 'Guided checklist',
+  previewTitle: 'Live send preview',
+  previewFooter: 'Check items on the left to fill this preview',
+  previewDone: 'Checklist complete — ready to broadcast',
 };
 
 const PRESETS: Record<string, { title: string; items: ChecklistItem[] }> = {
@@ -39,11 +105,46 @@ const PRESETS: Record<string, { title: string; items: ChecklistItem[] }> = {
   guided: {
     title: 'First send checklist',
     items: [
-      { label: 'Open wallet from your bookmark', hint: 'Not a search result' },
-      { label: 'Confirm network badge', hint: 'Mainnet vs testnet' },
-      { label: 'Paste the recipient address', hint: 'Match first/last chars' },
-      { label: 'Enter a small test amount', hint: 'Dust-sized first transfer' },
-      { label: 'Review fee, then approve', hint: 'Cancel if anything looks off' },
+      {
+        label: 'Open wallet from your bookmark',
+        hint: 'Not a search result',
+        previewLabel: 'Bookmark',
+        previewIdle: 'open from search…',
+        previewLive: 'hyperclass.app/wallet',
+        icon: 'bookmark',
+      },
+      {
+        label: 'Confirm network badge',
+        hint: 'Mainnet vs testnet',
+        previewLabel: 'Network',
+        previewIdle: 'Select network',
+        previewLive: 'Ethereum · Mainnet',
+        icon: 'globe-2',
+      },
+      {
+        label: 'Paste the recipient address',
+        hint: 'Match first/last chars',
+        previewLabel: 'Recipient',
+        previewIdle: 'Paste address',
+        previewLive: '0xA1b2…9fE4',
+        icon: 'key-round',
+      },
+      {
+        label: 'Enter a small test amount',
+        hint: 'Dust-sized first transfer',
+        previewLabel: 'Amount',
+        previewIdle: '0.00',
+        previewLive: '0.01 ETH',
+        icon: 'package-check',
+      },
+      {
+        label: 'Review fee, then approve',
+        hint: 'Cancel if anything looks off',
+        previewLabel: 'Approve',
+        previewIdle: 'Review & sign',
+        previewLive: 'Signed · waiting confirm',
+        icon: 'shield',
+      },
     ],
   },
 };
@@ -73,7 +174,7 @@ function DefaultChecklist({
       </div>
       <ul className="space-y-2">
         {items.map((item, i) => (
-          <li key={item.label}>
+          <li key={`${item.label}-${i}`}>
             <button
               type="button"
               onClick={() => toggle(i)}
@@ -142,7 +243,7 @@ function NumberedRailChecklist({
         {items.map((item, i) => {
           const on = !!checked[i];
           return (
-            <li key={item.label}>
+            <li key={`${item.label}-${i}`}>
               <button
                 type="button"
                 onClick={() => toggle(i)}
@@ -185,45 +286,32 @@ function NumberedRailChecklist({
   );
 }
 
-function GuidedDemoPanel({ checked }: { checked: Record<number, boolean> }) {
+function GuidedDemoPanel({
+  checked,
+  items,
+  meta,
+}: {
+  checked: Record<number, boolean>;
+  items: ChecklistItem[];
+  meta: GuidedMeta;
+}) {
   const steps = useMemo(
-    () => [
-      {
-        icon: Bookmark,
-        label: 'Bookmark',
-        live: 'hyperclass.app/wallet',
-        idle: 'open from search…',
-      },
-      {
-        icon: Globe2,
-        label: 'Network',
-        live: 'Ethereum · Mainnet',
-        idle: 'Select network',
-      },
-      {
-        icon: KeyRound,
-        label: 'Recipient',
-        live: '0xA1b2…9fE4',
-        idle: 'Paste address',
-      },
-      {
-        icon: PackageCheck,
-        label: 'Amount',
-        live: '0.01 ETH',
-        idle: '0.00',
-      },
-      {
-        icon: Shield,
-        label: 'Approve',
-        live: 'Signed · waiting confirm',
-        idle: 'Review & sign',
-      },
-    ],
-    [],
+    () =>
+      items.map((item, i) => {
+        const d = GUIDED_PREVIEW_DEFAULTS[i] ?? GUIDED_PREVIEW_DEFAULTS[GUIDED_PREVIEW_DEFAULTS.length - 1];
+        return {
+          icon: item.icon || d.icon,
+          Fallback: d.Fallback,
+          label: item.previewLabel || d.label,
+          idle: item.previewIdle || d.idle,
+          live: item.previewLive || d.live,
+        };
+      }),
+    [items],
   );
 
   const done = steps.filter((_, i) => checked[i]).length;
-  const allDone = done === steps.length;
+  const allDone = steps.length > 0 && done === steps.length;
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 shadow-lg">
@@ -231,7 +319,7 @@ function GuidedDemoPanel({ checked }: { checked: Record<number, boolean> }) {
         <div className="flex items-center gap-2">
           <Lock className="h-3.5 w-3.5 text-teal-300" />
           <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-            Live send preview
+            {meta.previewTitle}
           </span>
         </div>
         <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tabular-nums text-teal-200">
@@ -242,10 +330,11 @@ function GuidedDemoPanel({ checked }: { checked: Record<number, boolean> }) {
       <div className="flex flex-1 flex-col gap-2.5 p-4">
         {steps.map((step, i) => {
           const on = !!checked[i];
-          const Icon = step.icon;
+          const Icon = step.Fallback;
+          const customIcon = resolveMountIcon(step.icon, { className: 'h-4 w-4' });
           return (
             <div
-              key={step.label}
+              key={`${step.label}-${i}`}
               className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all duration-300 ${
                 on
                   ? 'border-teal-500/50 bg-teal-500/10'
@@ -257,10 +346,16 @@ function GuidedDemoPanel({ checked }: { checked: Record<number, boolean> }) {
                   on ? 'bg-teal-500 text-slate-950' : 'bg-white/10 text-slate-400'
                 }`}
               >
-                {on ? <Check className="h-4 w-4" strokeWidth={3} /> : <Icon className="h-4 w-4" />}
+                {on ? (
+                  <Check className="h-4 w-4" strokeWidth={3} />
+                ) : (
+                  (customIcon ?? <Icon className="h-4 w-4" />)
+                )}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{step.label}</p>
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  {step.label}
+                </p>
                 <p
                   className={`truncate font-mono text-xs ${
                     on ? 'text-teal-100' : 'text-slate-500'
@@ -284,9 +379,7 @@ function GuidedDemoPanel({ checked }: { checked: Record<number, boolean> }) {
           allDone ? 'bg-teal-500/20 text-teal-100' : 'bg-white/[0.03] text-slate-500'
         }`}
       >
-        {allDone
-          ? 'Checklist complete — ready to broadcast'
-          : 'Check items on the left to fill this preview'}
+        {allDone ? meta.previewDone : meta.previewFooter}
       </div>
     </div>
   );
@@ -295,12 +388,14 @@ function GuidedDemoPanel({ checked }: { checked: Record<number, boolean> }) {
 function GuidedSplitChecklist({
   title,
   items,
+  meta,
   checked,
   toggle,
   done,
 }: {
   title: string;
   items: ChecklistItem[];
+  meta: GuidedMeta;
   checked: Record<number, boolean>;
   toggle: (i: number) => void;
   done: number;
@@ -311,7 +406,7 @@ function GuidedSplitChecklist({
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-teal-700 dark:text-teal-400">
-              Guided checklist
+              {meta.eyebrow}
             </p>
             <h3 className="mt-1 text-base font-black text-slate-900 dark:text-white">{title}</h3>
           </div>
@@ -324,7 +419,7 @@ function GuidedSplitChecklist({
           {items.map((item, i) => {
             const on = !!checked[i];
             return (
-              <li key={item.label}>
+              <li key={`${item.label}-${i}`}>
                 <button
                   type="button"
                   onClick={() => toggle(i)}
@@ -364,23 +459,40 @@ function GuidedSplitChecklist({
         </ul>
       </div>
 
-      <GuidedDemoPanel checked={checked} />
+      <GuidedDemoPanel checked={checked} items={items} meta={meta} />
     </div>
   );
+}
+
+function parseGuidedMeta(host: HTMLElement | null | undefined): GuidedMeta {
+  return {
+    eyebrow: attr(host, 'data-eyebrow') || DEFAULT_GUIDED_META.eyebrow,
+    previewTitle: attr(host, 'data-preview-title') || DEFAULT_GUIDED_META.previewTitle,
+    previewFooter: attr(host, 'data-preview-footer') || DEFAULT_GUIDED_META.previewFooter,
+    previewDone: attr(host, 'data-preview-done') || DEFAULT_GUIDED_META.previewDone,
+  };
 }
 
 function parseChecklist(host: HTMLElement | null | undefined, preset?: string) {
   const key = preset && PRESETS[preset] ? preset : 'send';
   const base = PRESETS[key];
+  const guidedMeta = parseGuidedMeta(host);
   if (host && hasMountItems(host)) {
     const title = attr(host, 'data-title') || base.title;
-    const items = queryMountItems(host).map((el) => ({
-      label: attr(el, 'data-label') || field(el, { attr: 'data-title', fallbackText: true }) || 'Item',
-      hint: attr(el, 'data-hint') || childText(el, '[data-hint]') || undefined,
-    }));
-    return { key, title, items };
+    const items = queryMountItems(host).map((el, i) => {
+      const fallback = key === 'guided' ? GUIDED_PREVIEW_DEFAULTS[i] : undefined;
+      return {
+        label: attr(el, 'data-label') || field(el, { attr: 'data-title', fallbackText: true }) || 'Item',
+        hint: attr(el, 'data-hint') || childText(el, '[data-hint]') || undefined,
+        previewLabel: attr(el, 'data-preview-label') || fallback?.label,
+        previewIdle: attr(el, 'data-preview-idle') || fallback?.idle,
+        previewLive: attr(el, 'data-preview-live') || fallback?.live,
+        icon: attr(el, 'data-icon') || fallback?.icon,
+      };
+    });
+    return { key, title, items, guidedMeta };
   }
-  return { key, title: base.title, items: base.items };
+  return { key, title: base.title, items: base.items, guidedMeta };
 }
 
 export function ChecklistWidget({
@@ -390,7 +502,10 @@ export function ChecklistWidget({
   preset?: string;
   host?: HTMLElement | null;
 }) {
-  const { key, title, items } = useMemo(() => parseChecklist(host, preset), [host, preset]);
+  const { key, title, items, guidedMeta } = useMemo(
+    () => parseChecklist(host, preset),
+    [host, preset],
+  );
   const [checked, setChecked] = useState<Record<number, boolean>>({});
   const done = Object.values(checked).filter(Boolean).length;
 
@@ -404,7 +519,14 @@ export function ChecklistWidget({
 
   if (key === 'guided') {
     return (
-      <GuidedSplitChecklist title={title} items={items} checked={checked} toggle={toggle} done={done} />
+      <GuidedSplitChecklist
+        title={title}
+        items={items}
+        meta={guidedMeta}
+        checked={checked}
+        toggle={toggle}
+        done={done}
+      />
     );
   }
 

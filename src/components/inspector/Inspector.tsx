@@ -21,6 +21,7 @@ import {
   StickyNote,
   Pin,
   Radio,
+  Search,
   Shapes,
   Sparkles,
   SquareArrowOutUpRight,
@@ -208,6 +209,7 @@ export function Inspector({
   );
   const panelSaveRef = useRef<(() => Promise<void>) | null>(null);
   const panelInsertRef = useRef<((snippet: string) => void) | null>(null);
+  const panelToggleFindRef = useRef<(() => void) | null>(null);
 
   const registerSave = useCallback((fn: () => Promise<void>) => {
     panelSaveRef.current = fn;
@@ -215,6 +217,10 @@ export function Inspector({
 
   const registerInsert = useCallback((fn: (snippet: string) => void) => {
     panelInsertRef.current = fn;
+  }, []);
+
+  const registerToggleFind = useCallback((fn: () => void) => {
+    panelToggleFindRef.current = fn;
   }, []);
 
   useEffect(() => {
@@ -277,6 +283,16 @@ export function Inspector({
             onOpenChange={setTemplatesOpen}
             onInsert={onTemplateInsert}
           />
+        )}
+        {(editKind === 'lesson' || editKind === 'quiz' || editKind === 'lab') && (
+          <button
+            type="button"
+            title={tr('inspectorCodeFind')}
+            onClick={() => panelToggleFindRef.current?.()}
+            className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)] dark:hover:bg-white/10"
+          >
+            <Search className="h-4 w-4" />
+          </button>
         )}
         <button
           type="button"
@@ -346,6 +362,7 @@ export function Inspector({
             onFileLabel={setFileLabel}
             registerSave={registerSave}
             registerInsert={registerInsert}
+            registerToggleFind={registerToggleFind}
             onSaved={onCodeSaved}
           />
         ) : editKind === 'quiz' && quizEditContext ? (
@@ -356,6 +373,7 @@ export function Inspector({
             onFileLabel={setFileLabel}
             registerSave={registerSave}
             registerInsert={registerInsert}
+            registerToggleFind={registerToggleFind}
             onSaved={onQuizSaved}
           />
         ) : editKind === 'lab' && labEditContext ? (
@@ -366,6 +384,7 @@ export function Inspector({
             onFileLabel={setFileLabel}
             registerSave={registerSave}
             registerInsert={registerInsert}
+            registerToggleFind={registerToggleFind}
             onSaved={onLabSaved}
           />
         ) : isCode ? (

@@ -10,6 +10,8 @@
  * - Tabs / accordion / flipcards / steps: data-icon — Lucide kebab name (`key-round`)
  *   or Font Awesome (`fa-solid fa-house`, `fa:house`, `fas:book-open`)
  * - Checklist: data-label; data-hint or [data-hint]; host may have data-title
+ *   Guided preset also: host data-eyebrow / data-preview-title|footer|done;
+ *   items data-preview-label|idle|live + data-icon
  * - Flipcards: data-eyebrow, data-title, data-subtitle; [data-front], [data-body]; data-accent?
  * - Metrics: data-value, data-suffix, data-caption, …
  * - Generic fallback: data-title / data-label + [data-body]

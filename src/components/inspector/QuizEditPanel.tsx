@@ -2,7 +2,14 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom';
 import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
-import type { EditorView } from '@codemirror/view';
+import {
+  closeSearchPanel,
+  openSearchPanel,
+  search,
+  searchKeymap,
+  searchPanelOpen,
+} from '@codemirror/search';
+import { keymap, type EditorView } from '@codemirror/view';
 import { ArrowDown, ArrowUp, Info } from 'lucide-react';
 import type { QuizActivity, QuizAnswerMap, QuizQuestion } from '@shared/types';
 import { isUngradedQuestion } from '@shared/quizQuestions';
@@ -70,6 +77,7 @@ export function QuizEditPanel({
   onFileLabel,
   registerSave,
   registerInsert,
+  registerToggleFind,
   onSaved,
 }: {
   context: QuizEditContext;
@@ -78,6 +86,7 @@ export function QuizEditPanel({
   onFileLabel: (file: string | null) => void;
   registerSave: (fn: () => Promise<void>) => void;
   registerInsert?: (fn: (snippet: string) => void) => void;
+  registerToggleFind?: (fn: () => void) => void;
   onSaved?: (quizId: string) => void;
 }) {
   const { tr, trf } = usePrefs();
@@ -101,7 +110,7 @@ export function QuizEditPanel({
 
   const baselineRef = useRef({ activity: '', questionsText: '[]', answers: '{}' });
 
-  const extensions = useMemo(() => [json()], []);
+  const extensions = useMemo(() => [json(), search(), keymap.of(searchKeymap)], []);
 
   const applyFromResponse = useCallback(
     (data: QuizSourceResponse) => {
@@ -244,6 +253,15 @@ export function QuizEditPanel({
   const saveRef = useRef(save);
   saveRef.current = save;
 
+  const toggleFind = useCallback(() => {
+    const view = viewRef.current;
+    if (!view?.dom?.isConnected) return;
+    if (searchPanelOpen(view.state)) closeSearchPanel(view);
+    else openSearchPanel(view);
+  }, []);
+  const toggleFindRef = useRef(toggleFind);
+  toggleFindRef.current = toggleFind;
+
   useLayoutEffect(() => {
     registerSave(() => saveRef.current());
   }, [registerSave]);
@@ -251,6 +269,10 @@ export function QuizEditPanel({
   useLayoutEffect(() => {
     registerInsert?.((snippet) => insertRef.current(snippet));
   }, [registerInsert]);
+
+  useLayoutEffect(() => {
+    registerToggleFind?.(() => toggleFindRef.current());
+  }, [registerToggleFind]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

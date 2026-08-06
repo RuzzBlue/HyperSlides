@@ -436,8 +436,17 @@ export function tabMeta(preset?: string): { style?: string; orientation?: string
   return { style: conf.style, orientation: conf.orientation };
 }
 
+type ChecklistExpandItem = {
+  label: string;
+  hint?: string;
+  icon?: string;
+  previewLabel?: string;
+  previewIdle?: string;
+  previewLive?: string;
+};
+
 export function expandChecklist(preset?: string): string {
-  const sets: Record<string, { title: string; items: { label: string; hint?: string }[] }> = {
+  const sets: Record<string, { title: string; items: ChecklistExpandItem[] }> = {
     send: {
       title: 'Before you send',
       items: [
@@ -460,19 +469,62 @@ export function expandChecklist(preset?: string): string {
     guided: {
       title: 'First send checklist',
       items: [
-        { label: 'Open wallet from your bookmark', hint: 'Not a search result' },
-        { label: 'Confirm network badge', hint: 'Mainnet vs testnet' },
-        { label: 'Paste the recipient address', hint: 'Match first/last chars' },
-        { label: 'Enter a small test amount', hint: 'Dust-sized first transfer' },
-        { label: 'Review fee, then approve', hint: 'Cancel if anything looks off' },
+        {
+          label: 'Open wallet from your bookmark',
+          hint: 'Not a search result',
+          icon: 'bookmark',
+          previewLabel: 'Bookmark',
+          previewIdle: 'open from search…',
+          previewLive: 'hyperclass.app/wallet',
+        },
+        {
+          label: 'Confirm network badge',
+          hint: 'Mainnet vs testnet',
+          icon: 'globe-2',
+          previewLabel: 'Network',
+          previewIdle: 'Select network',
+          previewLive: 'Ethereum · Mainnet',
+        },
+        {
+          label: 'Paste the recipient address',
+          hint: 'Match first/last chars',
+          icon: 'key-round',
+          previewLabel: 'Recipient',
+          previewIdle: 'Paste address',
+          previewLive: '0xA1b2…9fE4',
+        },
+        {
+          label: 'Enter a small test amount',
+          hint: 'Dust-sized first transfer',
+          icon: 'package-check',
+          previewLabel: 'Amount',
+          previewIdle: '0.00',
+          previewLive: '0.01 ETH',
+        },
+        {
+          label: 'Review fee, then approve',
+          hint: 'Cancel if anything looks off',
+          icon: 'shield',
+          previewLabel: 'Approve',
+          previewIdle: 'Review & sign',
+          previewLive: 'Signed · waiting confirm',
+        },
       ],
     },
   };
   const conf = sets[preset || 'send'] || sets.send;
   const blocks = conf.items.map(
-    (it) => `${itemOpen({ 'data-label': it.label, 'data-hint': it.hint })}${itemClose()}`,
+    (it) =>
+      `${itemOpen({
+        'data-label': it.label,
+        'data-hint': it.hint,
+        'data-icon': it.icon,
+        'data-preview-label': it.previewLabel,
+        'data-preview-idle': it.previewIdle,
+        'data-preview-live': it.previewLive,
+      })}${itemClose()}`,
   );
-  return `\n<!-- checklist title via data-title on host -->\n${blocks.join('\n')}\n`;
+  return `\n<!-- checklist title + guided preview texts via host/item data-* attrs -->\n${blocks.join('\n')}\n`;
 }
 
 export function checklistTitle(preset?: string): string {
@@ -1347,7 +1399,17 @@ export function expandMountInner(
     case 'checklist':
       return {
         inner: expandChecklist(preset),
-        hostAttrs: { 'data-title': checklistTitle(preset) },
+        hostAttrs: {
+          'data-title': checklistTitle(preset),
+          ...(preset === 'guided'
+            ? {
+                'data-eyebrow': 'Guided checklist',
+                'data-preview-title': 'Live send preview',
+                'data-preview-footer': 'Check items on the left to fill this preview',
+                'data-preview-done': 'Checklist complete — ready to broadcast',
+              }
+            : {}),
+        },
       };
     case 'flipcards':
       return { inner: expandFlipcards(preset) };

@@ -110,13 +110,13 @@ echo &quot;settled:&quot;, hash;</pre></div>
 
   <section>
     <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Checklist · guided (list + live preview)</span>
-    <div data-component="checklist" data-preset="guided" data-title="First send checklist">
-<!-- checklist title via data-title on host -->
-<div data-item data-label="Open wallet from your bookmark" data-hint="Not a search result"></div>
-<div data-item data-label="Confirm network badge" data-hint="Mainnet vs testnet"></div>
-<div data-item data-label="Paste the recipient address" data-hint="Match first/last chars"></div>
-<div data-item data-label="Enter a small test amount" data-hint="Dust-sized first transfer"></div>
-<div data-item data-label="Review fee, then approve" data-hint="Cancel if anything looks off"></div>
+    <div data-component="checklist" data-preset="guided" data-title="First send checklist" data-eyebrow="Guided checklist" data-preview-title="Live send preview" data-preview-footer="Check items on the left to fill this preview" data-preview-done="Checklist complete — ready to broadcast">
+<!-- checklist title + guided preview texts via host/item data-* attrs -->
+<div data-item data-label="Open wallet from your bookmark" data-hint="Not a search result" data-icon="bookmark" data-preview-label="Bookmark" data-preview-idle="open from search…" data-preview-live="hyperclass.app/wallet"></div>
+<div data-item data-label="Confirm network badge" data-hint="Mainnet vs testnet" data-icon="globe-2" data-preview-label="Network" data-preview-idle="Select network" data-preview-live="Ethereum · Mainnet"></div>
+<div data-item data-label="Paste the recipient address" data-hint="Match first/last chars" data-icon="key-round" data-preview-label="Recipient" data-preview-idle="Paste address" data-preview-live="0xA1b2…9fE4"></div>
+<div data-item data-label="Enter a small test amount" data-hint="Dust-sized first transfer" data-icon="package-check" data-preview-label="Amount" data-preview-idle="0.00" data-preview-live="0.01 ETH"></div>
+<div data-item data-label="Review fee, then approve" data-hint="Cancel if anything looks off" data-icon="shield" data-preview-label="Approve" data-preview-idle="Review &amp; sign" data-preview-live="Signed · waiting confirm"></div>
 </div>
   </section>
 </div>

@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { html } from '@codemirror/lang-html';
-import type { EditorView } from '@codemirror/view';
+import {
+  closeSearchPanel,
+  openSearchPanel,
+  search,
+  searchKeymap,
+  searchPanelOpen,
+} from '@codemirror/search';
+import { keymap, type EditorView } from '@codemirror/view';
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
 
@@ -18,6 +25,7 @@ export function CodePanel({
   onFileLabel,
   registerSave,
   registerInsert,
+  registerToggleFind,
   onSaved,
 }: {
   context: CodeContext;
@@ -26,6 +34,7 @@ export function CodePanel({
   onFileLabel: (file: string | null) => void;
   registerSave: (fn: () => Promise<void>) => void;
   registerInsert?: (fn: (snippet: string) => void) => void;
+  registerToggleFind?: (fn: () => void) => void;
   onSaved?: (slideKey: string) => void;
 }) {
   const { tr } = usePrefs();
@@ -37,7 +46,7 @@ export function CodePanel({
   const htmlRef = useRef(htmlText);
   htmlRef.current = htmlText;
 
-  const extensions = useMemo(() => [html()], []);
+  const extensions = useMemo(() => [html(), search(), keymap.of(searchKeymap)], []);
 
   useEffect(() => {
     onFileLabel(context.file ?? null);
@@ -151,8 +160,17 @@ export function CodePanel({
     [onDirtyChange],
   );
 
+  const toggleFind = useCallback(() => {
+    const view = viewRef.current;
+    if (!view?.dom?.isConnected) return;
+    if (searchPanelOpen(view.state)) closeSearchPanel(view);
+    else openSearchPanel(view);
+  }, []);
+
   const insertRef = useRef(insertAtCursor);
   insertRef.current = insertAtCursor;
+  const toggleFindRef = useRef(toggleFind);
+  toggleFindRef.current = toggleFind;
 
   const saveRef = useRef(save);
   saveRef.current = save;
@@ -164,6 +182,10 @@ export function CodePanel({
   useLayoutEffect(() => {
     registerInsert?.((snippet) => insertRef.current(snippet));
   }, [registerInsert]);
+
+  useLayoutEffect(() => {
+    registerToggleFind?.(() => toggleFindRef.current());
+  }, [registerToggleFind]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

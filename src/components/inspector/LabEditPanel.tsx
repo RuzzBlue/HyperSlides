@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { html as htmlLang } from '@codemirror/lang-html';
-import type { EditorView } from '@codemirror/view';
+import {
+  closeSearchPanel,
+  openSearchPanel,
+  search,
+  searchKeymap,
+  searchPanelOpen,
+} from '@codemirror/search';
+import { keymap, type EditorView } from '@codemirror/view';
 import { Plus, Trash2, Upload } from 'lucide-react';
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
@@ -59,6 +66,7 @@ export function LabEditPanel({
   onFileLabel,
   registerSave,
   registerInsert,
+  registerToggleFind,
   onSaved,
 }: {
   context: LabEditContext;
@@ -67,6 +75,7 @@ export function LabEditPanel({
   onFileLabel: (file: string | null) => void;
   registerSave: (fn: () => Promise<void>) => void;
   registerInsert?: (fn: (snippet: string) => void) => void;
+  registerToggleFind?: (fn: () => void) => void;
   onSaved?: (labId: string) => void;
 }) {
   const { tr } = usePrefs();
@@ -83,7 +92,7 @@ export function LabEditPanel({
 
   const baseline = useRef('');
   const viewRef = useRef<EditorView | null>(null);
-  const extensions = useMemo(() => [htmlLang()], []);
+  const extensions = useMemo(() => [htmlLang(), search(), keymap.of(searchKeymap)], []);
 
   const activeSection = sections.find((s) => s.id === activeSectionId) ?? null;
   const activeHtmlRef = useRef('');
@@ -333,6 +342,15 @@ export function LabEditPanel({
   const insertRef = useRef(insertAtCursor);
   insertRef.current = insertAtCursor;
 
+  const toggleFind = useCallback(() => {
+    const view = viewRef.current;
+    if (!view?.dom?.isConnected) return;
+    if (searchPanelOpen(view.state)) closeSearchPanel(view);
+    else openSearchPanel(view);
+  }, []);
+  const toggleFindRef = useRef(toggleFind);
+  toggleFindRef.current = toggleFind;
+
   useLayoutEffect(() => {
     registerSave(() => saveRef.current());
   }, [registerSave]);
@@ -340,6 +358,10 @@ export function LabEditPanel({
   useLayoutEffect(() => {
     registerInsert?.((snippet) => insertRef.current(snippet));
   }, [registerInsert]);
+
+  useLayoutEffect(() => {
+    registerToggleFind?.(() => toggleFindRef.current());
+  }, [registerToggleFind]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
