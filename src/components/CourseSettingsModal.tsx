@@ -43,6 +43,24 @@ type BgMode = 'solid' | 'gradient' | 'css';
 
 type TemplateInfo = { id: string; name: string; accent?: string };
 
+/** Fallback when API is older or accent is missing from the template payload. */
+const TEMPLATE_ACCENT_FALLBACK: Record<string, string> = {
+  'crypto-teal': '#0e6e6a',
+  'elegant-dark': '#c9a227',
+  'pastel-cream': '#c4785a',
+  'old-magazine': '#8b3a2b',
+  'white-minimalist': '#171717',
+};
+
+function resolveTemplateAccent(
+  templates: TemplateInfo[],
+  templateId: string,
+): string | undefined {
+  const t = templates.find((x) => x.id === templateId);
+  const raw = (t?.accent || TEMPLATE_ACCENT_FALLBACK[templateId] || '').trim();
+  return raw || undefined;
+}
+
 type PendingThemeFont = {
   filename: string;
   dataBase64: string;
@@ -888,19 +906,11 @@ export function CourseSettingsModal({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose, submitting]);
 
-  /** When linked + custom, keep cover and theme accent in sync. */
-  useEffect(() => {
-    if (!open || !linkAccentAndCover || themeSource !== 'custom') return;
-    if (coverAccent.toLowerCase() !== accent.toLowerCase()) {
-      setAccent(coverAccent);
-    }
-  }, [coverAccent, linkAccentAndCover, themeSource, open]);
-
-  /** When linked + template, pull cover from the selected template accent. */
+  /** When linked + template, keep cover in sync with the selected template accent. */
   useEffect(() => {
     if (!open || !linkAccentAndCover || themeSource !== 'template') return;
-    const t = templates.find((x) => x.id === themeTemplateId);
-    if (t?.accent) setCoverAccent(t.accent);
+    const next = resolveTemplateAccent(templates, themeTemplateId);
+    if (next) setCoverAccent(next);
   }, [linkAccentAndCover, themeSource, themeTemplateId, templates, open]);
 
   /** Prefill solid/gradient backgrounds from accent until the user edits them. */
@@ -916,6 +926,7 @@ export function CourseSettingsModal({
   const selectThemeSource = (next: ThemeSource) => {
     setThemeSource(next);
     if (next === 'custom') {
+      // Custom defaults to linked so cover and theme accent start matched.
       setLinkAccentAndCover(true);
       setAccent(coverAccent);
     } else {
@@ -923,9 +934,17 @@ export function CourseSettingsModal({
     }
   };
 
+  const selectThemeTemplate = (id: string) => {
+    setThemeTemplateId(id);
+    if (linkAccentAndCover && themeSource === 'template') {
+      const next = resolveTemplateAccent(templates, id);
+      if (next) setCoverAccent(next);
+    }
+  };
+
   const setThemeAccent = (value: string) => {
     setAccent(value);
-    if (linkAccentAndCover) setCoverAccent(value);
+    if (linkAccentAndCover && themeSource === 'custom') setCoverAccent(value);
   };
 
   const setCoverAccentLinked = (value: string) => {
@@ -937,8 +956,8 @@ export function CourseSettingsModal({
     setLinkAccentAndCover(on);
     if (!on) return;
     if (themeSource === 'template') {
-      const t = templates.find((x) => x.id === themeTemplateId);
-      if (t?.accent) setCoverAccent(t.accent);
+      const next = resolveTemplateAccent(templates, themeTemplateId);
+      if (next) setCoverAccent(next);
     } else {
       setAccent(coverAccent);
     }
@@ -1270,21 +1289,14 @@ export function CourseSettingsModal({
                       <option value="custom">{tr('newCourseThemeCustom')}</option>
                     </select>
                   </Field>
-                  <label className="flex cursor-pointer items-start gap-2 text-[12px] text-[var(--ink)]">
+                  <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[var(--ink)]">
                     <input
                       type="checkbox"
-                      className="mt-0.5 accent-[var(--accent)]"
+                      className="accent-[var(--accent)]"
                       checked={linkAccentAndCover}
                       onChange={(e) => toggleLinkAccent(e.target.checked)}
                     />
-                    <span>
-                      {tr('newCourseLinkAccentCover')}
-                      <span className="mt-0.5 block text-[11px] text-[var(--ink-muted)]">
-                        {themeSource === 'template'
-                          ? tr('newCourseLinkAccentCoverHintTemplate')
-                          : tr('newCourseLinkAccentCoverHintCustom')}
-                      </span>
-                    </span>
+                    <span>{tr('newCourseLinkAccentCover')}</span>
                   </label>
 
                   {themeSource === 'template' ? (
@@ -1292,7 +1304,7 @@ export function CourseSettingsModal({
                       <select
                         className={inputClass}
                         value={themeTemplateId}
-                        onChange={(e) => setThemeTemplateId(e.target.value)}
+                        onChange={(e) => selectThemeTemplate(e.target.value)}
                       >
                         {templates.map((t) => (
                           <option key={t.id} value={t.id}>

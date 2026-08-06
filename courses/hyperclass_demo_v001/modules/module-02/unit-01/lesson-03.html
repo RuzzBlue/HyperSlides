@@ -3,7 +3,7 @@
     <span class="text-xs font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-400">Components · Flip cards</span>
     <h2 class="mt-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Flip cards</h2>
     <p class="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
-      Tap to reveal the back — grid, icon pair, rich topic card, and image with a scrollable reverse.
+      Tap to reveal the back — grid, icon pair, full-width rich topic card, and full-width image with a scrollable reverse.
     </p>
   </div>
 
@@ -25,17 +25,35 @@
 </div>
   </section>
 
-  <section>
+  <section class="w-full">
     <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">One big · rich explanation</span>
-    <div data-component="flipcards" data-preset="rich">
-<div data-item data-front="What is finality?" data-eyebrow="Rich flip · topic card" data-title="Finality, in practice" data-subtitle="Definitions &amp; checklist" data-icon="shield" data-accent="from-teal-700 to-slate-900"><p data-body>Finality is confidence that a confirmed transaction will not be reversed under normal network assumptions. Wait for the confirmations your risk model requires; prefer reputable explorers; consider a test send for large transfers.</p></div>
+    <div data-component="flipcards" data-preset="rich" class="w-full">
+<div data-item data-front="What is finality?" data-eyebrow="Rich flip · topic card" data-title="Finality, in practice" data-subtitle="Definitions &amp; checklist" data-icon="shield" data-accent="from-teal-700 to-slate-900">
+<p data-body>Finality is confidence that a confirmed transaction will not be reversed under normal network assumptions. Probabilistic chains deepen confidence with each block; some systems offer economic finality after a checkpoint.
+
+Wait for the confirmations your risk model requires. Prefer reputable explorers for status, not random DMs. Large transfers: consider a test send first.
+
+Keep facilitator talking points on the back where scrolling is expected — glossary notes, caveats, and longer explanations without leaving the slide.
+
+Extra depth for the demo: if your cohort asks about reorg risk, walk through how many confirmations your policy requires on the network you are teaching, then flip back to the teaser front.</p>
+</div>
 </div>
   </section>
 
-  <section>
+  <section class="w-full">
     <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Image front · scrollable back</span>
-    <div data-component="flipcards" data-preset="image">
-<div data-item data-front="Distributed ledger" data-eyebrow="Image flip" data-title="How shared ledgers stay in sync" data-subtitle="Tap to read the long description" data-icon="network" data-accent="from-slate-800 to-teal-900"><p data-body>A blockchain is a replicated state machine: each honest peer applies the same ordered transactions and arrives at the same balances. When you check a confirmation, you ask how deep your transaction sits under subsequent blocks.</p></div>
+    <div data-component="flipcards" data-preset="image" class="w-full">
+<div data-item data-front="Distributed ledger" data-eyebrow="Image flip" data-title="How shared ledgers stay in sync" data-subtitle="Tap to read the long description" data-icon="network" data-accent="from-slate-800 to-teal-900" data-image="https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=1200&amp;h=800&amp;fit=crop&amp;q=80">
+<p data-body>A blockchain is a replicated state machine: each honest peer applies the same ordered transactions and arrives at the same balances. Forks happen when peers temporarily disagree on the tip; consensus rules decide which history wins.
+
+Light clients may trust headers or proofs instead of downloading every byte. Full nodes verify everything they can. Exchanges and custodians often run their own infrastructure because incorrect balances are a business risk, not just a curiosity.
+
+When you “check a confirmation,” you are asking how deep your transaction sits under subsequent blocks — and therefore how expensive a reorganization would need to be to undo it. That cost is the practical meaning of security for most users.
+
+Scroll continues here on purpose: image-backed flip cards are useful when the reverse side must hold more than a single paragraph — glossary notes, caveats, and facilitator talking points without leaving the slide.
+
+Tip: keep the front visual memorable; put the dense copy on the back where scrolling is expected.</p>
+</div>
 </div>
   </section>
 </div>

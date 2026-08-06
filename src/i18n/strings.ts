@@ -382,10 +382,6 @@ const en = {
   newCourseThemeAccent: 'Accent color',
   newCourseThemeFont: 'Font pair',
   newCourseLinkAccentCover: 'Link accent color and cover color',
-  newCourseLinkAccentCoverHintTemplate:
-    'Off by default for templates. Turn on to set the cover accent from the theme.',
-  newCourseLinkAccentCoverHintCustom:
-    'Keeps the cover and custom theme accents matched.',
   newCourseThemeFontUploaded: 'Uploaded fonts…',
   newCourseThemeFontUpload: 'Upload fonts to this course theme folder',
   newCourseThemeFontUploadBtn: 'Upload font file',
@@ -964,10 +960,6 @@ const es: Record<keyof typeof en, string> = {
   newCourseThemeAccent: 'Color de acento',
   newCourseThemeFont: 'Par de fuentes',
   newCourseLinkAccentCover: 'Vincular color de acento y color de portada',
-  newCourseLinkAccentCoverHintTemplate:
-    'Desactivado por defecto en plantillas. Actívalo para igualar la portada al acento del tema.',
-  newCourseLinkAccentCoverHintCustom:
-    'Mantiene iguales el acento de portada y el del tema personalizado.',
   newCourseThemeFontUploaded: 'Fuentes subidas…',
   newCourseThemeFontUpload: 'Sube fuentes a la carpeta de tema del curso',
   newCourseThemeFontUploadBtn: 'Subir archivo de fuente',

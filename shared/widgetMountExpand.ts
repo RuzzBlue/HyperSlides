@@ -492,6 +492,7 @@ type FlipCard = {
   body: string;
   icon?: string;
   accent?: string;
+  image?: string;
 };
 
 export function expandFlipcards(preset?: string): string {
@@ -559,7 +560,7 @@ export function expandFlipcards(preset?: string): string {
       eyebrow: 'Rich flip · topic card',
       title: 'Finality, in practice',
       subtitle: 'Definitions & checklist',
-      body: 'Finality is confidence that a confirmed transaction will not be reversed under normal network assumptions. Wait for the confirmations your risk model requires; prefer reputable explorers; consider a test send for large transfers.',
+      body: 'Finality is confidence that a confirmed transaction will not be reversed under normal network assumptions. Probabilistic chains deepen confidence with each block; some systems offer economic finality after a checkpoint.\n\nWait for the confirmations your risk model requires. Prefer reputable explorers for status, not random DMs. Large transfers: consider a test send first.\n\nKeep facilitator talking points on the back where scrolling is expected — glossary notes, caveats, and longer explanations without leaving the slide.',
       icon: 'shield',
       accent: 'from-teal-700 to-slate-900',
     },
@@ -570,9 +571,11 @@ export function expandFlipcards(preset?: string): string {
       eyebrow: 'Image flip',
       title: 'How shared ledgers stay in sync',
       subtitle: 'Tap to read the long description',
-      body: 'A blockchain is a replicated state machine: each honest peer applies the same ordered transactions and arrives at the same balances. When you check a confirmation, you ask how deep your transaction sits under subsequent blocks.',
+      body: 'A blockchain is a replicated state machine: each honest peer applies the same ordered transactions and arrives at the same balances. Forks happen when peers temporarily disagree on the tip; consensus rules decide which history wins.\n\nLight clients may trust headers or proofs instead of downloading every byte. Full nodes verify everything they can.\n\nWhen you check a confirmation, you ask how deep your transaction sits under subsequent blocks — and therefore how expensive a reorganization would need to be to undo it.\n\nScroll continues here on purpose: put dense copy on the back where scrolling is expected.',
       icon: 'network',
       accent: 'from-slate-800 to-teal-900',
+      image:
+        'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=1200&h=800&fit=crop&q=80',
     },
   ];
   const list =
@@ -587,6 +590,7 @@ export function expandFlipcards(preset?: string): string {
           'data-subtitle': it.subtitle,
           'data-icon': it.icon,
           'data-accent': it.accent,
+          ...(it.image ? { 'data-image': it.image } : {}),
         })}${pTag('data-body', it.body)}${itemClose()}`,
     ),
   );

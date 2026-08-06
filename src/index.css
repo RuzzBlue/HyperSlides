@@ -242,6 +242,35 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb {
   }
 }
 
+/* Soft lift on hover — used by text-layout demo cards */
+.lesson-stage .hc-lift,
+.lesson-stage .hc-icon-block,
+.lesson-stage .hc-card-media-left,
+.lesson-stage .hc-news__row,
+.lesson-stage .hc-scope-card {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.lesson-stage .hc-lift:hover,
+.lesson-stage .hc-icon-block:hover,
+.lesson-stage .hc-card-media-left:hover,
+.lesson-stage .hc-news__row:hover,
+.lesson-stage .hc-scope-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+}
+
+html[data-theme='dark'] .lesson-stage .hc-lift:hover,
+html[data-theme='dark'] .lesson-stage .hc-icon-block:hover,
+html[data-theme='dark'] .lesson-stage .hc-card-media-left:hover,
+html[data-theme='dark'] .lesson-stage .hc-news__row:hover,
+html[data-theme='dark'] .lesson-stage .hc-scope-card:hover {
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
 /* Horizontal media cards (image left · copy right) */
 .lesson-stage .hc-card-media-left {
   display: grid;
