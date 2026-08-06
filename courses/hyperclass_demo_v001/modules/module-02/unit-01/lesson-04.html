@@ -1,0 +1,122 @@
+<div class="space-y-10 text-left">
+  <div>
+    <span class="text-xs font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-400">Components · Steps</span>
+    <h2 class="mt-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Steps</h2>
+    <p class="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
+      Progressive reveal, a BTC↔ETH compare, icon/compact/code walkthroughs, and a process rail — plus checklists.
+    </p>
+  </div>
+
+  <section>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Reveal steps · wallet-prepare</span>
+    <div data-component="reveal-steps" data-preset="wallet-prepare">
+<div data-item data-title="Verify the source"><p data-body>Type or use a trusted bookmark for the official wallet site or app store listing.</p></div>
+<div data-item data-title="Create and back up"><p data-body>Write the phrase offline, in order. Never photograph it. Verify when the wallet asks.</p></div>
+<div data-item data-title="Find receive"><p data-body>Select the correct asset and network, then copy the public receiving address.</p></div>
+</div>
+  </section>
+
+  <section>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Compare steps · BTC ↔ ETH</span>
+    <div data-component="compare-steps" data-preset="nav-top">
+<div data-item data-label="Purpose" data-btc="Digital cash / store of value with a fixed monetary policy." data-eth="Programmable settlement layer for smart contracts and tokens."></div>
+<div data-item data-label="Consensus" data-btc="Proof-of-Work mining secures the chain." data-eth="Proof-of-Stake validators secure the chain."></div>
+<div data-item data-label="Scripting" data-btc="Limited scripting focused on payments and covenants." data-eth="Turing-complete EVM enables complex on-chain apps."></div>
+<div data-item data-label="Fees" data-btc="Fee market for scarce block space (sats/vByte)." data-eth="Base fee + tip model (EIP-1559) with L2 scaling paths."></div>
+</div>
+  </section>
+
+  <section>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Icon card steps · nav bottom-right</span>
+    <div data-component="step-showcase" data-preset="icon-card">
+<div data-item data-title="Discover" data-cue="Step 1 · Find the path"><p data-body>Start from a trusted bookmark. Confirm the network and asset before you touch any form fields.</p></div>
+<div data-item data-title="Broadcast" data-cue="Step 2 · Share the signed tx"><p data-body>Your wallet publishes the signed payload to peers. It sits in the mempool until a block includes it.</p></div>
+<div data-item data-title="Validate" data-cue="Step 3 · Rules before rewards"><p data-body>Nodes check signatures, balances, and protocol rules. Invalid work is dropped without drama.</p></div>
+<div data-item data-title="Confirm" data-cue="Step 4 · Depth builds trust"><p data-body>Inclusion in a block is the first win. Extra confirmations make a reorganization increasingly unlikely.</p></div>
+</div>
+  </section>
+
+  <section>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Compact steps · nav top-left (1/4)</span>
+    <div data-component="step-showcase" data-preset="compact-count">
+<div data-item data-title="Prepare the destination"><p data-body>Copy the receive address from the other wallet. Prefer paste over typing. Match the network badge.</p></div>
+<div data-item data-title="Set a safe amount"><p data-body>Leave room for fees. For a first send to a new address, start with a dust-sized test.</p></div>
+<div data-item data-title="Read the preview twice"><p data-body>Asset, network, amount, fee, and recipient must match your notes. Anything odd → cancel.</p></div>
+<div data-item data-title="Sign only when sure"><p data-body>Approve on the device or in-app prompt. Save the transaction hash for the explorer check.</p></div>
+</div>
+  </section>
+
+  <section>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Code walkthrough · terminal · nav bottom-left</span>
+    <div data-component="step-showcase" data-preset="code-walk">
+<div data-item data-title="Declare the payload" data-file="demo.js · declare"><p data-body>We start with a plain object that describes what we want to send. No network call yet — just data you can inspect.</p><pre data-code>// Step 1 — shape the intent before signing
+const transfer = {
+  asset: &quot;ETH&quot;,
+  network: &quot;mainnet&quot;,
+  to: &quot;0xabc…&quot;,
+  amount: &quot;0.05&quot;,
+};</pre></div>
+<div data-item data-title="Estimate the fee" data-file="demo.js · fee"><p data-body>Ask the provider for a fee suggestion. Surface it in the UI so the learner sees cost before commitment.</p><pre data-code>// Step 2 — quote a fee the user can refuse
+const fee = await estimateFee(transfer);
+console.log(&quot;max fee&quot;, fee.max);
+if (fee.max &gt; budget) {
+  throw new Error(&quot;fee too high&quot;);
+}</pre></div>
+<div data-item data-title="Sign the transaction" data-file="demo.js · sign"><p data-body>Signing proves authority without revealing the private key to the dapp page. Keep this step explicit and cancellable.</p><pre data-code>// Step 3 — user gesture required
+const signed = await wallet.sign({
+  ...transfer,
+  fee,
+});
+// signed.raw is opaque hex — never edit by hand</pre></div>
+<div data-item data-title="Broadcast and watch" data-file="demo.js · send"><p data-body>Push the signed payload to the network, then poll (or subscribe) until you see a confirmation depth you trust.</p><pre data-code>// Step 4 — publish, then verify on an explorer
+const hash = await broadcast(signed.raw);
+await waitForConfirmations(hash, 3);
+echo &quot;settled:&quot;, hash;</pre></div>
+</div>
+  </section>
+
+  <section>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Process steps · rail + detail</span>
+    <div data-component="process-steps">
+<div data-item data-title="Gather the facts"><p data-body>Asset, network, amount, and destination address — write them down before opening the wallet.</p></div>
+<div data-item data-title="Simulate the send"><p data-body>Use a dry-run or a tiny test transfer when the destination is new or the amount is large.</p></div>
+<div data-item data-title="Review the preview"><p data-body>Read fee, total debit, and any approval scope. Cancel if anything looks unfamiliar.</p></div>
+<div data-item data-title="Sign and confirm"><p data-body>Approve only when the preview matches your notes. Record the tx hash for follow-up.</p></div>
+</div>
+  </section>
+
+  <section>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Checklist · send (cards)</span>
+    <div data-component="checklist" data-preset="send" data-title="Before you send">
+<!-- checklist title via data-title on host -->
+<div data-item data-label="Recipient address verified (first &amp; last characters)"></div>
+<div data-item data-label="Correct network selected"></div>
+<div data-item data-label="Amount is a deliberate test size"></div>
+<div data-item data-label="Fee is understood before signing"></div>
+<div data-item data-label="No seed phrase was typed into any website"></div>
+</div>
+  </section>
+
+  <section>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Checklist · wallet (numbered rail)</span>
+    <div data-component="checklist" data-preset="wallet" data-title="Wallet hardening">
+<!-- checklist title via data-title on host -->
+<div data-item data-label="Installed from an official source" data-hint="Store or vendor site only"></div>
+<div data-item data-label="Recovery phrase written offline" data-hint="Paper / metal — never a screenshot"></div>
+<div data-item data-label="Screen lock enabled on device" data-hint="PIN, biometrics, or both"></div>
+<div data-item data-label="Bookmarked the real wallet URL" data-hint="Avoid search-result phishing"></div>
+</div>
+  </section>
+
+  <section>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Checklist · guided (list + live preview)</span>
+    <div data-component="checklist" data-preset="guided" data-title="First send checklist">
+<!-- checklist title via data-title on host -->
+<div data-item data-label="Open wallet from your bookmark" data-hint="Not a search result"></div>
+<div data-item data-label="Confirm network badge" data-hint="Mainnet vs testnet"></div>
+<div data-item data-label="Paste the recipient address" data-hint="Match first/last chars"></div>
+<div data-item data-label="Enter a small test amount" data-hint="Dust-sized first transfer"></div>
+<div data-item data-label="Review fee, then approve" data-hint="Cancel if anything looks off"></div>
+</div>
+  </section>
+</div>

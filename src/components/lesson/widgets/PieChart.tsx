@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   Chart,
   ArcElement,
@@ -9,10 +9,22 @@ import {
   DoughnutController,
 } from 'chart.js';
 import { ExpandableShell } from '../ExpandableShell';
+import { attr, childText, hasMountItems, queryMountItems } from './mountData';
+import { useClampedIndex } from './useMountItems';
 
 Chart.register(ArcElement, CategoryScale, LinearScale, Tooltip, Legend, DoughnutController);
 
-const SEGMENTS = [
+type Segment = {
+  label: string;
+  value: number;
+  color: string;
+  vesting: string;
+  use: string;
+};
+
+const COLORS = ['#4f46e5', '#0d9488', '#f59e0b', '#e11d48', '#8b5cf6', '#06b6d4'];
+
+const DEFAULT_SEGMENTS: Segment[] = [
   {
     label: 'Community Airdrop',
     value: 45,
@@ -43,10 +55,24 @@ const SEGMENTS = [
   },
 ];
 
-export function PieChartWidget() {
+function parseSegments(host: HTMLElement | null | undefined): Segment[] {
+  if (host && hasMountItems(host)) {
+    return queryMountItems(host).map((el, i) => ({
+      label: attr(el, 'data-label') || attr(el, 'data-title') || `Segment ${i + 1}`,
+      value: Number.parseFloat(attr(el, 'data-value') || '0') || 0,
+      color: attr(el, 'data-color') || COLORS[i % COLORS.length],
+      vesting: attr(el, 'data-vesting') || childText(el, '[data-vesting]') || '',
+      use: attr(el, 'data-use') || childText(el, '[data-use]') || childText(el, '[data-body]') || '',
+    }));
+  }
+  return DEFAULT_SEGMENTS;
+}
+
+export function PieChartWidget({ host }: { host?: HTMLElement | null }) {
+  const segments = useMemo(() => parseSegments(host), [host]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = useClampedIndex(segments.length);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -54,17 +80,17 @@ export function PieChartWidget() {
     const chart = new Chart(canvasRef.current, {
       type: 'doughnut',
       data: {
-        labels: SEGMENTS.map((s) => `${s.label} (${s.value}%)`),
+        labels: segments.map((s) => `${s.label} (${s.value}%)`),
         datasets: [
           {
-            data: SEGMENTS.map((s) => s.value),
-            backgroundColor: SEGMENTS.map((s) => s.color),
+            data: segments.map((s) => s.value),
+            backgroundColor: segments.map((s) => s.color),
             borderWidth: 2,
             borderColor: '#ffffff',
           },
         ],
       },
-        options: {
+      options: {
         maintainAspectRatio: true,
         onHover: (event, elements) => {
           const canvas = event.native?.target as HTMLCanvasElement | undefined;
@@ -100,7 +126,7 @@ export function PieChartWidget() {
           tooltip: {
             callbacks: {
               label: (ctx) => {
-                const s = SEGMENTS[ctx.dataIndex];
+                const s = segments[ctx.dataIndex];
                 return s ? `${s.label}: ${s.value}%` : '';
               },
             },
@@ -117,9 +143,10 @@ export function PieChartWidget() {
       chart.destroy();
       chartRef.current = null;
     };
-  }, []);
+  }, [segments, setSelected]);
 
-  const seg = SEGMENTS[selected];
+  const seg = segments[selected];
+  if (!seg) return null;
 
   return (
     <ExpandableShell title="Illustrative distribution model" bodyClassName="p-5">
@@ -155,9 +182,9 @@ export function PieChartWidget() {
             </p>
           </div>
           <div className="mt-4 flex flex-wrap gap-1.5">
-            {SEGMENTS.map((s, i) => (
+            {segments.map((s, i) => (
               <button
-                key={s.label}
+                key={`${s.label}-${i}`}
                 type="button"
                 onClick={() => setSelected(i)}
                 className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ${

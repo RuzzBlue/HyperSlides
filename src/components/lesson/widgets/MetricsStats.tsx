@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { attr, childText, field, hasMountItems, queryMountItems } from './mountData';
 
 type StatItem = {
   label?: string;
@@ -119,13 +120,54 @@ function useInView<T extends HTMLElement>() {
   return { ref, active };
 }
 
-export function MetricsStatsWidget({ preset }: { preset?: string }) {
+function parseStatItem(el: Element): StatItem {
+  const decimalsRaw = attr(el, 'data-decimals');
+  const valueRaw = attr(el, 'data-value') || childText(el, '[data-value]') || '0';
+  return {
+    label: attr(el, 'data-label') || field(el, { attr: 'data-title' }) || undefined,
+    value: Number.parseFloat(valueRaw) || 0,
+    decimals: decimalsRaw ? Number.parseInt(decimalsRaw, 10) : undefined,
+    prefix: attr(el, 'data-prefix') || undefined,
+    suffix: attr(el, 'data-suffix') || undefined,
+    caption: attr(el, 'data-caption') || childText(el, '[data-caption]') || '',
+    badge: attr(el, 'data-badge') || undefined,
+  };
+}
+
+function parseMetrics(host: HTMLElement | null | undefined, preset?: string) {
   const key: MetricsPreset =
     preset === 'featured' || preset === 'cards' || preset === 'triple' ? preset : 'triple';
-  const data = PRESETS[key];
+  const base = PRESETS[key];
+
+  if (host && (hasMountItems(host) || host.querySelector(':scope > [data-hero]'))) {
+    const title = attr(host, 'data-title') || base.title;
+    const heroEl = host.querySelector(':scope > [data-hero]');
+    const hero = heroEl ? parseStatItem(heroEl) : undefined;
+    const items = hasMountItems(host)
+      ? queryMountItems(host).map(parseStatItem)
+      : base.items;
+    return {
+      key: hero ? ('featured' as MetricsPreset) : key,
+      title,
+      items,
+      hero,
+    };
+  }
+
+  return { key, title: base.title, items: base.items, hero: base.hero };
+}
+
+export function MetricsStatsWidget({
+  preset,
+  host,
+}: {
+  preset?: string;
+  host?: HTMLElement | null;
+}) {
+  const data = useMemo(() => parseMetrics(host, preset), [host, preset]);
   const { ref, active } = useInView<HTMLDivElement>();
 
-  if (key === 'featured' && data.hero) {
+  if (data.key === 'featured' && data.hero) {
     return (
       <div ref={ref} className="hc-metrics hc-metrics--featured">
         <div className="hc-metrics__hero">
@@ -143,8 +185,8 @@ export function MetricsStatsWidget({ preset }: { preset?: string }) {
           <p className="hc-metrics__caption">{data.hero.caption}</p>
         </div>
         <div className="hc-metrics__side">
-          {data.items.map((item) => (
-            <div key={item.caption} className="hc-metrics__mini">
+          {data.items.map((item, i) => (
+            <div key={`${item.caption}-${i}`} className="hc-metrics__mini">
               <CountValue item={item} active={active} className="hc-metrics__mini-value" />
               <p className="hc-metrics__caption">{item.caption}</p>
             </div>
@@ -154,11 +196,11 @@ export function MetricsStatsWidget({ preset }: { preset?: string }) {
     );
   }
 
-  if (key === 'cards') {
+  if (data.key === 'cards') {
     return (
       <div ref={ref} className="hc-metrics hc-metrics--cards">
-        {data.items.map((item) => (
-          <article key={item.label} className="hc-metrics__card">
+        {data.items.map((item, i) => (
+          <article key={`${item.label}-${i}`} className="hc-metrics__card">
             <p className="hc-metrics__card-label">{item.label}</p>
             <CountValue item={item} active={active} className="hc-metrics__card-value" />
             <p className="hc-metrics__caption">{item.caption}</p>
@@ -170,8 +212,8 @@ export function MetricsStatsWidget({ preset }: { preset?: string }) {
 
   return (
     <div ref={ref} className="hc-metrics hc-metrics--triple">
-      {data.items.map((item) => (
-        <div key={item.label} className="hc-metrics__stat">
+      {data.items.map((item, i) => (
+        <div key={`${item.label}-${i}`} className="hc-metrics__stat">
           <h4 className="hc-metrics__label">{item.label}</h4>
           <CountValue item={item} active={active} className="hc-metrics__value" />
           <p className="hc-metrics__caption">{item.caption}</p>

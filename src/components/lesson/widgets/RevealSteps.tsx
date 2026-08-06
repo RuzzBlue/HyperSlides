@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
 import { ChevronRight } from 'lucide-react';
+import { attr, childText, field, hasMountItems, queryMountItems } from './mountData';
+import { useClampedIndex } from './useMountItems';
 
 type Step = { title: string; body: string };
 
@@ -20,10 +22,26 @@ const PRESETS: Record<string, Step[]> = {
   ],
 };
 
+function parseSteps(host: HTMLElement | null | undefined, preset?: string): Step[] {
+  if (host && hasMountItems(host)) {
+    return queryMountItems(host).map((el) => ({
+      title: field(el, { attr: 'data-title', child: '[data-title]' }) || 'Step',
+      body: childText(el, '[data-body]') || attr(el, 'data-body') || '',
+    }));
+  }
+  return PRESETS[preset || 'wallet-prepare'] || PRESETS['wallet-prepare'];
+}
+
 /** Progressive reveal: card 1 → click arrow → card 2 → card 3 */
-export function RevealStepsWidget({ preset }: { preset?: string }) {
-  const steps = PRESETS[preset || 'wallet-prepare'] || PRESETS['wallet-prepare'];
-  const [visible, setVisible] = useState(1);
+export function RevealStepsWidget({
+  preset,
+  host,
+}: {
+  preset?: string;
+  host?: HTMLElement | null;
+}) {
+  const steps = useMemo(() => parseSteps(host, preset), [host, preset]);
+  const [visible, setVisible] = useClampedIndex(steps.length + 1, 1);
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
@@ -35,7 +53,7 @@ export function RevealStepsWidget({ preset }: { preset?: string }) {
         if (!shown) {
           return (
             <div
-              key={step.title}
+              key={`${step.title}-${i}`}
               className="hidden min-h-[8rem] flex-1 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 sm:flex dark:border-slate-700 dark:bg-slate-900/40"
               aria-hidden
             >
@@ -47,7 +65,7 @@ export function RevealStepsWidget({ preset }: { preset?: string }) {
         }
 
         return (
-          <div key={step.title} className="relative flex flex-1 items-stretch gap-2">
+          <div key={`${step.title}-${i}`} className="relative flex flex-1 items-stretch gap-2">
             <div
               className="flex-1 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
               style={{

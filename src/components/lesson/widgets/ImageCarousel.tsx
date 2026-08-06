@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ExpandableShell } from '../ExpandableShell';
+import { attr, hasMountItems, queryMountItems } from './mountData';
+import { useClampedIndex } from './useMountItems';
 
-const SLIDES = [
+type Slide = { src: string; caption: string };
+
+const DEFAULT_SLIDES: Slide[] = [
   {
     src: 'https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=1200&h=675&fit=crop&q=80',
     caption: 'Hardware wallets keep keys offline for larger balances.',
@@ -17,9 +21,21 @@ const SLIDES = [
   },
 ];
 
-export function ImageCarouselWidget() {
-  const [i, setI] = useState(0);
-  const slide = SLIDES[i];
+function parseSlides(host: HTMLElement | null | undefined): Slide[] {
+  if (host && hasMountItems(host)) {
+    return queryMountItems(host).map((el, i) => ({
+      src: attr(el, 'data-src') || DEFAULT_SLIDES[i % DEFAULT_SLIDES.length].src,
+      caption: attr(el, 'data-caption') || attr(el, 'data-label') || '',
+    }));
+  }
+  return DEFAULT_SLIDES;
+}
+
+export function ImageCarouselWidget({ host }: { host?: HTMLElement | null }) {
+  const slides = useMemo(() => parseSlides(host), [host]);
+  const [i, setI] = useClampedIndex(slides.length);
+  const slide = slides[i];
+  if (!slide) return null;
 
   return (
     <ExpandableShell
@@ -48,14 +64,14 @@ export function ImageCarouselWidget() {
       <div className="absolute bottom-3 left-3 z-30 flex gap-2">
         <button
           type="button"
-          onClick={() => setI((v) => (v - 1 + SLIDES.length) % SLIDES.length)}
+          onClick={() => setI((v) => (v - 1 + slides.length) % slides.length)}
           className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/80"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
         <button
           type="button"
-          onClick={() => setI((v) => (v + 1) % SLIDES.length)}
+          onClick={() => setI((v) => (v + 1) % slides.length)}
           className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/80"
         >
           <ChevronRight className="h-5 w-5" />

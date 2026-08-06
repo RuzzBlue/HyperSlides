@@ -1,8 +1,9 @@
 import type { CourseLessonEntry, CourseModule, CourseUnit } from '../types.ts';
+import { DEMO_COURSE_ID } from '../demoCourse.ts';
 import { loadCourse, readLessonSource } from './courses.ts';
 
 /** Demo catalog course used as the insertable HTML template library. */
-export const LESSON_TEMPLATE_COURSE_ID = 'demo_course_v001';
+export const LESSON_TEMPLATE_COURSE_ID = DEMO_COURSE_ID;
 
 export type LessonTemplateSection = {
   /** Unique id: slideKey#01 */

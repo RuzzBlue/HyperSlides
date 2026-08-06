@@ -1,4 +1,5 @@
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, useMemo, type ReactNode } from 'react';
+import { attr } from './mountData';
 
 type Cell = boolean | string;
 
@@ -208,17 +209,54 @@ function StickyCompare({ sections }: { sections: Section[] }) {
   );
 }
 
-export function ComparePlansWidget({ preset }: { preset?: string }) {
+function parseCell(raw: string): Cell {
+  const v = raw.trim().toLowerCase();
+  if (v === 'true' || v === 'yes' || v === '1' || v === '✓' || v === 'check') return true;
+  if (v === 'false' || v === 'no' || v === '0' || v === '—' || v === '-' || v === 'x') return false;
+  if (!raw.trim()) return false;
+  return raw.trim();
+}
+
+function parseSections(host: HTMLElement | null | undefined): Section[] | null {
+  if (!host) return null;
+  const sections = Array.from(host.querySelectorAll<HTMLElement>(':scope > [data-section]'));
+  if (!sections.length) return null;
+  return sections.map((sec) => ({
+    title: attr(sec, 'data-title') || attr(sec, 'data-section') || 'Section',
+    rows: Array.from(sec.querySelectorAll<HTMLElement>(':scope > [data-row]')).map((row) => ({
+      feature: attr(row, 'data-feature') || attr(row, 'data-title') || 'Feature',
+      free: parseCell(attr(row, 'data-free')),
+      startup: parseCell(attr(row, 'data-startup')),
+      team: parseCell(attr(row, 'data-team')),
+      enterprise: parseCell(attr(row, 'data-enterprise')),
+    })),
+  }));
+}
+
+export function ComparePlansWidget({
+  preset,
+  host,
+}: {
+  preset?: string;
+  host?: HTMLElement | null;
+}) {
   const mode = preset === 'sticky' ? 'sticky' : 'matrix';
+  const hostSections = useMemo(() => parseSections(host), [host]);
+  const sections = hostSections || (mode === 'sticky' ? STICKY : MATRIX);
+
   let body: ReactNode;
-  if (mode === 'sticky') body = <StickyCompare sections={STICKY} />;
-  else body = <MatrixTable sections={MATRIX} />;
+  if (mode === 'sticky') body = <StickyCompare sections={sections} />;
+  else body = <MatrixTable sections={sections} />;
 
   return (
     <div className="hc-cmp-wrap">
       <div className="hc-cmp-wrap__title">
-        <h3>Compare plans</h3>
-        <p>Whatever your status, offers evolve according to your needs.</p>
+        <h3>{host ? attr(host, 'data-title') || 'Compare plans' : 'Compare plans'}</h3>
+        <p>
+          {host
+            ? attr(host, 'data-subtitle') || 'Whatever your status, offers evolve according to your needs.'
+            : 'Whatever your status, offers evolve according to your needs.'}
+        </p>
       </div>
       {body}
     </div>

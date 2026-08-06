@@ -1,4 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import { attr, childText, field, hasMountItems, queryMountItems } from './mountData';
+import { iconFromMountItem } from './mountIcons';
+import { useClampedIndex } from './useMountItems';
 
 type FeatureTab = {
   id: string;
@@ -9,6 +12,16 @@ type FeatureTab = {
   mobile: string;
 };
 
+const DEFAULT_ICON = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 5.5A3.5 3.5 0 0 1 8.5 2H12v7H8.5A3.5 3.5 0 0 1 5 5.5z" />
+    <path d="M12 2h3.5a3.5 3.5 0 1 1 0 7H12V2z" />
+    <path d="M12 12.5a3.5 3.5 0 1 1 7 0 3.5 3.5 0 1 1-7 0z" />
+    <path d="M5 19.5A3.5 3.5 0 0 1 8.5 16H12v3.5a3.5 3.5 0 1 1-7 0z" />
+    <path d="M5 12.5A3.5 3.5 0 0 1 8.5 9H12v7H8.5A3.5 3.5 0 0 1 5 12.5z" />
+  </svg>
+);
+
 const TABS: FeatureTab[] = [
   {
     id: 'workspace',
@@ -18,15 +31,7 @@ const TABS: FeatureTab[] = [
       'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&h=750&fit=crop&q=80',
     mobile:
       'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&h=1200&fit=crop&q=80',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 5.5A3.5 3.5 0 0 1 8.5 2H12v7H8.5A3.5 3.5 0 0 1 5 5.5z" />
-        <path d="M12 2h3.5a3.5 3.5 0 1 1 0 7H12V2z" />
-        <path d="M12 12.5a3.5 3.5 0 1 1 7 0 3.5 3.5 0 1 1-7 0z" />
-        <path d="M5 19.5A3.5 3.5 0 0 1 8.5 16H12v3.5a3.5 3.5 0 1 1-7 0z" />
-        <path d="M5 12.5A3.5 3.5 0 0 1 8.5 9H12v7H8.5A3.5 3.5 0 0 1 5 12.5z" />
-      </svg>
-    ),
+    icon: DEFAULT_ICON,
   },
   {
     id: 'automation',
@@ -63,14 +68,38 @@ const TABS: FeatureTab[] = [
   },
 ];
 
-export function FeatureTabsWidget() {
-  const [active, setActive] = useState(0);
-  const tab = TABS[active];
+function parseTabs(host: HTMLElement | null | undefined): FeatureTab[] {
+  if (host && hasMountItems(host)) {
+    return queryMountItems(host).map((el, i) => {
+      const fallback = TABS[i % TABS.length];
+      return {
+        id: attr(el, 'data-id') || `feature-${i + 1}`,
+        title: field(el, { attr: 'data-title', child: '[data-title]' }) || fallback.title,
+        blurb:
+          attr(el, 'data-blurb') ||
+          childText(el, '[data-blurb]') ||
+          childText(el, '[data-body]') ||
+          attr(el, 'data-body') ||
+          fallback.blurb,
+        icon: iconFromMountItem(el, { className: 'h-6 w-6' }) || fallback.icon,
+        desktop: attr(el, 'data-desktop') || fallback.desktop,
+        mobile: attr(el, 'data-mobile') || fallback.mobile,
+      };
+    });
+  }
+  return TABS;
+}
+
+export function FeatureTabsWidget({ host }: { host?: HTMLElement | null }) {
+  const tabs = useMemo(() => parseTabs(host), [host]);
+  const [active, setActive] = useClampedIndex(tabs.length);
+  const tab = tabs[active];
+  if (!tab) return null;
 
   return (
     <div className="hc-feature-tabs">
       <nav className="hc-feature-tabs__nav" aria-label="Feature tabs" role="tablist">
-        {TABS.map((item, idx) => {
+        {tabs.map((item, idx) => {
           const selected = idx === active;
           return (
             <button

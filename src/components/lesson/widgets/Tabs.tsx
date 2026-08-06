@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
   AppWindow,
   Boxes,
@@ -12,13 +12,39 @@ import {
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
+import { attr, childText, field, hasMountItems, queryMountItems } from './mountData';
+import { resolveMountIcon } from './mountIcons';
+import { useClampedIndex } from './useMountItems';
 
 type TabItem = {
   label: string;
   title: string;
   body: string;
+  /** Preset Lucide component */
   Icon?: LucideIcon;
+  /** Raw data-icon / FA class — resolved at render so size can vary by style */
+  iconSpec?: string | null;
 };
+
+function tabIcon(item: TabItem, className: string): ReactNode {
+  if (item.iconSpec) {
+    return resolveMountIcon(item.iconSpec, { className });
+  }
+  if (item.Icon) {
+    const Icon = item.Icon;
+    return <Icon className={className} strokeWidth={2.25} />;
+  }
+  return null;
+}
+
+/** data-icon attr, or class list from nested FA <i> */
+function mountIconSpec(el: Element): string | null {
+  const named = el.getAttribute('data-icon')?.trim();
+  if (named) return named;
+  const fa = el.querySelector('i[class*="fa-"]');
+  if (fa) return fa.className.trim() || null;
+  return null;
+}
 
 type TabStyle =
   | 'default'
@@ -292,12 +318,13 @@ function DefaultTabs({
           key={t.label}
           type="button"
           onClick={() => setActive(i)}
-          className={`cursor-pointer rounded-xl px-4 py-2.5 text-left text-sm font-bold transition ${
+          className={`inline-flex cursor-pointer items-center gap-2 rounded-xl px-4 py-2.5 text-left text-sm font-bold transition ${
             i === active
               ? 'bg-teal-700 text-white shadow-md shadow-teal-700/25'
               : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
           }`}
         >
+          {tabIcon(t, 'h-3.5 w-3.5')}
           {t.label}
         </button>
       ))}
@@ -348,12 +375,13 @@ function UnderlineTabs({
               role="tab"
               aria-selected={on}
               onClick={() => setActive(i)}
-              className={`-mb-px cursor-pointer border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
+              className={`-mb-px inline-flex cursor-pointer items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
                 on
                   ? 'border-teal-700 text-teal-800 dark:border-teal-400 dark:text-teal-300'
                   : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-200'
               }`}
             >
+              {tabIcon(t, 'h-3.5 w-3.5')}
               {t.label}
             </button>
           );
@@ -383,7 +411,6 @@ function PillsTabs({
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Pill tabs">
         {items.map((t, i) => {
           const on = i === active;
-          const Icon = t.Icon;
           return (
             <button
               key={t.label}
@@ -397,7 +424,7 @@ function PillsTabs({
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
               }`}
             >
-              {Icon ? <Icon className="h-3.5 w-3.5" strokeWidth={2.25} /> : null}
+              {tabIcon(t, 'h-3.5 w-3.5')}
               {t.label}
             </button>
           );
@@ -431,7 +458,6 @@ function IconLineTabs({
       >
         {items.map((t, i) => {
           const on = i === active;
-          const Icon = t.Icon;
           return (
             <button
               key={t.label}
@@ -445,12 +471,9 @@ function IconLineTabs({
                   : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
               }`}
             >
-              {Icon ? (
-                <Icon
-                  className={`h-4 w-4 ${on ? 'text-teal-700 dark:text-teal-400' : 'text-slate-400'}`}
-                  strokeWidth={2}
-                />
-              ) : null}
+              <span className={on ? 'text-teal-700 dark:text-teal-400' : 'text-slate-400'}>
+                {tabIcon(t, 'h-4 w-4')}
+              </span>
               {t.label}
             </button>
           );
@@ -484,7 +507,6 @@ function SideNavTabs({
       >
         {items.map((t, i) => {
           const on = i === active;
-          const Icon = t.Icon;
           return (
             <button
               key={t.label}
@@ -504,12 +526,9 @@ function SideNavTabs({
                 }`}
                 aria-hidden
               />
-              {Icon ? (
-                <Icon
-                  className={`h-4 w-4 ${on ? 'text-teal-700 dark:text-teal-400' : 'text-slate-400'}`}
-                  strokeWidth={2}
-                />
-              ) : null}
+              <span className={on ? 'text-teal-700 dark:text-teal-400' : 'text-slate-400'}>
+                {tabIcon(t, 'h-4 w-4')}
+              </span>
               {t.label}
             </button>
           );
@@ -661,16 +680,73 @@ function CompareTabs({
   );
 }
 
+const TAB_STYLES = new Set<TabStyle>([
+  'default',
+  'card-top',
+  'card-left',
+  'compare',
+  'underline',
+  'pills',
+  'icon-line',
+  'side-nav',
+]);
+
+function parseTabConf(
+  host: HTMLElement | null | undefined,
+  preset?: string,
+  orientation?: 'horizontal' | 'vertical',
+  styleOverride?: string,
+): TabConf {
+  const base = PRESETS[preset || 'ownership'] || PRESETS.ownership;
+  const hostStyle = host ? attr(host, 'data-style') : '';
+  const hostOrient = host ? attr(host, 'data-orientation') : '';
+  const styleRaw = styleOverride || hostStyle || base.style;
+  const style: TabStyle = TAB_STYLES.has(styleRaw as TabStyle) ? (styleRaw as TabStyle) : base.style;
+  const dir: 'horizontal' | 'vertical' =
+    orientation ||
+    (hostOrient === 'vertical' || hostOrient === 'horizontal'
+      ? hostOrient
+      : base.orientation);
+
+  if (host && hasMountItems(host)) {
+    const items = queryMountItems(host).map((el) => {
+      const label =
+        attr(el, 'data-label') ||
+        field(el, { attr: 'data-title', child: '[data-title]' }) ||
+        'Tab';
+      const title =
+        field(el, { attr: 'data-title', child: '[data-title]' }) || label;
+      return {
+        label,
+        title,
+        body: childText(el, '[data-body]') || attr(el, 'data-body') || '',
+        Icon: undefined,
+        iconSpec: mountIconSpec(el),
+      };
+    });
+    return { style, orientation: dir, items };
+  }
+
+  return { ...base, style, orientation: dir };
+}
+
 export function TabsWidget({
   preset,
   orientation,
+  style,
+  host,
 }: {
   preset?: string;
   orientation?: 'horizontal' | 'vertical';
+  style?: string;
+  host?: HTMLElement | null;
 }) {
-  const conf = PRESETS[preset || 'ownership'] || PRESETS.ownership;
-  const dir = orientation || conf.orientation;
-  const [active, setActive] = useState(0);
+  const conf = useMemo(
+    () => parseTabConf(host, preset, orientation, style),
+    [host, preset, orientation, style],
+  );
+  const dir = conf.orientation;
+  const [active, setActive] = useClampedIndex(conf.items.length);
 
   const views: Record<TabStyle, ReactNode> = {
     default: <DefaultTabs items={conf.items} dir={dir} active={active} setActive={setActive} />,

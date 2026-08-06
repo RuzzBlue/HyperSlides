@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
+import { attr, childText, field, hasMountItems, queryMountItems } from './mountData';
+import { useClampedIndex } from './useMountItems';
 
-const STEPS = [
+const DEFAULT_STEPS = [
   {
     title: 'Gather the facts',
     detail: 'Asset, network, amount, and destination address — write them down before opening the wallet.',
@@ -20,25 +22,39 @@ const STEPS = [
   },
 ];
 
+function parseSteps(host: HTMLElement | null | undefined) {
+  if (host && hasMountItems(host)) {
+    return queryMountItems(host).map((el) => ({
+      title: field(el, { attr: 'data-title', child: '[data-title]' }) || 'Step',
+      detail: childText(el, '[data-body]') || attr(el, 'data-body') || '',
+    }));
+  }
+  return DEFAULT_STEPS;
+}
+
 /** Vertical process rail — pick any step; completed steps stay checked. Distinct from reveal & compare. */
-export function ProcessStepsWidget() {
-  const [active, setActive] = useState(0);
+export function ProcessStepsWidget({ host }: { host?: HTMLElement | null }) {
+  const steps = useMemo(() => parseSteps(host), [host]);
+  const [active, setActive] = useClampedIndex(steps.length);
   const [done, setDone] = useState<Record<number, boolean>>({});
 
   const markDone = () => {
     setDone((d) => ({ ...d, [active]: true }));
-    if (active < STEPS.length - 1) setActive(active + 1);
+    if (active < steps.length - 1) setActive(active + 1);
   };
+
+  const current = steps[active];
+  if (!current) return null;
 
   return (
     <div className="grid gap-5 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
       <ol className="relative m-0 space-y-0 p-0 list-none">
-        {STEPS.map((step, i) => {
+        {steps.map((step, i) => {
           const isActive = i === active;
           const isDone = !!done[i];
           return (
-            <li key={step.title} className="relative flex gap-3 pb-5 last:pb-0">
-              {i < STEPS.length - 1 && (
+            <li key={`${step.title}-${i}`} className="relative flex gap-3 pb-5 last:pb-0">
+              {i < steps.length - 1 && (
                 <span
                   className="absolute left-[0.9rem] top-8 bottom-0 w-px bg-slate-200 dark:bg-slate-700"
                   aria-hidden
@@ -85,15 +101,15 @@ export function ProcessStepsWidget() {
         <span className="text-[10px] font-black uppercase tracking-[0.16em] text-teal-700 dark:text-teal-400">
           Process step {active + 1}
         </span>
-        <h3 className="mt-2 text-lg font-black text-slate-900 dark:text-white">{STEPS[active].title}</h3>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{STEPS[active].detail}</p>
+        <h3 className="mt-2 text-lg font-black text-slate-900 dark:text-white">{current.title}</h3>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{current.detail}</p>
         <div className="mt-5 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={markDone}
             className="cursor-pointer rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white hover:bg-teal-800"
           >
-            Mark complete{active < STEPS.length - 1 ? ' & next' : ''}
+            Mark complete{active < steps.length - 1 ? ' & next' : ''}
           </button>
           <button
             type="button"

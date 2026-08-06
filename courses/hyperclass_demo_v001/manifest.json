@@ -1,0 +1,71 @@
+{
+  "id": "hyperclass_demo_v001",
+  "name": "HyperClass Demo",
+  "version": "1.0.0",
+  "formatVersion": "1.0",
+  "hyperclassMinVersion": "0.1.0",
+  "author": "RuzzBlue",
+  "description": "A clean white demo course that orderly shows every layout and interactive component available in HyperClass. All copy is placeholder; media may intentionally fail to load.",
+  "language": "en",
+  "toggleLanguage": true,
+  "darkLightTheme": "light",
+  "toggleDarkLightTheme": false,
+  "extensions": [
+    "mermaid",
+    "chartjs",
+    "prism"
+  ],
+  "widgets": [
+    "crypto-candles",
+    "seed-phrase-demo"
+  ],
+  "permissions": [
+    "local-progress"
+  ],
+  "theme": "theme/theme.json",
+  "integrity": {
+    "algorithm": "sha256",
+    "hash": null
+  },
+  "updates": {
+    "channel": "stable"
+  },
+  "passwordLock": {
+    "enabled": false
+  },
+  "authorLock": {
+    "enabled": false
+  },
+  "extras": {
+    "slideContainer": {
+      "enabled": false,
+      "editMode": "fields",
+      "fields": {
+        "backgroundColor": "#f9f9f9",
+        "padding": "2rem",
+        "borderRadius": "15px",
+        "fillViewportHeight": true,
+        "height": "auto",
+        "width": "auto",
+        "borderStyle": "none",
+        "borderWidth": "0px",
+        "borderColor": "#e2e8f0",
+        "shadowBlur": "24px",
+        "shadowOffsetX": "0px",
+        "shadowOffsetY": "8px",
+        "shadowSpread": "0px",
+        "shadowColor": "rgba(15, 23, 42, 0.12)"
+      },
+      "customCss": "background-color: #f9f9f9;\nwidth: auto;\nmin-height: calc(100vh - 15rem);\npadding: 2rem;\nborder-style: none;\nborder-width: 0px;\nborder-color: #e2e8f0;\nborder-radius: 15px;\nbox-shadow: 0px 8px 24px 0px rgba(15, 23, 42, 0.12);"
+    },
+    "indexSlide": {
+      "enabled": false,
+      "placement": "first",
+      "style": "default"
+    },
+    "endSlide": {
+      "enabled": false,
+      "style": "default"
+    }
+  }
+}

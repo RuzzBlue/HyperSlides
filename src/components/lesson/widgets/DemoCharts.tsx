@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Chart,
   CategoryScale,
@@ -12,6 +12,7 @@ import {
   LineController,
   BarController,
 } from 'chart.js';
+import { attr, hasMountItems, queryMountItems } from './mountData';
 
 Chart.register(
   CategoryScale,
@@ -38,6 +39,19 @@ function resolvePreset(raw?: string): Preset {
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+type Point = { label: string; value: number };
+
+function parsePoints(host: HTMLElement | null | undefined): Point[] | null {
+  if (!host || !hasMountItems(host)) return null;
+  const points = queryMountItems(host)
+    .map((el) => ({
+      label: attr(el, 'data-label') || attr(el, 'data-title') || '',
+      value: Number.parseFloat(attr(el, 'data-value') || ''),
+    }))
+    .filter((p) => p.label && Number.isFinite(p.value));
+  return points.length ? points : null;
+}
 
 function MetricSelect({
   value,
@@ -268,9 +282,13 @@ function MultiBarCard() {
   );
 }
 
-function AreaCard() {
+function AreaCard({ points }: { points?: Point[] | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
+  const labels = points?.map((p) => p.label) ?? MONTHS;
+  const values = points?.map((p) => p.value) ?? [42, 48, 45, 58, 62, 70, 68, 74, 71, 80, 78, 86];
+  const total = values.reduce((a, b) => a + b, 0);
+  const seriesKey = points ? points.map((p) => `${p.label}:${p.value}`).join('|') : 'default';
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -278,11 +296,11 @@ function AreaCard() {
     const chart = new Chart(canvasRef.current, {
       type: 'line',
       data: {
-        labels: MONTHS,
+        labels,
         datasets: [
           {
             label: 'Visitors',
-            data: [42, 48, 45, 58, 62, 70, 68, 74, 71, 80, 78, 86],
+            data: values,
             borderColor: ACCENT,
             backgroundColor: 'rgba(14, 110, 106, 0.18)',
             fill: true,
@@ -315,7 +333,8 @@ function AreaCard() {
       chart.destroy();
       chartRef.current = null;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seriesKey captures labels/values
+  }, [seriesKey]);
 
   return (
     <div className="flex min-h-[22rem] flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:p-5">
@@ -323,7 +342,7 @@ function AreaCard() {
         <div>
           <h3 className="text-sm text-slate-500 dark:text-slate-400">Visitors</h3>
           <p className="text-xl font-semibold tabular-nums text-slate-900 dark:text-white sm:text-2xl">
-            80.3k
+            {points ? total.toLocaleString() : '80.3k'}
           </p>
         </div>
         <span className="inline-flex items-center gap-1 rounded-md bg-red-100 px-1.5 py-2 text-xs font-medium text-red-800 dark:bg-red-500/10 dark:text-red-400">
@@ -435,8 +454,17 @@ function MultiLineCard() {
   );
 }
 
-export function DemoChartWidget({ preset }: { preset?: string }) {
+export function DemoChartWidget({
+  preset,
+  host,
+}: {
+  preset?: string;
+  host?: HTMLElement | null;
+}) {
+  const points = useMemo(() => parsePoints(host), [host]);
   const mode = resolvePreset(preset);
+  // Simple host points feed the area chart; multi-series presets keep built-in data.
+  if (points && (mode === 'area' || !preset)) return <AreaCard points={points} />;
   if (mode === 'multi-bar') return <MultiBarCard />;
   if (mode === 'area') return <AreaCard />;
   if (mode === 'multi-line') return <MultiLineCard />;

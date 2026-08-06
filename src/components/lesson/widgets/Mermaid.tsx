@@ -1,6 +1,7 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 import { ExpandableShell, PanZoomSurface } from '../ExpandableShell';
+import { attr, text } from './mountData';
 
 mermaid.initialize({
   startOnLoad: false,
@@ -27,10 +28,37 @@ const BIG_MERMAID = `flowchart TB
   W --> S --> M --> V --> B --> P --> C --> L
   L -.->|sync headers / state| W`;
 
-export function MermaidWidget({ chart }: { chart?: string }) {
+function resolveChart(host: HTMLElement | null | undefined, chart?: string): string {
+  if (chart?.trim()) return chart.trim();
+  if (host) {
+    const chartEl = host.querySelector('[data-chart]');
+    if (chartEl) {
+      const fromAttr = attr(chartEl, 'data-chart');
+      const fromText = text(chartEl);
+      if (fromAttr) return fromAttr;
+      if (fromText) return (chartEl.textContent || '').trim();
+    }
+    const hostAttr = attr(host, 'data-chart');
+    if (hostAttr) return hostAttr;
+    const code = host.querySelector('pre, code');
+    if (code) {
+      const codeText = (code.textContent || '').trim();
+      if (codeText) return codeText;
+    }
+  }
+  return BIG_MERMAID;
+}
+
+export function MermaidWidget({
+  chart,
+  host,
+}: {
+  chart?: string;
+  host?: HTMLElement | null;
+}) {
   const baseId = useId().replace(/:/g, '');
   const ref = useRef<HTMLDivElement>(null);
-  const definition = chart || BIG_MERMAID;
+  const definition = useMemo(() => resolveChart(host, chart), [host, chart]);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {

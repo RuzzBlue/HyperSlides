@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { ExpandableShell } from '../ExpandableShell';
+import { attr, hasMountItems, queryMountItems } from './mountData';
 
 type Row = {
   network: string;
@@ -10,7 +11,7 @@ type Row = {
   fees: string;
 };
 
-const ROWS: Row[] = [
+const DEFAULT_ROWS: Row[] = [
   { network: 'Bitcoin', type: 'PoW', tps: '~7', finality: 'Probabilistic', fees: 'sats/vByte' },
   { network: 'Ethereum', type: 'PoS', tps: '~15–30 L1', finality: 'Epoch-based', fees: 'gwei' },
   { network: 'Solana', type: 'PoS+', tps: 'High', finality: 'Fast slots', fees: 'lamports' },
@@ -20,16 +21,30 @@ const ROWS: Row[] = [
 
 type Col = keyof Row;
 
-export function FilterTableWidget() {
+function parseRows(host: HTMLElement | null | undefined): Row[] {
+  if (host && hasMountItems(host)) {
+    return queryMountItems(host).map((el) => ({
+      network: attr(el, 'data-network') || attr(el, 'data-label') || 'Network',
+      type: attr(el, 'data-type') || '',
+      tps: attr(el, 'data-tps') || '',
+      finality: attr(el, 'data-finality') || '',
+      fees: attr(el, 'data-fees') || '',
+    }));
+  }
+  return DEFAULT_ROWS;
+}
+
+export function FilterTableWidget({ host }: { host?: HTMLElement | null }) {
+  const source = useMemo(() => parseRows(host), [host]);
   const [q, setQ] = useState('');
   const [type, setType] = useState('all');
   const [sortKey, setSortKey] = useState<Col>('network');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
-  const types = useMemo(() => ['all', ...Array.from(new Set(ROWS.map((r) => r.type)))], []);
+  const types = useMemo(() => ['all', ...Array.from(new Set(source.map((r) => r.type)))], [source]);
 
   const rows = useMemo(() => {
-    const filtered = ROWS.filter((r) => {
+    const filtered = source.filter((r) => {
       const matchQ =
         !q ||
         r.network.toLowerCase().includes(q.toLowerCase()) ||
@@ -44,7 +59,7 @@ export function FilterTableWidget() {
       return 0;
     });
     return sorted;
-  }, [q, type, sortKey, sortDir]);
+  }, [source, q, type, sortKey, sortDir]);
 
   const toggleSort = (key: Col) => {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));

@@ -1,0 +1,32 @@
+<div class="space-y-8 text-left">
+  <div>
+    <span class="text-xs font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-400">Components · Diagrams</span>
+    <h2 class="mt-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Diagrams</h2>
+    <p class="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
+      Structural flow graphs — not quantitative charts.
+    </p>
+  </div>
+
+  <section>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Mermaid graph</span>
+    <div data-component="mermaid-graph">
+<pre data-chart>flowchart TB
+  subgraph User[&quot;User device&quot;]
+    W[Wallet]
+    S[Sign transaction]
+  end
+  subgraph Network[&quot;Peer network&quot;]
+    M[Mempool]
+    V[Validators / miners]
+    P[Propagate block]
+  end
+  subgraph Ledger[&quot;Shared ledger&quot;]
+    B[New block]
+    C[Confirmations]
+    L[Canonical tip]
+  end
+  W --&gt; S --&gt; M --&gt; V --&gt; B --&gt; P --&gt; C --&gt; L
+  L -.-&gt;|sync headers / state| W</pre>
+</div>
+  </section>
+</div>

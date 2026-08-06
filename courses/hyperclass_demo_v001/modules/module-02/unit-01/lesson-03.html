@@ -1,0 +1,41 @@
+<div class="space-y-10 text-left">
+  <div>
+    <span class="text-xs font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-400">Components · Flip cards</span>
+    <h2 class="mt-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Flip cards</h2>
+    <p class="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
+      Tap to reveal the back — grid, icon pair, rich topic card, and image with a scrollable reverse.
+    </p>
+  </div>
+
+  <section>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Grid · four cards</span>
+    <div data-component="flipcards" data-preset="grid">
+<div data-item data-front="Hash function" data-eyebrow="Integrity" data-title="Cryptographic hash" data-subtitle="One-way fingerprint" data-icon="hash" data-accent="from-sky-500 to-cyan-600"><p data-body>Maps any input to a fixed-length digest. A tiny change avalanches into a totally different output — perfect for tamper evidence.</p></div>
+<div data-item data-front="Private key" data-eyebrow="Authority" data-title="Private key" data-subtitle="Signing secret" data-icon="key" data-accent="from-rose-500 to-orange-500"><p data-body>Secret material that authorizes spends. Anyone who holds it can move the associated funds — never share or screenshot it.</p></div>
+<div data-item data-front="Public address" data-eyebrow="Receive" data-title="Public address" data-subtitle="Safe to publish" data-icon="fingerprint" data-accent="from-emerald-500 to-teal-600"><p data-body>Derived from keys and used only to receive. Share it like an account number — it cannot authorize an outgoing spend by itself.</p></div>
+<div data-item data-front="Consensus" data-eyebrow="Agreement" data-title="Network consensus" data-subtitle="Shared history" data-icon="network" data-accent="from-violet-500 to-indigo-600"><p data-body>How peers agree on one ledger tip without a central referee — the foundation of decentralized settlement.</p></div>
+</div>
+  </section>
+
+  <section>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Two cards · large icons</span>
+    <div data-component="flipcards" data-preset="icons">
+<div data-item data-front="Seed phrase" data-eyebrow="Backup" data-title="Recovery phrase" data-subtitle="Human-readable secret" data-icon="lock" data-accent="from-teal-500 to-emerald-600"><p data-body>Usually 12 or 24 words that regenerate your keys. Write it offline, store it safely, never type it into a website.</p></div>
+<div data-item data-front="Hot wallet" data-eyebrow="Access" data-title="Software wallet" data-subtitle="Connected to the net" data-icon="wallet" data-accent="from-indigo-500 to-violet-600"><p data-body>Convenient for day-to-day amounts. Keep only what you need online; move larger balances to colder storage.</p></div>
+</div>
+  </section>
+
+  <section>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">One big · rich explanation</span>
+    <div data-component="flipcards" data-preset="rich">
+<div data-item data-front="What is finality?" data-eyebrow="Rich flip · topic card" data-title="Finality, in practice" data-subtitle="Definitions &amp; checklist" data-icon="shield" data-accent="from-teal-700 to-slate-900"><p data-body>Finality is confidence that a confirmed transaction will not be reversed under normal network assumptions. Wait for the confirmations your risk model requires; prefer reputable explorers; consider a test send for large transfers.</p></div>
+</div>
+  </section>
+
+  <section>
+    <span class="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Image front · scrollable back</span>
+    <div data-component="flipcards" data-preset="image">
+<div data-item data-front="Distributed ledger" data-eyebrow="Image flip" data-title="How shared ledgers stay in sync" data-subtitle="Tap to read the long description" data-icon="network" data-accent="from-slate-800 to-teal-900"><p data-body>A blockchain is a replicated state machine: each honest peer applies the same ordered transactions and arrives at the same balances. When you check a confirmation, you ask how deep your transaction sits under subsequent blocks.</p></div>
+</div>
+  </section>
+</div>

@@ -28,7 +28,7 @@ import {
   writeSlideNotes,
 } from './courses.ts';
 import { appendQuizAttempt } from './progressCrypto.ts';
-import { listLessonTemplates, readLessonTemplateSource } from './lessonTemplates.ts';
+import { listLessonTemplates, readLessonTemplateSource, LESSON_TEMPLATE_COURSE_ID } from './lessonTemplates.ts';
 import {
   addLabSection,
   listLabSectionTemplates,
@@ -76,7 +76,7 @@ export async function handleApiRequest(
         return {
           ok: false,
           status: 404,
-          error: 'Template course not found (expected demo_course_v001)',
+          error: `Template course not found (expected ${LESSON_TEMPLATE_COURSE_ID})`,
         };
       }
       return { ok: true, status: 200, data: catalog };

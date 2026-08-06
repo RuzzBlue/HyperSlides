@@ -1,4 +1,9 @@
-const ITEMS = [
+import { useMemo } from 'react';
+import { attr, hasMountItems, queryMountItems } from './mountData';
+
+type Item = { src: string; label: string };
+
+const DEFAULT_ITEMS: Item[] = [
   {
     src: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=480&h=320&fit=crop&q=80',
     label: 'Lorem felis',
@@ -25,9 +30,20 @@ const ITEMS = [
   },
 ];
 
+function parseItems(host: HTMLElement | null | undefined): Item[] {
+  if (host && hasMountItems(host)) {
+    return queryMountItems(host).map((el, i) => ({
+      src: attr(el, 'data-src') || DEFAULT_ITEMS[i % DEFAULT_ITEMS.length].src,
+      label: attr(el, 'data-caption') || attr(el, 'data-label') || `Item ${i + 1}`,
+    }));
+  }
+  return DEFAULT_ITEMS;
+}
+
 /** Continuous auto-scrolling image strip (website-style marquee). */
-export function MarqueeCarouselWidget() {
-  const loop = [...ITEMS, ...ITEMS];
+export function MarqueeCarouselWidget({ host }: { host?: HTMLElement | null }) {
+  const items = useMemo(() => parseItems(host), [host]);
+  const loop = [...items, ...items];
 
   return (
     <div className="hc-marquee overflow-hidden rounded-2xl border border-slate-200 bg-white py-4 dark:border-slate-700 dark:bg-slate-900">

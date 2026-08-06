@@ -10,13 +10,13 @@ import type {
   QuizQuestion,
 } from '../types.ts';
 import { loadCourse } from './courses.ts';
+import { DEMO_COURSE_ID } from '../demoCourse.ts';
 import {
   readEncryptedAnswerKey,
   stripCorrectFromQuestions,
   writeEncryptedAnswerKey,
 } from './quizAnswerKeys.ts';
 
-const DEMO_COURSE_ID = 'demo_course_v001';
 const DEMO_QUIZ_ID = 'quiz-01';
 const DEMO_LAB_ID = 'lab-01';
 

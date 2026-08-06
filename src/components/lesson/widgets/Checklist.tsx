@@ -9,6 +9,7 @@ import {
   PackageCheck,
   Shield,
 } from 'lucide-react';
+import { attr, childText, field, hasMountItems, queryMountItems } from './mountData';
 
 type ChecklistItem = {
   label: string;
@@ -368,9 +369,28 @@ function GuidedSplitChecklist({
   );
 }
 
-export function ChecklistWidget({ preset }: { preset?: string }) {
+function parseChecklist(host: HTMLElement | null | undefined, preset?: string) {
   const key = preset && PRESETS[preset] ? preset : 'send';
-  const { title, items } = PRESETS[key];
+  const base = PRESETS[key];
+  if (host && hasMountItems(host)) {
+    const title = attr(host, 'data-title') || base.title;
+    const items = queryMountItems(host).map((el) => ({
+      label: attr(el, 'data-label') || field(el, { attr: 'data-title', fallbackText: true }) || 'Item',
+      hint: attr(el, 'data-hint') || childText(el, '[data-hint]') || undefined,
+    }));
+    return { key, title, items };
+  }
+  return { key, title: base.title, items: base.items };
+}
+
+export function ChecklistWidget({
+  preset,
+  host,
+}: {
+  preset?: string;
+  host?: HTMLElement | null;
+}) {
+  const { key, title, items } = useMemo(() => parseChecklist(host, preset), [host, preset]);
   const [checked, setChecked] = useState<Record<number, boolean>>({});
   const done = Object.values(checked).filter(Boolean).length;
 

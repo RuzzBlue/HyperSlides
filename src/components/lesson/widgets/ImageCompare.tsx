@@ -1,11 +1,34 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { attr, hasMountItems, queryMountItems } from './mountData';
 
-const BEFORE =
+const DEFAULT_BEFORE =
   'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=800&fit=crop&q=80';
-const AFTER =
+const DEFAULT_AFTER =
   'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200&h=800&fit=crop&q=80';
 
-export function ImageCompareWidget() {
+function resolvePair(host: HTMLElement | null | undefined): { before: string; after: string } {
+  if (host) {
+    const beforeAttr = attr(host, 'data-before');
+    const afterAttr = attr(host, 'data-after');
+    if (beforeAttr || afterAttr) {
+      return {
+        before: beforeAttr || DEFAULT_BEFORE,
+        after: afterAttr || DEFAULT_AFTER,
+      };
+    }
+    if (hasMountItems(host)) {
+      const items = queryMountItems(host);
+      return {
+        before: attr(items[0], 'data-src') || DEFAULT_BEFORE,
+        after: attr(items[1] || items[0], 'data-src') || DEFAULT_AFTER,
+      };
+    }
+  }
+  return { before: DEFAULT_BEFORE, after: DEFAULT_AFTER };
+}
+
+export function ImageCompareWidget({ host }: { host?: HTMLElement | null }) {
+  const pair = useMemo(() => resolvePair(host), [host]);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState(50);
   const dragging = useRef(false);
@@ -46,9 +69,9 @@ export function ImageCompareWidget() {
           setFromClientX(e.clientX);
         }}
       >
-        <img className="hc-compare__img hc-compare__img--after" src={AFTER} alt="After" draggable={false} />
+        <img className="hc-compare__img hc-compare__img--after" src={pair.after} alt="After" draggable={false} />
         <div className="hc-compare__before">
-          <img className="hc-compare__img" src={BEFORE} alt="Before" draggable={false} />
+          <img className="hc-compare__img" src={pair.before} alt="Before" draggable={false} />
         </div>
         <div className="hc-compare__line" aria-hidden>
           <button

@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { attr, childText, field, hasMountItems, queryMountItems } from './mountData';
+import { useClampedIndex } from './useMountItems';
 
-const STEPS = [
+type CompareStep = { label: string; btc: string; eth: string };
+
+const DEFAULT_STEPS: CompareStep[] = [
   {
     label: 'Purpose',
     btc: 'Digital cash / store of value with a fixed monetary policy.',
@@ -35,14 +39,32 @@ function resolveNav(preset?: string): Nav {
   return 'top';
 }
 
+function parseSteps(host: HTMLElement | null | undefined): CompareStep[] {
+  if (host && hasMountItems(host)) {
+    return queryMountItems(host).map((el) => {
+      const children = Array.from(el.children) as HTMLElement[];
+      const btcChild = children.find((c) => attr(c, 'data-side') === 'btc' || /btc|bitcoin/i.test(c.className));
+      const ethChild = children.find((c) => attr(c, 'data-side') === 'eth' || /eth|ethereum/i.test(c.className));
+      return {
+        label: attr(el, 'data-label') || field(el, { attr: 'data-title' }) || 'Step',
+        btc: attr(el, 'data-btc') || (btcChild ? (btcChild.textContent || '').trim() : '') || childText(el, '[data-btc]') || '',
+        eth: attr(el, 'data-eth') || (ethChild ? (ethChild.textContent || '').trim() : '') || childText(el, '[data-eth]') || '',
+      };
+    });
+  }
+  return DEFAULT_STEPS;
+}
+
 function NavButtons({
   step,
   setStep,
   align,
+  steps,
 }: {
   step: number;
   setStep: (n: number | ((v: number) => number)) => void;
   align: 'start' | 'center' | 'end' | 'between';
+  steps: CompareStep[];
 }) {
   const justify =
     align === 'start'
@@ -64,12 +86,12 @@ function NavButtons({
         <ChevronLeft className="h-4 w-4" /> Prev
       </button>
       <span className="text-[11px] font-black uppercase tracking-wider text-teal-700 dark:text-teal-400">
-        Step {step + 1} / {STEPS.length} · {STEPS[step].label}
+        Step {step + 1} / {steps.length} · {steps[step]?.label}
       </span>
       <button
         type="button"
-        disabled={step === STEPS.length - 1}
-        onClick={() => setStep((v) => Math.min(STEPS.length - 1, v + 1))}
+        disabled={step === steps.length - 1}
+        onClick={() => setStep((v) => Math.min(steps.length - 1, v + 1))}
         className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold disabled:opacity-30 dark:border-slate-700 dark:bg-slate-800"
       >
         Next <ChevronRight className="h-4 w-4" />
@@ -78,9 +100,16 @@ function NavButtons({
   );
 }
 
-export function CompareStepsWidget({ preset }: { preset?: string }) {
-  const [step, setStep] = useState(0);
-  const s = STEPS[step];
+export function CompareStepsWidget({
+  preset,
+  host,
+}: {
+  preset?: string;
+  host?: HTMLElement | null;
+}) {
+  const steps = useMemo(() => parseSteps(host), [host]);
+  const [step, setStep] = useClampedIndex(steps.length);
+  const s = steps[step];
   const nav = resolveNav(preset);
 
   const navAlign: 'start' | 'center' | 'end' | 'between' =
@@ -89,9 +118,11 @@ export function CompareStepsWidget({ preset }: { preset?: string }) {
   const showNavTop = nav === 'top' || nav === 'tl' || nav === 'tr';
   const showNavBottom = nav === 'bottom' || nav === 'bl' || nav === 'br';
 
+  if (!s) return null;
+
   return (
     <div className="space-y-4">
-      {showNavTop && <NavButtons step={step} setStep={setStep} align={navAlign} />}
+      {showNavTop && <NavButtons step={step} setStep={setStep} align={navAlign} steps={steps} />}
 
       <div className="grid gap-4 md:grid-cols-2">
         <div
@@ -115,7 +146,7 @@ export function CompareStepsWidget({ preset }: { preset?: string }) {
       </div>
 
       <div className="flex justify-center gap-1.5">
-        {STEPS.map((_, i) => (
+        {steps.map((_, i) => (
           <button
             key={i}
             type="button"
@@ -127,7 +158,7 @@ export function CompareStepsWidget({ preset }: { preset?: string }) {
         ))}
       </div>
 
-      {showNavBottom && <NavButtons step={step} setStep={setStep} align={navAlign} />}
+      {showNavBottom && <NavButtons step={step} setStep={setStep} align={navAlign} steps={steps} />}
     </div>
   );
 }

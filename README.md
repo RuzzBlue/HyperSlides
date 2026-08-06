@@ -34,7 +34,7 @@ Related chrome: course structure edits in the left sidebar (rename, reorder, ins
 
 ## Quizzes
 
-Supported question types (see the kitchen-sink demo quiz under `courses/demo_course_v001/`):
+Supported question types (see the kitchen-sink demo quiz under `courses/hyperclass_demo_v001/`):
 
 | Type | Notes |
 |------|--------|
@@ -72,7 +72,7 @@ Visit progress: leaving a slide marks it complete (`completedKeys`); quizzes/lab
 
 ```
 courses/
-  demo_course_v001/
+  hyperclass_demo_v001/
     course.json
     modules/...
     quizzes/

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
+import { attr, childText, field, hasMountItems, queryMountItems } from './mountData';
 
 const PRESETS: Record<string, { t: string; d: string }[]> = {
   platform: [
@@ -32,8 +33,26 @@ const PRESETS: Record<string, { t: string; d: string }[]> = {
   ],
 };
 
-export function AccordionWidget({ preset }: { preset?: string }) {
-  const items = PRESETS[preset || 'platform'] || PRESETS.platform;
+function parseItems(host: HTMLElement | null | undefined, preset?: string) {
+  if (host && hasMountItems(host)) {
+    return queryMountItems(host).map((el) => ({
+      t: field(el, { attr: 'data-title', child: '[data-title]', fallbackText: false }) ||
+        attr(el, 'data-label') ||
+        'Item',
+      d: childText(el, '[data-body]') || attr(el, 'data-body') || '',
+    }));
+  }
+  return PRESETS[preset || 'platform'] || PRESETS.platform;
+}
+
+export function AccordionWidget({
+  preset,
+  host,
+}: {
+  preset?: string;
+  host?: HTMLElement | null;
+}) {
+  const items = useMemo(() => parseItems(host, preset), [host, preset]);
   const [open, setOpen] = useState(0);
 
   return (
@@ -41,7 +60,7 @@ export function AccordionWidget({ preset }: { preset?: string }) {
       {items.map((item, i) => {
         const on = open === i;
         return (
-          <div key={item.t} className={i > 0 ? 'border-t border-slate-100 dark:border-slate-800' : ''}>
+          <div key={`${item.t}-${i}`} className={i > 0 ? 'border-t border-slate-100 dark:border-slate-800' : ''}>
             <button
               type="button"
               onClick={() => setOpen(on ? -1 : i)}

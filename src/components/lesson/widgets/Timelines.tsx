@@ -1,5 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Check, Lock, Play } from 'lucide-react';
+import { attr, childText, field, hasMountItems, queryMountItems } from './mountData';
+import { useClampedIndex } from './useMountItems';
 
 export type TimelineDetail = {
   y: string;
@@ -139,17 +141,68 @@ function VerticalRail({ children }: { children: ReactNode }) {
   );
 }
 
-export function DetailTimelineWidget({ preset }: { preset?: string }) {
-  const events = DETAIL_TIMELINES[preset || 'blockchain'] || DETAIL_TIMELINES.blockchain;
-  const [active, setActive] = useState(0);
-  const e = events[active];
+function parseDetailEvents(host: HTMLElement | null | undefined, preset?: string): TimelineDetail[] {
+  if (host && hasMountItems(host)) {
+    return queryMountItems(host).map((el, i) => ({
+      y: attr(el, 'data-y') || String(i + 1).padStart(2, '0'),
+      t: field(el, { attr: 'data-title', child: '[data-title]' }) || 'Event',
+      subtitle: attr(el, 'data-subtitle') || childText(el, '[data-subtitle]') || '',
+      body: childText(el, '[data-body]') || attr(el, 'data-body') || '',
+      extra: childText(el, '[data-extra]') || attr(el, 'data-extra') || undefined,
+    }));
+  }
+  return DETAIL_TIMELINES[preset || 'blockchain'] || DETAIL_TIMELINES.blockchain;
+}
+
+function parseStepEvents(host: HTMLElement | null | undefined, preset?: string) {
+  if (host && hasMountItems(host)) {
+    return queryMountItems(host).map((el, i) => ({
+      y: attr(el, 'data-y') || String(i + 1).padStart(2, '0'),
+      t: field(el, { attr: 'data-title', child: '[data-title]' }) || 'Step',
+      d: childText(el, '[data-body]') || attr(el, 'data-body') || '',
+    }));
+  }
+  return STEP_PRESETS[preset || 'wallet-setup'] || STEP_PRESETS['wallet-setup'];
+}
+
+function parseTrailSteps(host: HTMLElement | null | undefined): TrailStep[] {
+  if (host && hasMountItems(host)) {
+    return queryMountItems(host).map((el, i) => {
+      const tipList = el.querySelector('ul[data-tip-items]');
+      const tipItems = tipList
+        ? Array.from(tipList.querySelectorAll('li')).map((li) => (li.textContent || '').trim()).filter(Boolean)
+        : [];
+      return {
+        id: attr(el, 'data-id') || `step-${i + 1}`,
+        title: field(el, { attr: 'data-title', child: '[data-title]' }) || `Step ${i + 1}`,
+        tipTitle: attr(el, 'data-tip-title') || field(el, { attr: 'data-title' }) || 'Tip',
+        tipSub: attr(el, 'data-tip-sub') || `Step ${i + 1} of the trail`,
+        tipBody: childText(el, '[data-body]') || attr(el, 'data-body') || '',
+        tipItems,
+      };
+    });
+  }
+  return TRAIL_STEPS;
+}
+
+export function DetailTimelineWidget({
+  preset,
+  host,
+}: {
+  preset?: string;
+  host?: HTMLElement | null;
+}) {
+  const events = useMemo(() => parseDetailEvents(host, preset), [host, preset]);
+  const [active, setActive] = useClampedIndex(events.length);
+  const e = events[active] ?? events[0];
+  if (!e) return null;
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_1.1fr]">
       <VerticalRail>
         {events.map((ev, i) => (
           <button
-            key={ev.y}
+            key={`${ev.y}-${ev.t}-${i}`}
             type="button"
             onClick={() => setActive(i)}
             className="relative mb-4 flex w-full cursor-pointer gap-4 text-left last:mb-0"
@@ -185,10 +238,17 @@ export function DetailTimelineWidget({ preset }: { preset?: string }) {
   );
 }
 
-export function HorizontalTimelineWidget({ preset }: { preset?: string }) {
-  const events = DETAIL_TIMELINES[preset || 'blockchain'] || DETAIL_TIMELINES.blockchain;
-  const [active, setActive] = useState(0);
-  const e = events[active];
+export function HorizontalTimelineWidget({
+  preset,
+  host,
+}: {
+  preset?: string;
+  host?: HTMLElement | null;
+}) {
+  const events = useMemo(() => parseDetailEvents(host, preset), [host, preset]);
+  const [active, setActive] = useClampedIndex(events.length);
+  const e = events[active] ?? events[0];
+  if (!e) return null;
 
   return (
     <div className="space-y-5">
@@ -201,7 +261,7 @@ export function HorizontalTimelineWidget({ preset }: { preset?: string }) {
         <div className="relative flex min-w-max gap-2 px-2">
           {events.map((ev, i) => (
             <button
-              key={ev.y}
+              key={`${ev.y}-${ev.t}-${i}`}
               type="button"
               onClick={() => setActive(i)}
               className="flex w-36 cursor-pointer flex-col items-center gap-2"
@@ -232,15 +292,28 @@ export function HorizontalTimelineWidget({ preset }: { preset?: string }) {
   );
 }
 
-export function TimelineWidget({ preset }: { preset?: string }) {
-  if (!preset || preset === 'blockchain') {
-    return <DetailTimelineWidget preset="blockchain" />;
+export function TimelineWidget({
+  preset,
+  host,
+}: {
+  preset?: string;
+  host?: HTMLElement | null;
+}) {
+  const isDetail = !preset || preset === 'blockchain';
+  const events = useMemo(
+    () => (isDetail ? [] : parseStepEvents(host, preset)),
+    [host, preset, isDetail],
+  );
+
+  // Pass host through to Detail when no step preset.
+  if (isDetail) {
+    return <DetailTimelineWidget preset="blockchain" host={host} />;
   }
-  const events = STEP_PRESETS[preset] || STEP_PRESETS['wallet-setup'];
+
   return (
     <VerticalRail>
-      {events.map((e) => (
-        <div key={`${e.y}-${e.t}`} className="relative mb-6 flex gap-4 last:mb-0">
+      {events.map((e, i) => (
+        <div key={`${e.y}-${e.t}-${i}`} className="relative mb-6 flex gap-4 last:mb-0">
           <div className={`${yearBase} ${yearIdle} pointer-events-none`}>{e.y}</div>
           <div className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="text-sm font-black text-slate-900 dark:text-white">{e.t}</div>
@@ -253,15 +326,16 @@ export function TimelineWidget({ preset }: { preset?: string }) {
 }
 
 /** Snake trail: left→right, down, right→left, … Click to complete; unlocks next. Rich tip on hover. */
-export function TrailTimelineWidget() {
-  const [completed, setCompleted] = useState(0);
-  const [active, setActive] = useState(0);
+export function TrailTimelineWidget({ host }: { host?: HTMLElement | null }) {
+  const steps = useMemo(() => parseTrailSteps(host), [host]);
+  const [completed, setCompleted] = useClampedIndex(steps.length + 1, 0);
+  const [active, setActive] = useClampedIndex(steps.length);
 
   const onActivate = (i: number) => {
     if (i > completed) return;
     setActive(i);
     if (i === completed) {
-      setCompleted((c) => Math.min(c + 1, TRAIL_STEPS.length));
+      setCompleted((c) => Math.min(c + 1, steps.length));
     }
   };
 
@@ -270,13 +344,16 @@ export function TrailTimelineWidget() {
     setActive(0);
   };
 
+  if (!steps.length) return null;
+  const focus = steps[Math.min(active, steps.length - 1)];
+
   return (
     <div className="hc-trail">
       <div className="hc-trail__header">
         <div>
           <p className="hc-trail__eyebrow">Unlock trail</p>
           <p className="hc-trail__status">
-            {completed >= TRAIL_STEPS.length
+            {completed >= steps.length
               ? 'Trail complete — every step unlocked'
               : `Click step ${completed + 1} to unlock the next`}
           </p>
@@ -299,10 +376,10 @@ export function TrailTimelineWidget() {
           />
         </svg>
 
-        {TRAIL_STEPS.map((step, i) => {
+        {steps.map((step, i) => {
           const unlocked = i <= completed;
           const done = i < completed;
-          const current = i === completed && completed < TRAIL_STEPS.length;
+          const current = i === completed && completed < steps.length;
           const tipSide = i % 3 === 0 ? 'hc-tip--right' : i % 3 === 2 ? 'hc-tip--left' : 'hc-tip--top';
 
           return (
@@ -354,8 +431,8 @@ export function TrailTimelineWidget() {
         <span className="hc-trail__focus-eyebrow">
           {active < completed ? 'Completed step' : active === completed ? 'Active step' : 'Locked'}
         </span>
-        <h4>{TRAIL_STEPS[Math.min(active, TRAIL_STEPS.length - 1)].tipTitle}</h4>
-        <p>{TRAIL_STEPS[Math.min(active, TRAIL_STEPS.length - 1)].tipBody}</p>
+        <h4>{focus.tipTitle}</h4>
+        <p>{focus.tipBody}</p>
       </div>
     </div>
   );

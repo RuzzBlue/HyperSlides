@@ -28,6 +28,7 @@ import { YTVideoWidget } from './YTVideo';
 import { CourseWidgetFrame } from './CourseWidget';
 import { RevealStepsWidget } from './RevealSteps';
 import { AssetDownloadWidget, AssetImageWidget, PdfEmbedWidget } from './AssetEmbeds';
+import { hideMountSourceContent } from './mountData';
 
 type PortalSpec = {
   element: HTMLElement;
@@ -37,6 +38,7 @@ type PortalSpec = {
   chart?: string;
   preset?: string;
   orientation?: string;
+  style?: string;
   src?: string;
   title?: string;
   caption?: string;
@@ -61,14 +63,19 @@ export function PortalsRenderer({
       const found: PortalSpec[] = [];
 
       stage.querySelectorAll('[data-component]').forEach((el) => {
+        const host = el as HTMLElement;
+        // Keep [data-item] markup for hydration + Code edits, but hide it so it
+        // does not show as plain text above the React portal UI.
+        hideMountSourceContent(host);
         found.push({
-          element: el as HTMLElement,
+          element: host,
           type: el.getAttribute('data-component') || '',
           videoId: el.getAttribute('data-video-id') || undefined,
           widgetId: el.getAttribute('data-widget-id') || undefined,
           chart: el.getAttribute('data-chart') || undefined,
           preset: el.getAttribute('data-preset') || undefined,
           orientation: el.getAttribute('data-orientation') || undefined,
+          style: el.getAttribute('data-style') || undefined,
           src: el.getAttribute('data-src') || undefined,
           title: el.getAttribute('data-title') || undefined,
           caption: el.getAttribute('data-caption') || undefined,
@@ -103,48 +110,51 @@ export function PortalsRenderer({
   return (
     <>
       {portals.map((p, idx) => {
+        const host = p.element;
         let node: ReactNode = null;
         switch (p.type) {
           case 'flipcards':
-            node = <FlipCardsWidget preset={p.preset} />;
+            node = <FlipCardsWidget preset={p.preset} host={host} />;
             break;
           case 'accordion':
-            node = <AccordionWidget preset={p.preset} />;
+            node = <AccordionWidget preset={p.preset} host={host} />;
             break;
           case 'carousel':
-            node = <CarouselWidget preset={p.preset} />;
+            node = <CarouselWidget preset={p.preset} host={host} />;
             break;
           case 'image-carousel':
-            node = <ImageCarouselWidget />;
+            node = <ImageCarouselWidget host={host} />;
             break;
           case 'marquee-carousel':
-            node = <MarqueeCarouselWidget />;
+            node = <MarqueeCarouselWidget host={host} />;
             break;
           case 'feature-tabs':
-            node = <FeatureTabsWidget />;
+            node = <FeatureTabsWidget host={host} />;
             break;
           case 'metrics-stats':
-            node = <MetricsStatsWidget preset={p.preset} />;
+            node = <MetricsStatsWidget preset={p.preset} host={host} />;
             break;
           case 'compare-plans':
-            node = <ComparePlansWidget preset={p.preset} />;
+            node = <ComparePlansWidget preset={p.preset} host={host} />;
             break;
           case 'timeline':
-            node = <TimelineWidget preset={p.preset} />;
+            node = <TimelineWidget preset={p.preset} host={host} />;
             break;
           case 'timeline-detail':
-            node = <DetailTimelineWidget preset={p.preset} />;
+            node = <DetailTimelineWidget preset={p.preset} host={host} />;
             break;
           case 'timeline-horizontal':
-            node = <HorizontalTimelineWidget preset={p.preset} />;
+            node = <HorizontalTimelineWidget preset={p.preset} host={host} />;
             break;
           case 'timeline-trail':
-            node = <TrailTimelineWidget />;
+            node = <TrailTimelineWidget host={host} />;
             break;
           case 'tabs':
             node = (
               <TabsWidget
                 preset={p.preset}
+                style={p.style}
+                host={host}
                 orientation={
                   p.orientation === 'vertical'
                     ? 'vertical'
@@ -156,37 +166,37 @@ export function PortalsRenderer({
             );
             break;
           case 'checklist':
-            node = <ChecklistWidget preset={p.preset} />;
+            node = <ChecklistWidget preset={p.preset} host={host} />;
             break;
           case 'compare-steps':
-            node = <CompareStepsWidget preset={p.preset} />;
+            node = <CompareStepsWidget preset={p.preset} host={host} />;
             break;
           case 'process-steps':
-            node = <ProcessStepsWidget />;
+            node = <ProcessStepsWidget host={host} />;
             break;
           case 'step-showcase':
-            node = <StepShowcaseWidget preset={p.preset} />;
+            node = <StepShowcaseWidget preset={p.preset} host={host} />;
             break;
           case 'filter-table':
-            node = <FilterTableWidget />;
+            node = <FilterTableWidget host={host} />;
             break;
           case 'mermaid-graph':
-            node = <MermaidWidget chart={p.chart} />;
+            node = <MermaidWidget chart={p.chart} host={host} />;
             break;
           case 'pie-chart':
-            node = <PieChartWidget />;
+            node = <PieChartWidget host={host} />;
             break;
           case 'demo-chart':
-            node = <DemoChartWidget preset={p.preset} />;
+            node = <DemoChartWidget preset={p.preset} host={host} />;
             break;
           case 'image-compare':
-            node = <ImageCompareWidget />;
+            node = <ImageCompareWidget host={host} />;
             break;
           case 'yt-video':
             node = <YTVideoWidget videoId={p.videoId} />;
             break;
           case 'reveal-steps':
-            node = <RevealStepsWidget preset={p.preset} />;
+            node = <RevealStepsWidget preset={p.preset} host={host} />;
             break;
           case 'pdf-embed':
             node = (

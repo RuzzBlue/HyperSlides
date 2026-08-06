@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   Fingerprint,
   Hash,
@@ -9,6 +9,17 @@ import {
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
+import { attr, childText, field, hasMountItems, queryMountItems } from './mountData';
+import { iconFromMountItem, resolveMountIcon } from './mountIcons';
+
+const ACCENTS = [
+  'from-sky-500 to-cyan-600',
+  'from-rose-500 to-orange-500',
+  'from-emerald-500 to-teal-600',
+  'from-violet-500 to-indigo-600',
+  'from-teal-500 to-emerald-600',
+  'from-indigo-500 to-violet-600',
+];
 
 type Card = {
   front: string;
@@ -16,9 +27,13 @@ type Card = {
   title: string;
   subtitle: string;
   body: string;
-  Icon: LucideIcon;
+  icon: ReactNode;
   accent: string;
 };
+
+function lucideNode(Icon: LucideIcon, className: string): ReactNode {
+  return <Icon className={className} />;
+}
 
 const GRID_CARDS: Card[] = [
   {
@@ -27,7 +42,7 @@ const GRID_CARDS: Card[] = [
     title: 'Cryptographic hash',
     subtitle: 'One-way fingerprint',
     body: 'Maps any input to a fixed-length digest. A tiny change avalanches into a totally different output — perfect for tamper evidence.',
-    Icon: Hash,
+    icon: lucideNode(Hash, 'h-4 w-4'),
     accent: 'from-sky-500 to-cyan-600',
   },
   {
@@ -36,7 +51,7 @@ const GRID_CARDS: Card[] = [
     title: 'Private key',
     subtitle: 'Signing secret',
     body: 'Secret material that authorizes spends. Anyone who holds it can move the associated funds — never share or screenshot it.',
-    Icon: KeyRound,
+    icon: lucideNode(KeyRound, 'h-4 w-4'),
     accent: 'from-rose-500 to-orange-500',
   },
   {
@@ -45,7 +60,7 @@ const GRID_CARDS: Card[] = [
     title: 'Public address',
     subtitle: 'Safe to publish',
     body: 'Derived from keys and used only to receive. Share it like an account number — it cannot authorize an outgoing spend by itself.',
-    Icon: Fingerprint,
+    icon: lucideNode(Fingerprint, 'h-4 w-4'),
     accent: 'from-emerald-500 to-teal-600',
   },
   {
@@ -54,7 +69,7 @@ const GRID_CARDS: Card[] = [
     title: 'Network consensus',
     subtitle: 'Shared history',
     body: 'How peers agree on one ledger tip without a central referee — the foundation of decentralized settlement.',
-    Icon: Network,
+    icon: lucideNode(Network, 'h-4 w-4'),
     accent: 'from-violet-500 to-indigo-600',
   },
 ];
@@ -66,7 +81,7 @@ const ICON_CARDS: Card[] = [
     title: 'Recovery phrase',
     subtitle: 'Human-readable secret',
     body: 'Usually 12 or 24 words that regenerate your keys. Write it offline, store it safely, never type it into a website.',
-    Icon: Lock,
+    icon: lucideNode(Lock, 'h-4 w-4'),
     accent: 'from-teal-500 to-emerald-600',
   },
   {
@@ -75,7 +90,7 @@ const ICON_CARDS: Card[] = [
     title: 'Software wallet',
     subtitle: 'Connected to the net',
     body: 'Convenient for day-to-day amounts. Keep only what you need online; move larger balances to colder storage.',
-    Icon: Wallet,
+    icon: lucideNode(Wallet, 'h-4 w-4'),
     accent: 'from-indigo-500 to-violet-600',
   },
 ];
@@ -91,7 +106,6 @@ function FlipFace({
   onFlip: () => void;
   tall?: boolean;
 }) {
-  const Icon = card.Icon;
   return (
     <button
       type="button"
@@ -110,10 +124,10 @@ function FlipFace({
             </span>
             <span
               className={`flex items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md ${card.accent} ${
-                tall ? 'h-12 w-12' : 'h-9 w-9'
+                tall ? 'h-12 w-12 text-xl [&_svg]:h-6 [&_svg]:w-6' : 'h-9 w-9 [&_svg]:h-4 [&_svg]:w-4'
               }`}
             >
-              <Icon className={tall ? 'h-6 w-6' : 'h-4 w-4'} />
+              {card.icon}
             </span>
           </div>
           <span className={`text-left font-black tracking-tight text-slate-900 dark:text-white ${tall ? 'text-2xl' : 'text-lg'}`}>
@@ -254,9 +268,51 @@ function ImageFlipCard() {
   );
 }
 
-export function FlipCardsWidget({ preset }: { preset?: string }) {
+function parseCards(host: HTMLElement | null | undefined): Card[] | null {
+  if (!host || !hasMountItems(host)) return null;
+  return queryMountItems(host).map((el, i) => ({
+    front:
+      attr(el, 'data-front') ||
+      childText(el, '[data-front]') ||
+      field(el, { attr: 'data-title' }) ||
+      'Card',
+    eyebrow: attr(el, 'data-eyebrow') || 'Topic',
+    title: field(el, { attr: 'data-title', child: '[data-title]' }) || 'Title',
+    subtitle: attr(el, 'data-subtitle') || '',
+    body: childText(el, '[data-body]') || attr(el, 'data-body') || '',
+    icon:
+      iconFromMountItem(el, { className: 'h-4 w-4' }) ||
+      resolveMountIcon('shield', { className: 'h-4 w-4' }),
+    accent: attr(el, 'data-accent') || ACCENTS[i % ACCENTS.length],
+  }));
+}
+
+export function FlipCardsWidget({
+  preset,
+  host,
+}: {
+  preset?: string;
+  host?: HTMLElement | null;
+}) {
   const [flipped, setFlipped] = useState<Record<number, boolean>>({});
   const mode = preset || 'grid';
+  const hostCards = useMemo(() => parseCards(host), [host]);
+
+  if (hostCards) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2">
+        {hostCards.map((c, i) => (
+          <FlipFace
+            key={`${c.front}-${i}`}
+            card={c}
+            tall={mode === 'icons'}
+            flipped={!!flipped[i]}
+            onFlip={() => setFlipped((f) => ({ ...f, [i]: !f[i] }))}
+          />
+        ))}
+      </div>
+    );
+  }
 
   if (mode === 'icons') {
     return (
