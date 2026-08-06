@@ -30,11 +30,15 @@ import { apiFetch } from '../api/client';
 import type { StringKey } from '../i18n/strings';
 import { usePrefs } from '../prefs/PrefsProvider';
 import { themeAssetUrl } from './theme/themeUtils';
+import { FontFamilySelect } from './theme/FontFamilySelect';
 import {
-  THEME_FONT_PRESETS,
-  UPLOADED_FONT_PRESET_ID,
+  DEFAULT_BODY_FONT_ID,
+  DEFAULT_DISPLAY_FONT_ID,
+  combineGoogleFontUrls,
   familyFromFontFilename,
-  matchThemeFontPreset,
+  matchFontFamilyId,
+  resolveFontById,
+  type UploadedFontOption,
 } from '@shared/themeFonts';
 
 type Tab = 'info' | 'theme' | 'course' | 'extras' | 'security';
@@ -123,10 +127,6 @@ function parseCssSize(size: string): { num: string; unit: (typeof SIZE_UNITS)[nu
     ? (unitRaw as (typeof SIZE_UNITS)[number])
     : 'px';
   return { num: m[1]!, unit };
-}
-
-function matchFontPreset(googleUrl?: string, display?: string, body?: string): string {
-  return matchThemeFontPreset(googleUrl, display, body);
 }
 
 function bgTypeToMode(type?: ThemeBgSpec['type']): BgMode {
@@ -676,13 +676,40 @@ export function CourseSettingsModal({
   const [themeTemplateId, setThemeTemplateId] = useState('crypto-teal');
   const [linkAccentAndCover, setLinkAccentAndCover] = useState(false);
   const [accent, setAccent] = useState(DEMO_DEFAULTS.coverAccent);
-  const [fontPreset, setFontPreset] = useState<string>(THEME_FONT_PRESETS[0].id);
-  const [uploadedDisplayFamily, setUploadedDisplayFamily] = useState('');
-  const [uploadedBodyFamily, setUploadedBodyFamily] = useState('');
+  const [displayFontId, setDisplayFontId] = useState(DEFAULT_DISPLAY_FONT_ID);
+  const [bodyFontId, setBodyFontId] = useState(DEFAULT_BODY_FONT_ID);
   const [pendingThemeFonts, setPendingThemeFonts] = useState<PendingThemeFont[]>([]);
   const [courseThemeFonts, setCourseThemeFonts] = useState<{ path: string; family: string }[]>([]);
   const [fontLocalCss, setFontLocalCss] = useState<string | undefined>(undefined);
   const fontFileRef = useRef<HTMLInputElement>(null);
+
+  const uploadedFontOptions: UploadedFontOption[] = [
+    ...courseThemeFonts.map((f) => ({
+      id: `upload:${f.path}`,
+      family: f.family,
+      path: f.path,
+    })),
+    ...pendingThemeFonts.map((f) => ({
+      id: `pending:${f.filename}`,
+      family: f.family,
+      pending: true as const,
+    })),
+  ];
+
+  useEffect(() => {
+    if (!open || !isEdit || !course || !fontLocalCss) return;
+    const folder = course.summary.folder || course.summary.id;
+    const id = 'hc-settings-local-fonts';
+    let link = document.getElementById(id) as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement('link');
+      link.id = id;
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
+    link.href = `http://127.0.0.1:8765/courses/${folder}/theme/${fontLocalCss}?t=${Date.now()}`;
+  }, [open, isEdit, course, fontLocalCss]);
+
   const [quizColor, setQuizColor] = useState(DEFAULT_QUIZ_COLOR);
   const [labColor, setLabColor] = useState(DEFAULT_LAB_COLOR);
   const [bgMode, setBgMode] = useState<BgMode>('gradient');
@@ -751,23 +778,10 @@ export function CourseSettingsModal({
       setLinkAccentAndCover(
         isCustom ? themeAccent.toLowerCase() === cover.toLowerCase() : false,
       );
-      setFontPreset(
-        matchFontPreset(
-          course.theme?.fonts?.google,
-          course.theme?.fonts?.display,
-          course.theme?.fonts?.body,
-        ),
+      setDisplayFontId(
+        matchFontFamilyId(course.theme?.fonts?.display, [], 'display'),
       );
-      setUploadedDisplayFamily(
-        course.theme?.fonts?.localCss
-          ? (course.theme.fonts.display?.replace(/^"([^"]+)".*$/, '$1') ?? '')
-          : '',
-      );
-      setUploadedBodyFamily(
-        course.theme?.fonts?.localCss
-          ? (course.theme.fonts.body?.replace(/^"([^"]+)".*$/, '$1') ?? '')
-          : '',
-      );
+      setBodyFontId(matchFontFamilyId(course.theme?.fonts?.body, [], 'body'));
       setPendingThemeFonts([]);
       setFontLocalCss(course.theme?.fonts?.localCss);
       setQuizColor(course.theme?.quiz ?? DEFAULT_QUIZ_COLOR);
@@ -818,9 +832,8 @@ export function CourseSettingsModal({
       setThemeTemplateId(initialTemplateId || 'crypto-teal');
       setAccent(DEMO_DEFAULTS.coverAccent);
       setLinkAccentAndCover(false);
-      setFontPreset(THEME_FONT_PRESETS[0].id);
-      setUploadedDisplayFamily('');
-      setUploadedBodyFamily('');
+      setDisplayFontId(DEFAULT_DISPLAY_FONT_ID);
+      setBodyFontId(DEFAULT_BODY_FONT_ID);
       setPendingThemeFonts([]);
       setCourseThemeFonts([]);
       setFontLocalCss(undefined);
@@ -890,8 +903,18 @@ export function CourseSettingsModal({
           path: `/api/courses/${course.summary.id}/theme/fonts`,
         });
         if (fontsRes.ok && fontsRes.data) {
-          setCourseThemeFonts(fontsRes.data.files);
+          const files = fontsRes.data.files;
+          setCourseThemeFonts(files);
           if (fontsRes.data.localCss) setFontLocalCss(fontsRes.data.localCss);
+          const uploadedOpts: UploadedFontOption[] = files.map((f) => ({
+            id: `upload:${f.path}`,
+            family: f.family,
+            path: f.path,
+          }));
+          setDisplayFontId(
+            matchFontFamilyId(course.theme?.fonts?.display, uploadedOpts, 'display'),
+          );
+          setBodyFontId(matchFontFamilyId(course.theme?.fonts?.body, uploadedOpts, 'body'));
         }
       }
     })();
@@ -1011,19 +1034,19 @@ export function CourseSettingsModal({
             { path: saved.path, family: saved.family },
           ]);
           setFontLocalCss(saved.localCss);
-          setFontPreset(UPLOADED_FONT_PRESET_ID);
-          setUploadedDisplayFamily(saved.family);
-          setUploadedBodyFamily(saved.family);
+          const uploadId = `upload:${saved.path}`;
+          setDisplayFontId(uploadId);
+          setBodyFontId(uploadId);
         }
       } else {
         const next: PendingThemeFont[] = [];
         for (const file of accepted) next.push(await readFontFile(file));
         setPendingThemeFonts((prev) => [...prev, ...next]);
-        setFontPreset(UPLOADED_FONT_PRESET_ID);
         const last = next[next.length - 1];
         if (last) {
-          setUploadedDisplayFamily(last.family);
-          setUploadedBodyFamily(last.family);
+          const pendingId = `pending:${last.filename}`;
+          setDisplayFontId(pendingId);
+          setBodyFontId(pendingId);
         }
       }
     } catch (err) {
@@ -1032,15 +1055,18 @@ export function CourseSettingsModal({
   };
 
   const buildPayload = () => {
-    const font =
-      fontPreset === UPLOADED_FONT_PRESET_ID
-        ? {
-            id: UPLOADED_FONT_PRESET_ID,
-            display: `"${uploadedDisplayFamily || 'Custom Font'}", system-ui, sans-serif`,
-            body: `"${uploadedBodyFamily || uploadedDisplayFamily || 'Custom Font'}", system-ui, sans-serif`,
-            google: '',
-          }
-        : THEME_FONT_PRESETS.find((f) => f.id === fontPreset) ?? THEME_FONT_PRESETS[0];
+    const uploadedOpts = uploadedFontOptions;
+    const displayRes =
+      resolveFontById(displayFontId, uploadedOpts) ||
+      resolveFontById(DEFAULT_DISPLAY_FONT_ID, [])!;
+    const bodyRes =
+      resolveFontById(bodyFontId, uploadedOpts) ||
+      resolveFontById(DEFAULT_BODY_FONT_ID, [])!;
+    const usesLocal =
+      displayRes.local ||
+      bodyRes.local ||
+      Boolean(fontLocalCss) ||
+      pendingThemeFonts.length > 0;
     const watermark = {
       enabled: wmEnabled,
       kind: wmKind,
@@ -1062,12 +1088,10 @@ export function CourseSettingsModal({
       themeSource === 'custom'
         ? {
             accent,
-            displayFont: font.display,
-            bodyFont: font.body,
-            googleFontsUrl: font.google,
-            ...(fontLocalCss || pendingThemeFonts.length
-              ? { localCss: fontLocalCss || 'fonts.css' }
-              : {}),
+            displayFont: displayRes.stack,
+            bodyFont: bodyRes.stack,
+            googleFontsUrl: combineGoogleFontUrls([displayRes.google, bodyRes.google]),
+            ...(usesLocal ? { localCss: fontLocalCss || 'fonts.css' } : {}),
             quiz: quizColor,
             lab: labColor,
             bgMode,
@@ -1363,20 +1387,24 @@ export function CourseSettingsModal({
                         </Field>
                       </div>
                       <Field label={tr('newCourseThemeFont')}>
-                        <select
-                          className={inputClass}
-                          value={fontPreset}
-                          onChange={(e) => setFontPreset(e.target.value)}
-                        >
-                          {THEME_FONT_PRESETS.map((f) => (
-                            <option key={f.id} value={f.id}>
-                              {f.label}
-                            </option>
-                          ))}
-                          <option value={UPLOADED_FONT_PRESET_ID}>
-                            {tr('newCourseThemeFontUploaded')}
-                          </option>
-                        </select>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Field label={tr('newCourseThemeFontDisplay')}>
+                            <FontFamilySelect
+                              role="display"
+                              value={displayFontId}
+                              onChange={setDisplayFontId}
+                              uploaded={uploadedFontOptions}
+                            />
+                          </Field>
+                          <Field label={tr('newCourseThemeFontBody')}>
+                            <FontFamilySelect
+                              role="body"
+                              value={bodyFontId}
+                              onChange={setBodyFontId}
+                              uploaded={uploadedFontOptions}
+                            />
+                          </Field>
+                        </div>
                       </Field>
                       <div className="space-y-2 rounded-lg border border-dashed border-[var(--line)] bg-[var(--panel-2)] p-2.5">
                         <div className="text-[11px] font-medium text-[var(--ink-muted)]">
@@ -1416,26 +1444,6 @@ export function CourseSettingsModal({
                               </li>
                             ))}
                           </ul>
-                        )}
-                        {fontPreset === UPLOADED_FONT_PRESET_ID && (
-                          <div className="grid grid-cols-2 gap-2 pt-1">
-                            <Field label={tr('newCourseThemeFontDisplay')}>
-                              <input
-                                className={inputClass}
-                                value={uploadedDisplayFamily}
-                                onChange={(e) => setUploadedDisplayFamily(e.target.value)}
-                                placeholder="Display family"
-                              />
-                            </Field>
-                            <Field label={tr('newCourseThemeFontBody')}>
-                              <input
-                                className={inputClass}
-                                value={uploadedBodyFamily}
-                                onChange={(e) => setUploadedBodyFamily(e.target.value)}
-                                placeholder="Body family"
-                              />
-                            </Field>
-                          </div>
                         )}
                       </div>
                       <Field label={tr('newCourseBgMode')}>

@@ -503,19 +503,14 @@ export function listCourseThemeFonts(
 function applyThemeFonts(
   themeDir: string,
   uploads: ThemeFontUpload[] | undefined,
-): { display?: string; body?: string; localCss?: string } {
+): { localCss?: string } {
   if (!uploads?.length) return {};
-  let display: string | undefined;
-  let body: string | undefined;
   let localCss: string | undefined;
   for (const u of uploads) {
     const saved = writeThemeFont(themeDir, u.filename, u.dataBase64, u.family);
     localCss = saved.localCss;
-    const role = u.role ?? 'both';
-    if (role === 'display' || role === 'both') display = `"${saved.family}", system-ui, sans-serif`;
-    if (role === 'body' || role === 'both') body = `"${saved.family}", system-ui, sans-serif`;
   }
-  return { display, body, localCss };
+  return { localCss };
 }
 
 function patchThemeAccent(themePath: string, accent: string) {
@@ -594,10 +589,7 @@ export function createCourse(appRoot: string, input: CreateCourseInput): CourseS
     const fontApply = applyThemeFonts(path.join(rootPath, 'theme'), input.themeFonts);
     const merged: CreateCourseCustomTheme = {
       ...custom,
-      displayFont: fontApply.display || custom.displayFont,
-      bodyFont: fontApply.body || custom.bodyFont,
       localCss: fontApply.localCss || custom.localCss,
-      googleFontsUrl: fontApply.localCss && !custom.googleFontsUrl ? '' : custom.googleFontsUrl,
     };
     const { theme, css } = buildCustomTheme(merged);
     writeJson(path.join(rootPath, 'theme', 'theme.json'), theme);
@@ -796,10 +788,7 @@ export function updateCourse(
     const fontApply = applyThemeFonts(themeDir, input.themeFonts);
     const merged: CreateCourseCustomTheme = {
       ...custom,
-      displayFont: fontApply.display || custom.displayFont,
-      bodyFont: fontApply.body || custom.bodyFont,
       localCss: fontApply.localCss || custom.localCss,
-      googleFontsUrl: fontApply.localCss && !custom.googleFontsUrl ? '' : custom.googleFontsUrl,
     };
     const { theme, css } = buildCustomTheme(merged);
     writeJson(path.join(themeDir, 'theme.json'), theme);
