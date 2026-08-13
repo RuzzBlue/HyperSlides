@@ -4019,3 +4019,16 @@ a.hc-index__row:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* Lesson object mode (Animations / future Edit) */
+.hc-obj-mode {
+  cursor: crosshair !important;
+}
+body.hc-obj-picking,
+body.hc-obj-picking * {
+  cursor: crosshair !important;
+}
+.hc-obj-chrome {
+  pointer-events: none;
+}
+

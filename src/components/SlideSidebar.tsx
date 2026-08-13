@@ -994,20 +994,22 @@ function headerDropDest(
 ): StructureDropTarget | null {
   if (!dragging) return null;
   if (node.target.kind === 'unit' && dragging.kind === 'item') {
-    const mod = tree.find((m) => m.id === node.target.moduleId);
-    const unit = mod?.units.find((u) => u.id === node.target.unitId);
+    const { moduleId, unitId } = node.target;
+    const mod = tree.find((m) => m.id === moduleId);
+    const unit = mod?.units.find((u) => u.id === unitId);
     if (!unit) return null;
     return {
       kind: 'unit-items',
-      moduleId: node.target.moduleId,
-      unitId: node.target.unitId,
+      moduleId,
+      unitId,
       index: unit.items.length,
     };
   }
   if (node.target.kind === 'module' && dragging.kind === 'unit') {
-    const mod = tree.find((m) => m.id === node.target.moduleId);
+    const { moduleId } = node.target;
+    const mod = tree.find((m) => m.id === moduleId);
     if (!mod) return null;
-    return { kind: 'units', moduleId: node.target.moduleId, index: mod.units.length };
+    return { kind: 'units', moduleId, index: mod.units.length };
   }
   return null;
 }

@@ -19,11 +19,13 @@ import {
   loadQuiz,
   loadQuizForClient,
   readLessonSource,
+  readLessonAnimations,
   readProgress,
   readSlideNotes,
   resetAllCourseProgress,
   resolveCourseAsset,
   writeLessonSource,
+  writeLessonAnimations,
   writeProgress,
   writeSlideNotes,
 } from './courses.ts';
@@ -336,6 +338,30 @@ export async function handleApiRequest(
         return { ok: false, status: 400, error: 'slideKey and html are required' };
       }
       const saved = writeLessonSource(ctx.appRoot, segments[1], slideKey, html);
+      if (!saved) return { ok: false, status: 404, error: 'Lesson not found' };
+      return { ok: true, status: 200, data: saved };
+    }
+
+    if (method === 'GET' && segments[0] === 'courses' && segments[2] === 'lesson-animations') {
+      const slideKey = params?.slideKey;
+      if (!slideKey) return { ok: false, status: 400, error: 'Missing slideKey param' };
+      const source = readLessonAnimations(ctx.appRoot, segments[1], slideKey);
+      if (!source) return { ok: false, status: 404, error: 'Lesson not found' };
+      return { ok: true, status: 200, data: source };
+    }
+
+    if (method === 'PUT' && segments[0] === 'courses' && segments[2] === 'lesson-animations') {
+      const slideKey = (body as { slideKey?: string })?.slideKey;
+      const animations = (body as { animations?: unknown })?.animations;
+      if (!slideKey || animations == null) {
+        return { ok: false, status: 400, error: 'slideKey and animations are required' };
+      }
+      const saved = writeLessonAnimations(
+        ctx.appRoot,
+        segments[1],
+        slideKey,
+        animations as import('../animations/types.ts').LessonAnimationsDoc,
+      );
       if (!saved) return { ok: false, status: 404, error: 'Lesson not found' };
       return { ok: true, status: 200, data: saved };
     }

@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, type CSSProperties } from 'react';
 import type { CourseTheme, SlideContainerPrefs } from '@shared/types';
+import type { LessonAnimationsDoc } from '@shared/animations/types';
 import { slideContainerAppliedCss } from '@shared/slideContainer';
 import { usePrefs } from '../prefs/PrefsProvider';
 import { PortalsRenderer } from './lesson/InteractiveWidgets';
@@ -12,6 +13,14 @@ import {
   resolveBgPair,
 } from './theme/themeUtils';
 import { runInlineScripts } from './lesson/runInlineScripts';
+import {
+  LessonPickOverlay,
+  useLessonObjectModeOptional,
+} from '../lesson-objects/LessonObjectMode';
+import {
+  createAnimationRunner,
+  type AnimationRunner,
+} from '../lesson-objects/AnimationRunner';
 
 export function LessonView({
   html,
@@ -22,6 +31,9 @@ export function LessonView({
   slideIndex,
   slideTotal,
   slideContainer,
+  animationsDoc,
+  presentPlayback,
+  runnerRef,
 }: {
   html: string;
   title: string;
@@ -33,12 +45,20 @@ export function LessonView({
   slideTotal?: number;
   /** Content-shell prefs from package manifest extras (styles the div inside article). */
   slideContainer?: SlideContainerPrefs | null;
+  /** Sidecar animations for present playback. */
+  animationsDoc?: LessonAnimationsDoc | null;
+  /** When true, prepare/hide entrance targets and enable runner. */
+  presentPlayback?: boolean;
+  /** Parent holds ref to call advance/autostart. */
+  runnerRef?: React.MutableRefObject<AnimationRunner | null>;
 }) {
   const { appearance } = usePrefs();
   const mode = resolveAppearanceMode(appearance.theme);
   const uid = useId().replace(/:/g, '');
   const stageId = useMemo(() => `lesson-stage-${uid}`, [uid]);
   const contentRef = useRef<HTMLDivElement>(null);
+  const objectMode = useLessonObjectModeOptional();
+  const setObjectRoot = objectMode?.setRoot;
 
   const variant = slideBg?.trim() || detectSlideBgFromHtml(html) || 'default';
   const pair = resolveBgPair(theme, variant);
@@ -50,29 +70,51 @@ export function LessonView({
 
   const shellKey = JSON.stringify(slideContainer ?? null);
 
-  /**
-   * Only write HTML when the lesson fragment changes.
-   * Re-applying dangerouslySetInnerHTML on theme toggles destroys portal mount nodes
-   * (widgets vanish until you navigate away and back).
-   * Re-insert <script> nodes afterward — innerHTML never executes them.
-   */
+  const bindContentRef = (el: HTMLDivElement | null) => {
+    contentRef.current = el;
+    setObjectRoot?.(el);
+  };
+
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
     el.innerHTML = html;
     runInlineScripts(el);
-  }, [html]);
+    // Re-assert root after HTML replace (same node, still registered).
+    setObjectRoot?.(el);
+  }, [html, setObjectRoot]);
 
-  /**
-   * Apply content-shell styles on the first div inside article (never the article).
-   * Off / empty CSS → clear inline styles so behavior matches the default shell.
-   */
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
     const css = slideContainerAppliedCss(slideContainer);
     el.style.cssText = css;
   }, [shellKey, html, slideContainer]);
+
+  useEffect(() => {
+    return () => setObjectRoot?.(null);
+  }, [setObjectRoot]);
+
+  useEffect(() => {
+    if (objectMode?.active) objectMode.stampIds();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stamp when entering animations / html changes
+  }, [objectMode?.active, html]);
+
+  useEffect(() => {
+    if (!presentPlayback || !contentRef.current) {
+      if (runnerRef) runnerRef.current = null;
+      return;
+    }
+    const items = animationsDoc?.items ?? [];
+    const runner = createAnimationRunner(contentRef.current, items);
+    runner.prepare();
+    if (runnerRef) runnerRef.current = runner;
+    void runner.playAutostart();
+    return () => {
+      runner.destroy();
+      if (runnerRef) runnerRef.current = null;
+    };
+  }, [presentPlayback, animationsDoc, html, runnerRef]);
 
   useEffect(() => {
     if (!theme?.fonts?.google) return;
@@ -85,54 +127,13 @@ export function LessonView({
       document.head.appendChild(link);
     }
     link.href = theme.fonts.google;
-  }, [theme]);
-
-  useEffect(() => {
-    if (!theme?.fonts?.localCss || !courseFolder) return;
-    const id = `course-local-font-${theme.id}`;
-    let link = document.getElementById(id) as HTMLLinkElement | null;
-    if (!link) {
-      link = document.createElement('link');
-      link.id = id;
-      link.rel = 'stylesheet';
-      document.head.appendChild(link);
-    }
-    link.href = `http://127.0.0.1:8765/courses/${courseFolder}/theme/${theme.fonts.localCss}`;
-  }, [theme, courseFolder]);
-
-  useEffect(() => {
-    if (!theme?.cssFile) return;
-    const id = `course-theme-css-${theme.id}`;
-    let link = document.getElementById(id) as HTMLLinkElement | null;
-    if (!link) {
-      link = document.createElement('link');
-      link.id = id;
-      link.rel = 'stylesheet';
-      document.head.appendChild(link);
-    }
-    link.href = `http://127.0.0.1:8765/courses/${courseFolder}/theme/${theme.cssFile}`;
-  }, [theme, courseFolder]);
+  }, [theme?.id, theme?.fonts?.google]);
 
   const accent = theme?.accent || 'var(--accent)';
-  const scale = theme?.typeScale;
-
   const style = {
     ['--lesson-accent' as string]: accent,
-    ['--font-display' as string]: theme?.fonts?.display || undefined,
-    ['--font-ui' as string]: theme?.fonts?.body || undefined,
-    ['--lesson-h1' as string]: scale?.h1 || undefined,
-    ['--lesson-h2' as string]: scale?.h2 || undefined,
-    ['--lesson-h3' as string]: scale?.h3 || undefined,
-    ['--lesson-body' as string]: scale?.body || undefined,
-    fontFamily: theme?.fonts?.body || 'var(--font-ui)',
-    fontSize: theme?.fontSizeBase || scale?.body || undefined,
-    background: isCssBg
-      ? cssBgStyle
-        ? undefined
-        : 'var(--stage)'
-      : mode === 'dark'
-        ? darkBg || 'var(--stage)'
-        : lightBg || 'var(--stage)',
+    ...(lightBg ? { ['--lesson-bg-light' as string]: lightBg } : {}),
+    ...(darkBg ? { ['--lesson-bg-dark' as string]: darkBg } : {}),
   } as CSSProperties;
 
   return (
@@ -162,17 +163,17 @@ export function LessonView({
           aria-label={title}
           style={{ ['--lesson-accent' as string]: accent }}
         >
-          <div ref={contentRef} />
+          <div ref={bindContentRef} data-hc-lesson-root />
           <PortalsRenderer stageId={stageId} htmlContent={html} courseFolder={courseFolder} />
         </article>
       </div>
-      {/* Viewport-fixed overlay: watermark + page number stay put while content scrolls */}
       <ThemeDecorations
         theme={theme}
         courseFolder={courseFolder}
         slideIndex={slideIndex}
         slideTotal={slideTotal}
       />
+      <LessonPickOverlay />
     </div>
   );
 }

@@ -23,6 +23,10 @@ import type {
   SidebarViewMode,
   UserProfile,
 } from '@shared/types';
+import type {
+  AnimationAdvanceKey,
+  AnimationAdvanceKeys,
+} from '@shared/animations/types';
 import { usePrefs } from '../prefs/PrefsProvider';
 import type { StringKey } from '../i18n/strings';
 
@@ -862,8 +866,33 @@ function PresenterSettingsTab({
     { value: 'floating-header', label: tr('presenterFloatingHeader') },
   ];
 
+  const keys = draft.animationAdvanceKeys ?? ['next', 'right-click', 'space'];
+  const advanceOptions: Array<{ value: AnimationAdvanceKey; label: string }> = [
+    { value: 'none', label: tr('animAdvanceNone') },
+    { value: 'next', label: tr('animAdvanceNext') },
+    { value: 'right-click', label: tr('animAdvanceRightClick') },
+    { value: 'space', label: tr('animAdvanceSpace') },
+    { value: 'enter', label: tr('animAdvanceEnter') },
+    { value: 'tab', label: tr('animAdvanceTab') },
+    { value: 'up', label: tr('animAdvanceUp') },
+    { value: 'down', label: tr('animAdvanceDown') },
+    { value: 'left-click', label: tr('animAdvanceLeftClick') },
+  ];
+
+  const setAdvanceSlot = (slot: 0 | 1 | 2, value: AnimationAdvanceKey) => {
+    const next: AnimationAdvanceKeys = [...keys] as AnimationAdvanceKeys;
+    if (slot === 0) {
+      next[0] = (value === 'none' ? 'next' : value) as Exclude<AnimationAdvanceKey, 'none'>;
+    } else {
+      next[slot] = value;
+    }
+    setDraft({ ...draft, animationAdvanceKeys: next });
+  };
+
+  const showLeftClickCaution = keys.includes('left-click');
+
   return (
-    <div>
+    <div className="space-y-4">
       <Field label={tr('presenterMenu')} hint={tr('presenterMenuHint')}>
         <select
           value={draft.presenterMenu}
@@ -877,6 +906,55 @@ function PresenterSettingsTab({
               {opt.label}
             </option>
           ))}
+        </select>
+      </Field>
+
+      <Field label={tr('animAdvanceKeys')} hint={tr('animAdvanceKeysHint')}>
+        <div className="space-y-2">
+          {([0, 1, 2] as const).map((slot) => (
+            <label key={slot} className="block">
+              <span className="mb-1 block text-[11px] font-medium text-[var(--ink-muted)]">
+                {slot === 0
+                  ? tr('animAdvanceSlot1')
+                  : slot === 1
+                    ? tr('animAdvanceSlot2')
+                    : tr('animAdvanceSlot3')}
+              </span>
+              <select
+                value={keys[slot]}
+                onChange={(e) =>
+                  setAdvanceSlot(slot, e.target.value as AnimationAdvanceKey)
+                }
+                className={textInputClass()}
+              >
+                {advanceOptions
+                  .filter((opt) => (slot === 0 ? opt.value !== 'none' : true))
+                  .map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          ))}
+        </div>
+      </Field>
+      {showLeftClickCaution && (
+        <p className="text-[11px] text-amber-700 dark:text-amber-400">
+          {tr('animAdvanceLeftClickCaution')}
+        </p>
+      )}
+
+      <Field label={tr('animAutoSelect')} hint={tr('animAutoSelectHint')}>
+        <select
+          value={draft.animationAutoSelect === false ? 'off' : 'on'}
+          onChange={(e) =>
+            setDraft({ ...draft, animationAutoSelect: e.target.value === 'on' })
+          }
+          className={textInputClass()}
+        >
+          <option value="on">{tr('animAutoSelectOn')}</option>
+          <option value="off">{tr('animAutoSelectOff')}</option>
         </select>
       </Field>
     </div>

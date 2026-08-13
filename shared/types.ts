@@ -759,6 +759,16 @@ export interface AppPrefs {
   contentZoom: ContentZoomPreset;
   /** Where the presenter chrome appears while presenting. */
   presenterMenu: PresenterMenuMode;
+  /**
+   * Up to 3 keys/actions that advance animations (then slides) while presenting.
+   * Slot 0 is required; slots 1–2 may be `none`.
+   */
+  animationAdvanceKeys: import('./animations/types.ts').AnimationAdvanceKeys;
+  /**
+   * When true, opening the Animations inspector starts element-pick mode immediately.
+   * When false, only the panel opens — use Select element to pick.
+   */
+  animationAutoSelect: boolean;
   /** Course navigator sidebar width in px (capped at default; drag to shrink). */
   navigatorSidebarWidth: number;
   /** Default left sidebar layout while presenting (navigator thumbnails vs overview outline). */

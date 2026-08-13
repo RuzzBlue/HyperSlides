@@ -7,6 +7,11 @@ import type {
   UserProfile,
   UserState,
 } from '../types.ts';
+import {
+  DEFAULT_ANIMATION_ADVANCE_KEYS,
+  type AnimationAdvanceKey,
+  type AnimationAdvanceKeys,
+} from '../animations/types.ts';
 import { getDataRoot } from './courses.ts';
 
 const DEFAULT_APPEARANCE: AppearancePrefs = {
@@ -30,6 +35,8 @@ const DEFAULT_SETTINGS: AppPrefs = {
   useCourseSettings: true,
   contentZoom: '100',
   presenterMenu: 'fixed-footer',
+  animationAdvanceKeys: [...DEFAULT_ANIMATION_ADVANCE_KEYS] as AnimationAdvanceKeys,
+  animationAutoSelect: true,
   navigatorSidebarWidth: 260,
   sidebarView: 'navigator',
   showDemoCourse: true,
@@ -99,7 +106,43 @@ function normalizeSettings(raw: Partial<AppPrefs> | undefined): AppPrefs {
   if (raw?.completionMarkViews === undefined) {
     merged.completionMarkViews = DEFAULT_SETTINGS.completionMarkViews;
   }
+  merged.animationAdvanceKeys = normalizeAdvanceKeys(raw?.animationAdvanceKeys);
+  if (typeof raw?.animationAutoSelect !== 'boolean') {
+    merged.animationAutoSelect = DEFAULT_SETTINGS.animationAutoSelect;
+  }
   return merged;
+}
+
+const ADVANCE_KEYS: AnimationAdvanceKey[] = [
+  'none',
+  'next',
+  'right-click',
+  'space',
+  'enter',
+  'tab',
+  'up',
+  'down',
+  'left-click',
+];
+
+function normalizeAdvanceKeys(
+  raw: AppPrefs['animationAdvanceKeys'] | undefined,
+): AnimationAdvanceKeys {
+  const defaults = DEFAULT_ANIMATION_ADVANCE_KEYS;
+  if (!Array.isArray(raw) || raw.length < 1) {
+    return [...defaults] as AnimationAdvanceKeys;
+  }
+  const pick = (v: unknown, allowNone: boolean): AnimationAdvanceKey => {
+    const s = String(v ?? '') as AnimationAdvanceKey;
+    if (!ADVANCE_KEYS.includes(s)) return allowNone ? 'none' : defaults[0];
+    if (!allowNone && s === 'none') return defaults[0];
+    return s;
+  };
+  return [
+    pick(raw[0], false) as Exclude<AnimationAdvanceKey, 'none'>,
+    pick(raw[1], true),
+    pick(raw[2], true),
+  ];
 }
 
 export function readUserState(appRoot: string): UserState {

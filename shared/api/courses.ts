@@ -36,6 +36,12 @@ import {
   isUngradedQuestion,
 } from '../quizQuestions.ts';
 import {
+  animationsSidecarPath,
+  emptyLessonAnimationsDoc,
+  normalizeLessonAnimationsDoc,
+  type LessonAnimationsDoc,
+} from '../animations/types.ts';
+import {
   attachSpecialSlides,
   defaultTemplateHtml,
   isSpecialSlideType,
@@ -463,6 +469,51 @@ export function writeLessonSource(
   const next = html.replace(/^\uFEFF/, '');
   fs.writeFileSync(resolved.abs, next, 'utf-8');
   return { slideKey, file: resolved.item.file!, html: next };
+}
+
+/** Sidecar animations JSON next to the lesson HTML file. */
+export function readLessonAnimations(
+  appRoot: string,
+  courseId: string,
+  slideKey: string,
+): { slideKey: string; file: string; animations: LessonAnimationsDoc } | null {
+  const resolved = resolveLessonFile(appRoot, courseId, slideKey);
+  if (!resolved?.item.file) return null;
+  const rel = animationsSidecarPath(resolved.item.file);
+  const abs = path.resolve(resolved.course.rootPath, rel);
+  const root = path.resolve(resolved.course.rootPath);
+  if (!abs.startsWith(root)) return null;
+  if (!fs.existsSync(abs)) {
+    return { slideKey, file: rel, animations: emptyLessonAnimationsDoc() };
+  }
+  try {
+    const raw = JSON.parse(fs.readFileSync(abs, 'utf-8')) as LessonAnimationsDoc;
+    return {
+      slideKey,
+      file: rel,
+      animations: normalizeLessonAnimationsDoc(raw),
+    };
+  } catch {
+    return { slideKey, file: rel, animations: emptyLessonAnimationsDoc() };
+  }
+}
+
+export function writeLessonAnimations(
+  appRoot: string,
+  courseId: string,
+  slideKey: string,
+  animations: LessonAnimationsDoc,
+): { slideKey: string; file: string; animations: LessonAnimationsDoc } | null {
+  const resolved = resolveLessonFile(appRoot, courseId, slideKey);
+  if (!resolved?.item.file) return null;
+  const rel = animationsSidecarPath(resolved.item.file);
+  const abs = path.resolve(resolved.course.rootPath, rel);
+  const root = path.resolve(resolved.course.rootPath);
+  if (!abs.startsWith(root)) return null;
+  const doc = normalizeLessonAnimationsDoc(animations);
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, `${JSON.stringify(doc, null, 2)}\n`, 'utf-8');
+  return { slideKey, file: rel, animations: doc };
 }
 
 export function loadQuiz(appRoot: string, courseId: string, quizId: string): QuizPayload | null {

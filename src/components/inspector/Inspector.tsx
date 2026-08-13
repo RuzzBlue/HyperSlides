@@ -35,6 +35,7 @@ import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
 import type { StringKey } from '../../i18n/strings';
 import { CodePanel, type CodeContext } from './CodePanel';
+import { AnimationsPanel } from './AnimationsPanel';
 import { TemplatePickerButton } from './TemplatePicker';
 import { QuizEditPanel, type QuizEditContext } from './QuizEditPanel';
 import { QuestionTemplatePickerButton } from './QuestionTemplatePicker';
@@ -127,6 +128,9 @@ function floatSizeForTool(tool: InspectorTool): FloatSize {
       resizable: 'both',
     };
   }
+  if (tool === 'animations') {
+    return { width: 400, height: 640, minWidth: 340, minHeight: 420, resizable: 'both' };
+  }
   return { width: 360, height: 480, minWidth: 320, minHeight: 280, resizable: 'height' };
 }
 
@@ -148,6 +152,9 @@ export function Inspector({
   labEditContext,
   onLabSaved,
   progressContext,
+  animationsContext,
+  onHtmlPersist,
+  onAnimationsChange,
   floatResetToken = 0,
   floatInsets,
 }: {
@@ -164,6 +171,9 @@ export function Inspector({
   labEditContext?: LabEditContext | null;
   onLabSaved?: (labId: string) => void;
   progressContext?: ProgressContext | null;
+  animationsContext?: { courseId: string; slideKey: string } | null;
+  onHtmlPersist?: (html: string) => Promise<void>;
+  onAnimationsChange?: (doc: import('@shared/animations/types').LessonAnimationsDoc) => void;
   /** Bump to re-center a floating inspector on screen. */
   floatResetToken?: number;
   /** Content area insets for Code expand-to-fill (title/toolbar/sidebar/status). */
@@ -174,6 +184,7 @@ export function Inspector({
   const isNotes = tool === 'notes';
   const isCode = tool === 'code';
   const isProgress = tool === 'progress';
+  const isAnimations = tool === 'animations';
   const editKind: 'lesson' | 'quiz' | 'lab' | null = !isCode
     ? null
     : quizEditContext
@@ -198,21 +209,31 @@ export function Inspector({
       setCodeExpanded(false);
       setTemplatesOpen(false);
     }
-  }, [isCode, tool]);
+    if (!isAnimations) {
+      setAnimDetail(false);
+      setPanelDirty(false);
+    }
+  }, [isCode, isAnimations, tool]);
 
   const [panelDirty, setPanelDirty] = useState(false);
   const [panelSaving, setPanelSaving] = useState(false);
+  const [animDetail, setAnimDetail] = useState(false);
   const [fileLabel, setFileLabel] = useState<string | null>(
     isCode
       ? (codeContext?.file ?? quizEditContext?.quizId ?? labEditContext?.labId ?? null)
       : (notesContext?.notesFile ?? null),
   );
   const panelSaveRef = useRef<(() => Promise<void>) | null>(null);
+  const panelDeleteRef = useRef<(() => Promise<void>) | null>(null);
   const panelInsertRef = useRef<((snippet: string) => void) | null>(null);
   const panelToggleFindRef = useRef<(() => void) | null>(null);
 
   const registerSave = useCallback((fn: () => Promise<void>) => {
     panelSaveRef.current = fn;
+  }, []);
+
+  const registerDelete = useCallback((fn: () => Promise<void>) => {
+    panelDeleteRef.current = fn;
   }, []);
 
   const registerInsert = useCallback((fn: (snippet: string) => void) => {
@@ -395,6 +416,24 @@ export function Inspector({
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-3">
             <ProgressPanel context={progressContext ?? null} />
           </div>
+        ) : tool === 'animations' && animationsContext ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <AnimationsPanel
+              courseId={animationsContext.courseId}
+              slideKey={animationsContext.slideKey}
+              onHtmlPersist={onHtmlPersist}
+              onDocChange={onAnimationsChange}
+              onDirtyChange={setPanelDirty}
+              onSavingChange={setPanelSaving}
+              onDetailChange={setAnimDetail}
+              registerSave={registerSave}
+              registerDelete={registerDelete}
+            />
+          </div>
+        ) : tool === 'animations' ? (
+          <div className="flex flex-1 items-center justify-center px-4 text-center text-[12px] text-[var(--ink-muted)]">
+            {tr('animLessonOnly')}
+          </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
             <InspectorBody tool={tool} />
@@ -402,6 +441,7 @@ export function Inspector({
         )}
       </div>
 
+      {!(isAnimations && !animDetail) && (
       <footer className="flex shrink-0 items-center gap-2 border-t border-[var(--line)] bg-[var(--panel)] px-3 py-2">
         {isNotes || isCode ? (
           <>
@@ -456,6 +496,30 @@ export function Inspector({
                 )
               : tr('inspectorProgressLive')}
           </span>
+        ) : isAnimations && animDetail ? (
+          <>
+            <span className="text-[10px] text-[var(--ink-muted)]">
+              {panelDirty ? tr('inspectorNotesUnsaved') : tr('inspectorNotesSaved')}
+            </span>
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                disabled={panelSaving}
+                onClick={() => void panelDeleteRef.current?.()}
+                className="cursor-pointer rounded-md border border-rose-200 px-3 py-1.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-40"
+              >
+                {tr('animDelete')}
+              </button>
+              <button
+                type="button"
+                disabled={panelSaving || !panelDirty}
+                onClick={() => void panelSaveRef.current?.()}
+                className="cursor-pointer rounded-md bg-[var(--accent)] px-3 py-1.5 text-[11px] font-semibold text-white enabled:hover:brightness-110 disabled:cursor-default disabled:opacity-40"
+              >
+                {panelSaving ? tr('animSaving') : tr('animSave')}
+              </button>
+            </div>
+          </>
         ) : (
           <>
             <span className="text-[10px] text-[var(--ink-muted)]">{tr('inspectorDemoHint')}</span>
@@ -469,6 +533,7 @@ export function Inspector({
           </>
         )}
       </footer>
+      )}
     </>
   );
 
@@ -1061,7 +1126,7 @@ function InspectorBody({ tool }: { tool: InspectorTool }) {
     case 'media':
       return <MediaPanel />;
     case 'animations':
-      return <AnimationsPanel />;
+      return null;
     case 'activities':
       return <ActivitiesPanel />;
     case 'connect':
@@ -1303,39 +1368,6 @@ function MediaPanel() {
           <input type="checkbox" className="accent-[var(--accent)]" />
           {tr('inspectorShadow')}
         </label>
-      </Section>
-    </>
-  );
-}
-
-function AnimationsPanel() {
-  const { tr } = usePrefs();
-  return (
-    <>
-      <Section title={tr('inspectorEntrance')}>
-        <Field label={tr('inspectorEffect')}>
-          <DemoSelect defaultValue="fade">
-            <option value="fade">Fade</option>
-            <option value="slide">Slide up</option>
-            <option value="zoom">Zoom</option>
-            <option value="none">None</option>
-          </DemoSelect>
-        </Field>
-        <Field label={tr('inspectorDuration')}>
-          <DemoInput type="number" defaultValue={280} />
-        </Field>
-        <Field label={tr('inspectorDelay')}>
-          <DemoInput type="number" defaultValue={0} />
-        </Field>
-      </Section>
-      <Section title={tr('inspectorTrigger')}>
-        <Field label={tr('inspectorOn')}>
-          <DemoSelect defaultValue="click">
-            <option value="click">On click</option>
-            <option value="appear">With previous</option>
-            <option value="after">After previous</option>
-          </DemoSelect>
-        </Field>
       </Section>
     </>
   );

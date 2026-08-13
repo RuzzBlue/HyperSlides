@@ -18,6 +18,7 @@ import type {
   UserProfile,
   UserState,
 } from '@shared/types';
+import { DEFAULT_ANIMATION_ADVANCE_KEYS } from '@shared/animations/types';
 import { t, tf, type StringKey } from '../i18n/strings';
 
 function hexToSoft(hex: string): string {
@@ -115,6 +116,8 @@ const fallbackSettings: AppPrefs = {
   useCourseSettings: true,
   contentZoom: '100',
   presenterMenu: 'fixed-footer',
+  animationAdvanceKeys: [...DEFAULT_ANIMATION_ADVANCE_KEYS],
+  animationAutoSelect: true,
   navigatorSidebarWidth: 260,
   sidebarView: 'navigator',
   showDemoCourse: true,

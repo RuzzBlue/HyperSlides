@@ -23,7 +23,8 @@ import { HomeView } from './components/HomeView';
 import { LabView } from './components/LabView';
 import { LessonView } from './components/LessonView';
 import { PresenterChrome } from './components/PresenterChrome';
-import { QuizView } from './components/QuizView';import { SettingsModal } from './components/SettingsModal';
+import { QuizView } from './components/QuizView';
+import { SettingsModal } from './components/SettingsModal';
 import {
   clampNavigatorSidebarWidth,
   NAVIGATOR_SIDEBAR_DEFAULT_WIDTH,
@@ -44,6 +45,9 @@ import type { InsertKind } from './components/AddContentButton';
 import { StageZoomFrame } from './components/ZoomControl';
 import { usePrefs } from './prefs/PrefsProvider';
 import type { ContentZoomPreset } from '@shared/types';
+import type { LessonAnimationsDoc } from '@shared/animations/types';
+import { LessonObjectModeProvider } from './lesson-objects/LessonObjectMode';
+import type { AnimationRunner } from './lesson-objects/AnimationRunner';
 import { APP_MIN_WIDTH_PX } from './layoutConstants';
 
 type ViewMode = 'home' | 'present';
@@ -57,6 +61,8 @@ export default function App() {
   const [index, setIndex] = useState(0);
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const [lesson, setLesson] = useState<LessonPayload | null>(null);
+  const [lessonAnimations, setLessonAnimations] = useState<LessonAnimationsDoc | null>(null);
+  const animRunnerRef = useRef<AnimationRunner | null>(null);
   const [quiz, setQuiz] = useState<QuizPayload | null>(null);
   const [lab, setLab] = useState<LabPayload | null>(null);
   const [quizResult, setQuizResult] = useState<QuizGradeResult | null>(null);
@@ -488,6 +494,7 @@ export default function App() {
     (async () => {
       setLoading(true);
       setLesson(null);
+      setLessonAnimations(null);
       setQuiz(null);
       setLab(null);
 
@@ -501,6 +508,20 @@ export default function App() {
           params: { file: current.file },
         });
         if (!cancelled && res.ok && res.data) setLesson(res.data);
+        if (current.type === 'lesson') {
+          const animRes = await apiFetch<{
+            slideKey: string;
+            file: string;
+            animations: LessonAnimationsDoc;
+          }>({
+            method: 'GET',
+            path: `/api/courses/${course.summary.id}/lesson-animations`,
+            params: { slideKey: current.key },
+          });
+          if (!cancelled && animRes.ok && animRes.data) {
+            setLessonAnimations(animRes.data.animations);
+          }
+        }
       } else if (current.type === 'quiz' && current.activityId) {
         const res = await apiFetch<QuizPayload>({
           method: 'GET',
@@ -523,6 +544,57 @@ export default function App() {
   }, [course, current]);
 
   useEffect(() => {
+    if (inspectorTool === 'animations') return;
+    if (!course || current?.type !== 'lesson') return;
+    let cancelled = false;
+    void (async () => {
+      const animRes = await apiFetch<{
+        slideKey: string;
+        file: string;
+        animations: LessonAnimationsDoc;
+      }>({
+        method: 'GET',
+        path: `/api/courses/${course.summary.id}/lesson-animations`,
+        params: { slideKey: current.key },
+      });
+      if (!cancelled && animRes.ok && animRes.data) {
+        setLessonAnimations(animRes.data.animations);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inspectorTool, course, current]);
+
+  const tryAdvancePresentation = useCallback(async () => {
+    const runner = animRunnerRef.current;
+    if (
+      current?.type === 'lesson' &&
+      runner &&
+      inspectorTool !== 'animations' &&
+      runner.hasPending()
+    ) {
+      const played = await runner.advance();
+      if (played) return;
+    }
+    goTo(index + 1);
+  }, [current?.type, goTo, index, inspectorTool]);
+
+  useEffect(() => {
+    const keys = settings.animationAdvanceKeys ?? ['next', 'right-click', 'space'];
+    const matchesAdvance = (e: KeyboardEvent): boolean => {
+      for (const slot of keys) {
+        if (slot === 'none') continue;
+        if (slot === 'next' && (e.key === 'ArrowRight' || e.key === 'PageDown')) return true;
+        if (slot === 'space' && e.key === ' ') return true;
+        if (slot === 'enter' && e.key === 'Enter') return true;
+        if (slot === 'tab' && e.key === 'Tab') return true;
+        if (slot === 'up' && e.key === 'ArrowUp') return true;
+        if (slot === 'down' && e.key === 'ArrowDown') return true;
+      }
+      return false;
+    };
+
     const onKey = (e: KeyboardEvent) => {
       if (view !== 'present' || !course) return;
       const tag = (e.target as HTMLElement)?.tagName;
@@ -532,19 +604,56 @@ export default function App() {
       if ((e.target as HTMLElement)?.closest?.('.cm-editor')) {
         return;
       }
-      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+      if (inspectorTool === 'animations') return;
+
+      if (matchesAdvance(e)) {
         e.preventDefault();
-        goTo(index + 1);
-      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        void tryAdvancePresentation();
+        return;
+      }
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
         e.preventDefault();
         goTo(index - 1);
       } else if (e.key === 'Escape' && fullscreenStage) {
         exitPresent();
       }
     };
+
+    const onContext = (e: MouseEvent) => {
+      if (view !== 'present' || !course || inspectorTool === 'animations') return;
+      if (!keys.includes('right-click')) return;
+      e.preventDefault();
+      void tryAdvancePresentation();
+    };
+
+    const onClick = (e: MouseEvent) => {
+      if (view !== 'present' || !course || inspectorTool === 'animations') return;
+      if (!keys.includes('left-click')) return;
+      if ((e.target as HTMLElement)?.closest?.('a,button,input,textarea,select,[data-component]')) {
+        return;
+      }
+      void tryAdvancePresentation();
+    };
+
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [view, course, index, goTo, fullscreenStage, exitPresent]);
+    window.addEventListener('contextmenu', onContext);
+    window.addEventListener('click', onClick);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('contextmenu', onContext);
+      window.removeEventListener('click', onClick);
+    };
+  }, [
+    view,
+    course,
+    index,
+    goTo,
+    fullscreenStage,
+    exitPresent,
+    settings.animationAdvanceKeys,
+    tryAdvancePresentation,
+    inspectorTool,
+  ]);
 
   const onQuizGraded = (result: QuizGradeResult) => {
     setQuizResult(result);
@@ -625,6 +734,10 @@ export default function App() {
 
   return (
     <AppShell>
+      <LessonObjectModeProvider
+        active={inspectorTool === 'animations' && current?.type === 'lesson'}
+        autoStartPicking={settings.animationAutoSelect !== false}
+      >
       {!fullscreenStage && (
         <TitleBar
           courseTitle={course?.summary.title}
@@ -665,7 +778,7 @@ export default function App() {
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen((v) => !v)}
           onPrev={() => goTo(index - 1)}
-          onNext={() => goTo(index + 1)}
+          onNext={() => void tryAdvancePresentation()}
           onGoTo={goTo}
           onPresent={() => {
             setSidebarOpen(false);
@@ -735,7 +848,7 @@ export default function App() {
                 onZoomChange={setContentZoom}
                 onToggleSidebar={() => setSidebarOpen((v) => !v)}
                 onPrev={() => goTo(index - 1)}
-                onNext={() => goTo(index + 1)}
+                onNext={() => void tryAdvancePresentation()}
                 onGoTo={goTo}
                 notesOpen={inspectorTool === 'notes'}
                 onToggleNotes={() => handleInspectorTool(inspectorTool === 'notes' ? null : 'notes')}
@@ -769,6 +882,9 @@ export default function App() {
                         slideIndex={contentPageNumber(course.sequence, index)}
                         slideTotal={contentPageTotal(course.sequence)}
                         slideContainer={course.packageManifest?.extras?.slideContainer}
+                        animationsDoc={lessonAnimations}
+                        presentPlayback={inspectorTool !== 'animations'}
+                        runnerRef={animRunnerRef}
                       />
                     )}
                     {!loading &&
@@ -838,7 +954,7 @@ export default function App() {
                     onZoomChange={setContentZoom}
                     onToggleSidebar={() => setSidebarOpen((v) => !v)}
                     onPrev={() => goTo(index - 1)}
-                    onNext={() => goTo(index + 1)}
+                    onNext={() => void tryAdvancePresentation()}
                     onGoTo={goTo}
                     notesOpen={inspectorTool === 'notes'}
                     onToggleNotes={() => handleInspectorTool(inspectorTool === 'notes' ? null : 'notes')}
@@ -861,7 +977,7 @@ export default function App() {
                 onZoomChange={setContentZoom}
                 onToggleSidebar={() => setSidebarOpen((v) => !v)}
                 onPrev={() => goTo(index - 1)}
-                onNext={() => goTo(index + 1)}
+                onNext={() => void tryAdvancePresentation()}
                 onGoTo={goTo}
                 notesOpen={inspectorTool === 'notes'}
                 onToggleNotes={() => handleInspectorTool(inspectorTool === 'notes' ? null : 'notes')}
@@ -937,6 +1053,25 @@ export default function App() {
                   }
                 : null
             }
+            animationsContext={
+              course && current?.type === 'lesson'
+                ? { courseId: course.summary.id, slideKey: current.key }
+                : null
+            }
+            onHtmlPersist={async (html) => {
+              if (!course || !current || current.type !== 'lesson') return;
+              const res = await apiFetch<{ slideKey: string; file: string; html: string }>({
+                method: 'PUT',
+                path: `/api/courses/${course.summary.id}/lesson-source`,
+                body: { slideKey: current.key, html },
+              });
+              if (res.ok && res.data) {
+                setLesson((prev) =>
+                  prev ? { ...prev, html: res.data!.html } : prev,
+                );
+              }
+            }}
+            onAnimationsChange={(doc) => setLessonAnimations(doc)}
           />
         )}
       </div>
@@ -1004,6 +1139,25 @@ export default function App() {
                 }
               : null
           }
+          animationsContext={
+            course && current?.type === 'lesson'
+              ? { courseId: course.summary.id, slideKey: current.key }
+              : null
+          }
+          onHtmlPersist={async (html) => {
+            if (!course || !current || current.type !== 'lesson') return;
+            const res = await apiFetch<{ slideKey: string; file: string; html: string }>({
+              method: 'PUT',
+              path: `/api/courses/${course.summary.id}/lesson-source`,
+              body: { slideKey: current.key, html },
+            });
+            if (res.ok && res.data) {
+              setLesson((prev) =>
+                prev ? { ...prev, html: res.data!.html } : prev,
+              );
+            }
+          }}
+          onAnimationsChange={(doc) => setLessonAnimations(doc)}
         />
       )}
 
@@ -1032,6 +1186,7 @@ export default function App() {
           void loadCourses();
         }}
       />
+      </LessonObjectModeProvider>
     </AppShell>
   );
 }
