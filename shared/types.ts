@@ -207,7 +207,7 @@ export interface CoursePackageManifest {
   passwordLock?: { enabled: boolean; hint?: string };
   /** Author/edit lock (enforcement TBD). */
   authorLock?: { enabled: boolean; hint?: string };
-  /** Optional presentation extras (slide shell, future index/end slides). */
+  /** Optional presentation extras (slide shell, title/index/summary/end slides). */
   extras?: CourseExtras;
 }
 
@@ -244,26 +244,68 @@ export interface SlideContainerPrefs {
   customCss?: string;
 }
 
+/** @deprecated Use `introOrder` on CourseExtras. */
 export type IndexSlidePlacement = 'first' | 'after-title';
 
-/** Layout stub — auto index slide generation not implemented yet. */
-export interface IndexSlidePrefs {
-  enabled?: boolean;
-  placement?: IndexSlidePlacement;
-  style?: string;
+export type IntroSlideOrder = 'title-first' | 'index-first';
+export type OutroSlideOrder = 'summary-first' | 'end-first';
+
+export type TitleSlideStyle = 'hero' | 'split' | 'minimal' | 'banner';
+export type IndexSlideStyle = 'flat' | 'by-module' | 'split' | 'toc' | 'cards';
+export type SummarySlideStyle = 'columns' | 'accordion' | 'stack';
+export type EndSlideStyle = 'mirror-title' | 'stats' | 'contact' | 'celebration';
+
+export interface TitleSlidePrefs {
+  enabled: boolean;
+  style: TitleSlideStyle;
 }
 
-/** Layout stub — end/summary slide generation not implemented yet. */
+export interface IndexSlidePrefs {
+  enabled: boolean;
+  style: IndexSlideStyle;
+  /** Word-style page numbers (content slides only). Default true. */
+  showPageNumbers?: boolean;
+  /** Clickable jump links. Default true. */
+  hyperlink?: boolean;
+  /** @deprecated Migrated to CourseExtras.introOrder */
+  placement?: IndexSlidePlacement;
+}
+
+export interface SummarySlidePrefs {
+  enabled: boolean;
+  style: SummarySlideStyle;
+}
+
 export interface EndSlidePrefs {
-  enabled?: boolean;
-  style?: string;
+  enabled: boolean;
+  style: EndSlideStyle;
+  showProgress?: boolean;
+  showQuizScore?: boolean;
+  showLabProgress?: boolean;
+}
+
+/** Optional author contact shown on end/title slides via {{author.*}} tags. */
+export interface AuthorContactPrefs {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  url?: string;
 }
 
 export interface CourseExtras {
   slideContainer?: SlideContainerPrefs;
+  titleSlide?: TitleSlidePrefs;
   indexSlide?: IndexSlidePrefs;
+  summarySlide?: SummarySlidePrefs;
   endSlide?: EndSlidePrefs;
+  /** Intro order when both title + index are on. Default title-first. */
+  introOrder?: IntroSlideOrder;
+  /** Outro order when both summary + end are on. Default summary-first. */
+  outroOrder?: OutroSlideOrder;
+  authorContact?: AuthorContactPrefs;
 }
+
+export type SpecialSlideKind = 'title' | 'index' | 'summary' | 'end';
 
 export interface CourseLessonRef {
   id: string;
@@ -311,6 +353,8 @@ export type CourseSequenceEntry = CourseLessonEntry | CourseQuizEntry | CourseLa
 export interface CourseUnit {
   id: string;
   title: string;
+  /** Short blurb used on the Summary slide (and optional elsewhere). */
+  description?: string;
   /**
    * Preferred: ordered mix of lessons, quizzes, and labs.
    * Place a quiz/lab anywhere in the list (e.g. after the first lesson).
@@ -349,7 +393,7 @@ export interface CourseManifest {
   modules: CourseModule[];
 }
 
-export type SequenceItemType = 'lesson' | 'quiz' | 'lab';
+export type SequenceItemType = 'lesson' | 'quiz' | 'lab' | SpecialSlideKind;
 
 /** Target for course.json structure mutations (rename / delete / move). */
 export type StructureTarget =
@@ -372,7 +416,7 @@ export interface SequenceItem {
   moduleTitle: string;
   unitId?: string;
   unitTitle?: string;
-  /** Relative path inside the course folder for lessons */
+  /** Relative path inside the course folder for lessons / special slides */
   file?: string;
   /** Quiz or lab id */
   activityId?: string;
@@ -381,6 +425,8 @@ export interface SequenceItem {
   /** Theme background variant key (from course.json `bg`). */
   bg?: string;
   index: number;
+  /** When true, excluded from progress KPIs and content page numbering. */
+  meta?: boolean;
 }
 
 export interface CourseSummary {

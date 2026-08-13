@@ -22,7 +22,19 @@ export function StatusBar({
   const { tr, trf } = usePrefs();
   const pct = total ? Math.round(((index + 1) / total) * 100) : 0;
   const typeLabel =
-    type === 'quiz' ? tr('typeQuiz') : type === 'lab' ? tr('typeLab') : tr('typeLesson');
+    type === 'quiz'
+      ? tr('typeQuiz')
+      : type === 'lab'
+        ? tr('typeLab')
+        : type === 'title'
+          ? tr('typeTitle')
+          : type === 'index'
+            ? tr('typeIndex')
+            : type === 'summary'
+              ? tr('typeSummary')
+              : type === 'end'
+                ? tr('typeEnd')
+                : tr('typeLesson');
 
   return (
     <footer className="flex h-8 shrink-0 items-center gap-2 border-t border-[var(--line)] bg-[#f3f4f6] px-3 text-[11px] text-[var(--ink-muted)] sm:gap-3 sm:px-4 dark:bg-[var(--chrome-top)]">

@@ -21,6 +21,7 @@ import type {
   QuizPayload,
   QuizQuestion,
   SequenceItem,
+  SpecialSlideKind,
 } from '../types.ts';
 import {
   applyAnswerKeyToQuestions,
@@ -34,6 +35,39 @@ import {
   gradeRatingAnswer,
   isUngradedQuestion,
 } from '../quizQuestions.ts';
+import {
+  attachSpecialSlides,
+  defaultTemplateHtml,
+  isSpecialSlideType,
+  kindFromSlideKey,
+  normalizeSpecialSlideExtras,
+  SPECIAL_SLIDE_FILES,
+} from '../specialSlides.ts';
+
+function ensureSpecialSlideFiles(
+  rootPath: string,
+  extras: CoursePackageManifest['extras'] | undefined | null,
+): void {
+  const e = normalizeSpecialSlideExtras(extras);
+  const dir = path.join(rootPath, 'extras');
+  const wanted: Array<{ kind: SpecialSlideKind; enabled: boolean; style: string }> = [
+    { kind: 'title', enabled: Boolean(e.titleSlide?.enabled), style: e.titleSlide?.style ?? 'hero' },
+    { kind: 'index', enabled: Boolean(e.indexSlide?.enabled), style: e.indexSlide?.style ?? 'toc' },
+    {
+      kind: 'summary',
+      enabled: Boolean(e.summarySlide?.enabled),
+      style: e.summarySlide?.style ?? 'columns',
+    },
+    { kind: 'end', enabled: Boolean(e.endSlide?.enabled), style: e.endSlide?.style ?? 'celebration' },
+  ];
+  for (const w of wanted) {
+    if (!w.enabled) continue;
+    const abs = path.join(rootPath, SPECIAL_SLIDE_FILES[w.kind]);
+    if (fs.existsSync(abs)) continue;
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(abs, defaultTemplateHtml(w.kind, w.style), 'utf-8');
+  }
+}
 
 /** Convert package widgets + strip full-document wrappers for in-app React staging. */
 function prepareLessonFragment(raw: string): string {
@@ -349,11 +383,15 @@ export function loadCourse(appRoot: string, courseId: string): LoadedCourse | nu
   const packageManifest = fs.existsSync(packagePath)
     ? readJson<CoursePackageManifest>(packagePath)
     : null;
+  const extras = packageManifest?.extras;
+  ensureSpecialSlideFiles(rootPath, extras);
+  const contentSeq = buildSequence(manifest);
+  const sequence = attachSpecialSlides(contentSeq, extras);
   return {
     summary,
     manifest,
     packageManifest,
-    sequence: buildSequence(manifest),
+    sequence,
     rootPath,
     theme: loadCourseTheme(rootPath),
   };
@@ -387,10 +425,17 @@ function resolveLessonFile(
   const course = loadCourse(appRoot, courseId);
   if (!course) return null;
   const item = course.sequence.find((s) => s.key === slideKey);
-  if (!item || item.type !== 'lesson' || !item.file) return null;
+  if (!item?.file) return null;
+  const editable =
+    item.type === 'lesson' || isSpecialSlideType(item.type) || kindFromSlideKey(slideKey) != null;
+  if (!editable) return null;
   const abs = path.resolve(course.rootPath, item.file);
   const root = path.resolve(course.rootPath);
-  if (!abs.startsWith(root) || !fs.existsSync(abs)) return null;
+  if (!abs.startsWith(root)) return null;
+  if (!fs.existsSync(abs) && isSpecialSlideType(item.type)) {
+    ensureSpecialSlideFiles(course.rootPath, course.packageManifest?.extras);
+  }
+  if (!fs.existsSync(abs)) return null;
   return { course, item, abs };
 }
 

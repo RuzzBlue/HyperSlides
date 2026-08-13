@@ -81,7 +81,7 @@ export type CreateCourseInput = {
     authorEnabled?: boolean;
     authorHint?: string;
   };
-  /** Presentation extras (content shell, future index/end slides). */
+  /** Presentation extras (content shell, title/index/summary/end slides). */
   extras?: import('../types.ts').CourseExtras;
 };
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronRight, Home, Hexagon, Settings, UserRound } from 'lucide-react';
-import type { SidebarViewMode } from '@shared/types';
+import type { SequenceItemType, SidebarViewMode } from '@shared/types';
 import { usePrefs } from '../prefs/PrefsProvider';
 
 export function TitleBar({
@@ -28,7 +28,7 @@ export function TitleBar({
   courseTitle?: string;
   courseAuthor?: string;
   /** Current slide kind for the title-bar center (course mode). */
-  itemType?: 'lesson' | 'quiz' | 'lab';
+  itemType?: SequenceItemType;
   itemTitle?: string;
   onHome: () => void;
   /** library = brand lockup; course = home + course title */
@@ -58,7 +58,15 @@ export function TitleBar({
       ? tr('typeQuiz')
       : itemType === 'lab'
         ? tr('typeLab')
-        : tr('typeLesson');
+        : itemType === 'title'
+          ? tr('typeTitle')
+          : itemType === 'index'
+            ? tr('typeIndex')
+            : itemType === 'summary'
+              ? tr('typeSummary')
+              : itemType === 'end'
+                ? tr('typeEnd')
+                : tr('typeLesson');
 
   useEffect(() => {
     if (!viewOpen) {

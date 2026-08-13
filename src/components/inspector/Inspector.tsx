@@ -263,7 +263,7 @@ export function Inspector({
           </div>
           <div className="truncate text-[13px] font-semibold text-[var(--ink)]">{title}</div>
         </div>
-        {editKind === 'lesson' && (
+        {editKind === 'lesson' && !codeContext?.slideKey?.startsWith('extras:') && (
           <TemplatePickerButton
             open={templatesOpen}
             onOpenChange={setTemplatesOpen}

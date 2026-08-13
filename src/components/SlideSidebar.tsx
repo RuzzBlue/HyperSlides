@@ -49,6 +49,7 @@ function buildOverviewTree(sequence: SequenceItem[]): OverviewModule[] {
   const byModule = new Map<string, OverviewModule>();
 
   for (const item of sequence) {
+    if (item.meta || item.moduleId === '__intro__' || item.moduleId === '__outro__') continue;
     let mod = byModule.get(item.moduleId);
     if (!mod) {
       mod = {
@@ -130,11 +131,13 @@ function canDrop(
 }
 
 function nodeFromItem(item: SequenceItem): StructureMenuNode {
+  const nodeKind =
+    item.type === 'quiz' || item.type === 'lab' || item.type === 'lesson' ? item.type : 'lesson';
   return {
     target: { kind: 'item', itemKey: item.key },
     title: item.title,
-    nodeKind: item.type,
-    canDuplicate: true,
+    nodeKind,
+    canDuplicate: nodeKind === 'lesson' || nodeKind === 'quiz' || nodeKind === 'lab',
   };
 }
 
@@ -1103,11 +1106,56 @@ function structureLabel(title: string, prefix: string | null): string {
 }
 
 function itemIsComplete(item: SequenceItem, progress: ProgressState | null): boolean {
+  if (item.meta) return false;
   if (progress?.completedKeys?.includes(item.key)) return true;
   if (item.type === 'quiz' && item.activityId && progress?.quizScores?.[item.activityId]) {
     return true;
   }
   return false;
+}
+
+function SpecialSlidesNav({
+  sequence,
+  index,
+  onSelect,
+  compact,
+  group,
+}: {
+  sequence: SequenceItem[];
+  index: number;
+  onSelect: (i: number) => void;
+  compact: boolean;
+  group: 'intro' | 'outro';
+}) {
+  const { tr } = usePrefs();
+  const items = sequence.filter((s) =>
+    group === 'intro' ? s.moduleId === '__intro__' : s.moduleId === '__outro__',
+  );
+  if (!items.length) return null;
+  return (
+    <div className="mb-2 space-y-0.5">
+      {!compact && (
+        <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          {group === 'intro' ? tr('extrasIntroGroup') : tr('extrasOutroGroup')}
+        </div>
+      )}
+      {items.map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          data-slide-index={item.index}
+          onClick={() => onSelect(item.index)}
+          className={`flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12px] transition ${
+            index === item.index
+              ? 'bg-[var(--accent-soft)] font-semibold text-[var(--accent)]'
+              : 'text-[var(--ink)] hover:bg-[var(--stage)]'
+          }`}
+        >
+          <span className="truncate">{item.title}</span>
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function NavigatorList({
@@ -1169,6 +1217,13 @@ function NavigatorList({
       ref={listRef}
       className={`min-h-0 flex-1 space-y-0.5 overflow-y-auto pl-1 pr-2 pb-2 pt-2`}
     >
+      <SpecialSlidesNav
+        sequence={sequence}
+        index={index}
+        onSelect={onSelect}
+        compact={compact}
+        group="intro"
+      />
       <DropLine dest={{ kind: 'modules', index: 0 }} actions={actions} />
       {tree.map((mod, mi) => {
         const moduleOpen = isModuleOpen(mod.id);
@@ -1301,6 +1356,13 @@ function NavigatorList({
           </div>
         );
       })}
+      <SpecialSlidesNav
+        sequence={sequence}
+        index={index}
+        onSelect={onSelect}
+        compact={compact}
+        group="outro"
+      />
       <span className="hidden">{sequence.length}</span>
     </div>
   );
@@ -1442,6 +1504,13 @@ function OverviewList({
       ref={listRef}
       className={`min-h-0 flex-1 overflow-y-auto pl-1 pr-2 pb-2 pt-2`}
     >
+      <SpecialSlidesNav
+        sequence={sequence}
+        index={index}
+        onSelect={onSelect}
+        compact={compact}
+        group="intro"
+      />
       <div className="space-y-1">
         <DropLine dest={{ kind: 'modules', index: 0 }} actions={actions} />
         {tree.map((mod, mi) => {
@@ -1584,6 +1653,13 @@ function OverviewList({
           );
         })}
       </div>
+      <SpecialSlidesNav
+        sequence={sequence}
+        index={index}
+        onSelect={onSelect}
+        compact={compact}
+        group="outro"
+      />
       <span className="hidden">{sequence.length}</span>
     </div>
   );

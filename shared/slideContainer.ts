@@ -1,4 +1,5 @@
 import type { CourseExtras, SlideContainerFields, SlideContainerPrefs } from './types.ts';
+import { normalizeSpecialSlideExtras } from './specialSlides.ts';
 
 export const DEFAULT_SLIDE_CONTAINER_FIELDS: SlideContainerFields = {
   backgroundColor: '#f9f9f9',
@@ -82,6 +83,7 @@ export function defaultSlideContainerPrefs(): SlideContainerPrefs {
 export function normalizeCourseExtras(raw: CourseExtras | undefined | null): CourseExtras {
   const shell = raw?.slideContainer;
   const fields = { ...DEFAULT_SLIDE_CONTAINER_FIELDS, ...(shell?.fields ?? {}) };
+  const special = normalizeSpecialSlideExtras(raw);
   return {
     slideContainer: {
       enabled: Boolean(shell?.enabled),
@@ -92,15 +94,7 @@ export function normalizeCourseExtras(raw: CourseExtras | undefined | null): Cou
           ? shell.customCss
           : slideContainerFieldsToCss(fields),
     },
-    indexSlide: {
-      enabled: Boolean(raw?.indexSlide?.enabled),
-      placement: raw?.indexSlide?.placement === 'after-title' ? 'after-title' : 'first',
-      style: raw?.indexSlide?.style ?? 'default',
-    },
-    endSlide: {
-      enabled: Boolean(raw?.endSlide?.enabled),
-      style: raw?.endSlide?.style ?? 'default',
-    },
+    ...special,
   };
 }
 

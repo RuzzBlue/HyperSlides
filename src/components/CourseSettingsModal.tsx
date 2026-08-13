@@ -2061,131 +2061,421 @@ export function CourseSettingsModal({
                     )}
                   </div>
 
-                  <div className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3 opacity-95">
-                    <div className="flex items-center justify-between gap-2">
+                  <div className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-                        {tr('extrasIndexSlide')}
+                        {tr('extrasTitleIndexSlide')}
                       </div>
-                      <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]">
-                        {tr('extrasComingSoon')}
-                      </span>
+                      <Field label={tr('extrasIntroOrder')}>
+                        <select
+                          className={inputClass}
+                          disabled={
+                            !extras.titleSlide?.enabled && !extras.indexSlide?.enabled
+                          }
+                          value={extras.introOrder ?? 'title-first'}
+                          onChange={(e) =>
+                            setExtras((prev) => ({
+                              ...prev,
+                              introOrder:
+                                e.target.value === 'index-first' ? 'index-first' : 'title-first',
+                            }))
+                          }
+                        >
+                          <option value="title-first">{tr('extrasOrderTitleFirst')}</option>
+                          <option value="index-first">{tr('extrasOrderIndexFirst')}</option>
+                        </select>
+                      </Field>
                     </div>
-                    <p className="text-[11px] text-[var(--ink-muted)]">{tr('extrasIndexSlideHint')}</p>
-                    <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[var(--ink)]">
-                      <input
-                        type="checkbox"
-                        className="accent-[var(--accent)]"
-                        checked={Boolean(extras.indexSlide?.enabled)}
-                        onChange={(e) =>
-                          setExtras((prev) => ({
-                            ...prev,
-                            indexSlide: {
-                              ...(prev.indexSlide ?? {}),
-                              enabled: e.target.checked,
-                              placement: prev.indexSlide?.placement ?? 'first',
-                              style: prev.indexSlide?.style ?? 'default',
-                            },
-                          }))
-                        }
-                      />
-                      {tr('newCourseEnabled')}
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label={tr('extrasIndexPlacement')}>
-                        <select
-                          className={inputClass}
-                          disabled={!extras.indexSlide?.enabled}
-                          value={extras.indexSlide?.placement ?? 'first'}
-                          onChange={(e) =>
-                            setExtras((prev) => ({
-                              ...prev,
-                              indexSlide: {
-                                ...(prev.indexSlide ?? {}),
-                                enabled: prev.indexSlide?.enabled ?? false,
-                                placement: e.target.value as 'first' | 'after-title',
-                                style: prev.indexSlide?.style ?? 'default',
-                              },
-                            }))
-                          }
-                        >
-                          <option value="first">{tr('extrasIndexFirst')}</option>
-                          <option value="after-title">{tr('extrasIndexAfterTitle')}</option>
-                        </select>
-                      </Field>
-                      <Field label={tr('extrasIndexStyle')}>
-                        <select
-                          className={inputClass}
-                          disabled={!extras.indexSlide?.enabled}
-                          value={extras.indexSlide?.style ?? 'default'}
-                          onChange={(e) =>
-                            setExtras((prev) => ({
-                              ...prev,
-                              indexSlide: {
-                                ...(prev.indexSlide ?? {}),
-                                enabled: prev.indexSlide?.enabled ?? false,
-                                placement: prev.indexSlide?.placement ?? 'first',
-                                style: e.target.value,
-                              },
-                            }))
-                          }
-                        >
-                          <option value="default">{tr('extrasIndexStyleDefault')}</option>
-                          <option value="compact">{tr('extrasIndexStyleCompact')}</option>
-                          <option value="cards">{tr('extrasIndexStyleCards')}</option>
-                        </select>
-                      </Field>
+                    <p className="text-[11px] text-[var(--ink-muted)]">{tr('extrasTitleIndexHint')}</p>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2 rounded-lg border border-[var(--line)] bg-[var(--stage)]/50 p-2.5">
+                        <label className="flex cursor-pointer items-center gap-2 text-[12px] font-semibold text-[var(--ink)]">
+                          <input
+                            type="checkbox"
+                            className="accent-[var(--accent)]"
+                            checked={Boolean(extras.titleSlide?.enabled)}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                titleSlide: {
+                                  enabled: e.target.checked,
+                                  style: prev.titleSlide?.style ?? 'hero',
+                                },
+                              }))
+                            }
+                          />
+                          {tr('extrasTitleSlide')}
+                        </label>
+                        <Field label={tr('extrasTitleStyle')}>
+                          <select
+                            className={inputClass}
+                            disabled={!extras.titleSlide?.enabled}
+                            value={extras.titleSlide?.style ?? 'hero'}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                titleSlide: {
+                                  enabled: prev.titleSlide?.enabled ?? false,
+                                  style: e.target.value as 'hero' | 'split' | 'minimal' | 'banner',
+                                },
+                              }))
+                            }
+                          >
+                            <option value="hero">{tr('extrasTitleStyleHero')}</option>
+                            <option value="split">{tr('extrasTitleStyleSplit')}</option>
+                            <option value="minimal">{tr('extrasTitleStyleMinimal')}</option>
+                            <option value="banner">{tr('extrasTitleStyleBanner')}</option>
+                          </select>
+                        </Field>
+                      </div>
+                      <div className="space-y-2 rounded-lg border border-[var(--line)] bg-[var(--stage)]/50 p-2.5">
+                        <label className="flex cursor-pointer items-center gap-2 text-[12px] font-semibold text-[var(--ink)]">
+                          <input
+                            type="checkbox"
+                            className="accent-[var(--accent)]"
+                            checked={Boolean(extras.indexSlide?.enabled)}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                indexSlide: {
+                                  enabled: e.target.checked,
+                                  style: prev.indexSlide?.style ?? 'toc',
+                                  showPageNumbers: prev.indexSlide?.showPageNumbers !== false,
+                                  hyperlink: prev.indexSlide?.hyperlink !== false,
+                                },
+                              }))
+                            }
+                          />
+                          {tr('extrasIndexSlide')}
+                        </label>
+                        <Field label={tr('extrasIndexStyle')}>
+                          <select
+                            className={inputClass}
+                            disabled={!extras.indexSlide?.enabled}
+                            value={extras.indexSlide?.style ?? 'toc'}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                indexSlide: {
+                                  enabled: prev.indexSlide?.enabled ?? false,
+                                  style: e.target.value as
+                                    | 'flat'
+                                    | 'by-module'
+                                    | 'split'
+                                    | 'toc'
+                                    | 'cards',
+                                  showPageNumbers: prev.indexSlide?.showPageNumbers !== false,
+                                  hyperlink: prev.indexSlide?.hyperlink !== false,
+                                },
+                              }))
+                            }
+                          >
+                            <option value="toc">{tr('extrasIndexStyleToc')}</option>
+                            <option value="flat">{tr('extrasIndexStyleFlat')}</option>
+                            <option value="by-module">{tr('extrasIndexStyleByModule')}</option>
+                            <option value="split">{tr('extrasIndexStyleSplit')}</option>
+                            <option value="cards">{tr('extrasIndexStyleCards')}</option>
+                          </select>
+                        </Field>
+                        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-[var(--ink)]">
+                          <input
+                            type="checkbox"
+                            className="accent-[var(--accent)]"
+                            disabled={!extras.indexSlide?.enabled}
+                            checked={extras.indexSlide?.showPageNumbers !== false}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                indexSlide: {
+                                  enabled: prev.indexSlide?.enabled ?? false,
+                                  style: prev.indexSlide?.style ?? 'toc',
+                                  showPageNumbers: e.target.checked,
+                                  hyperlink: prev.indexSlide?.hyperlink !== false,
+                                },
+                              }))
+                            }
+                          />
+                          {tr('extrasIndexShowPages')}
+                        </label>
+                        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-[var(--ink)]">
+                          <input
+                            type="checkbox"
+                            className="accent-[var(--accent)]"
+                            disabled={!extras.indexSlide?.enabled}
+                            checked={extras.indexSlide?.hyperlink !== false}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                indexSlide: {
+                                  enabled: prev.indexSlide?.enabled ?? false,
+                                  style: prev.indexSlide?.style ?? 'toc',
+                                  showPageNumbers: prev.indexSlide?.showPageNumbers !== false,
+                                  hyperlink: e.target.checked,
+                                },
+                              }))
+                            }
+                          />
+                          {tr('extrasIndexHyperlink')}
+                        </label>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3 opacity-95">
-                    <div className="flex items-center justify-between gap-2">
+                  <div className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-                        {tr('extrasEndSlide')}
+                        {tr('extrasSummaryEndSlide')}
                       </div>
-                      <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]">
-                        {tr('extrasComingSoon')}
-                      </span>
+                      <Field label={tr('extrasOutroOrder')}>
+                        <select
+                          className={inputClass}
+                          disabled={
+                            !extras.summarySlide?.enabled && !extras.endSlide?.enabled
+                          }
+                          value={extras.outroOrder ?? 'summary-first'}
+                          onChange={(e) =>
+                            setExtras((prev) => ({
+                              ...prev,
+                              outroOrder:
+                                e.target.value === 'end-first' ? 'end-first' : 'summary-first',
+                            }))
+                          }
+                        >
+                          <option value="summary-first">{tr('extrasOrderSummaryFirst')}</option>
+                          <option value="end-first">{tr('extrasOrderEndFirst')}</option>
+                        </select>
+                      </Field>
                     </div>
-                    <p className="text-[11px] text-[var(--ink-muted)]">{tr('extrasEndSlideHint')}</p>
-                    <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[var(--ink)]">
-                      <input
-                        type="checkbox"
-                        className="accent-[var(--accent)]"
-                        checked={Boolean(extras.endSlide?.enabled)}
-                        onChange={(e) =>
-                          setExtras((prev) => ({
-                            ...prev,
-                            endSlide: {
-                              ...(prev.endSlide ?? {}),
-                              enabled: e.target.checked,
-                              style: prev.endSlide?.style ?? 'default',
-                            },
-                          }))
-                        }
-                      />
-                      {tr('newCourseEnabled')}
-                    </label>
-                    <Field label={tr('extrasEndStyle')}>
-                      <select
-                        className={inputClass}
-                        disabled={!extras.endSlide?.enabled}
-                        value={extras.endSlide?.style ?? 'default'}
-                        onChange={(e) =>
-                          setExtras((prev) => ({
-                            ...prev,
-                            endSlide: {
-                              ...(prev.endSlide ?? {}),
-                              enabled: prev.endSlide?.enabled ?? false,
-                              style: e.target.value,
-                            },
-                          }))
-                        }
-                      >
-                        <option value="default">{tr('extrasEndStyleDefault')}</option>
-                        <option value="summary">{tr('extrasEndStyleSummary')}</option>
-                        <option value="minimal">{tr('extrasEndStyleMinimal')}</option>
-                      </select>
-                    </Field>
+                    <p className="text-[11px] text-[var(--ink-muted)]">{tr('extrasSummaryEndHint')}</p>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2 rounded-lg border border-[var(--line)] bg-[var(--stage)]/50 p-2.5">
+                        <label className="flex cursor-pointer items-center gap-2 text-[12px] font-semibold text-[var(--ink)]">
+                          <input
+                            type="checkbox"
+                            className="accent-[var(--accent)]"
+                            checked={Boolean(extras.summarySlide?.enabled)}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                summarySlide: {
+                                  enabled: e.target.checked,
+                                  style: prev.summarySlide?.style ?? 'columns',
+                                },
+                              }))
+                            }
+                          />
+                          {tr('extrasSummarySlide')}
+                        </label>
+                        <Field label={tr('extrasSummaryStyle')}>
+                          <select
+                            className={inputClass}
+                            disabled={!extras.summarySlide?.enabled}
+                            value={extras.summarySlide?.style ?? 'columns'}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                summarySlide: {
+                                  enabled: prev.summarySlide?.enabled ?? false,
+                                  style: e.target.value as 'columns' | 'accordion' | 'stack',
+                                },
+                              }))
+                            }
+                          >
+                            <option value="columns">{tr('extrasSummaryStyleColumns')}</option>
+                            <option value="accordion">{tr('extrasSummaryStyleAccordion')}</option>
+                            <option value="stack">{tr('extrasSummaryStyleStack')}</option>
+                          </select>
+                        </Field>
+                        <p className="text-[10px] text-[var(--ink-muted)]">{tr('extrasSummaryDescHint')}</p>
+                      </div>
+                      <div className="space-y-2 rounded-lg border border-[var(--line)] bg-[var(--stage)]/50 p-2.5">
+                        <label className="flex cursor-pointer items-center gap-2 text-[12px] font-semibold text-[var(--ink)]">
+                          <input
+                            type="checkbox"
+                            className="accent-[var(--accent)]"
+                            checked={Boolean(extras.endSlide?.enabled)}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                endSlide: {
+                                  enabled: e.target.checked,
+                                  style: prev.endSlide?.style ?? 'celebration',
+                                  showProgress: prev.endSlide?.showProgress !== false,
+                                  showQuizScore: prev.endSlide?.showQuizScore !== false,
+                                  showLabProgress: prev.endSlide?.showLabProgress !== false,
+                                },
+                              }))
+                            }
+                          />
+                          {tr('extrasEndSlide')}
+                        </label>
+                        <Field label={tr('extrasEndStyle')}>
+                          <select
+                            className={inputClass}
+                            disabled={!extras.endSlide?.enabled}
+                            value={extras.endSlide?.style ?? 'celebration'}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                endSlide: {
+                                  enabled: prev.endSlide?.enabled ?? false,
+                                  style: e.target.value as
+                                    | 'mirror-title'
+                                    | 'stats'
+                                    | 'contact'
+                                    | 'celebration',
+                                  showProgress: prev.endSlide?.showProgress !== false,
+                                  showQuizScore: prev.endSlide?.showQuizScore !== false,
+                                  showLabProgress: prev.endSlide?.showLabProgress !== false,
+                                },
+                              }))
+                            }
+                          >
+                            <option value="celebration">{tr('extrasEndStyleCelebration')}</option>
+                            <option value="mirror-title">{tr('extrasEndStyleMirror')}</option>
+                            <option value="stats">{tr('extrasEndStyleStats')}</option>
+                            <option value="contact">{tr('extrasEndStyleContact')}</option>
+                          </select>
+                        </Field>
+                        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-[var(--ink)]">
+                          <input
+                            type="checkbox"
+                            className="accent-[var(--accent)]"
+                            disabled={!extras.endSlide?.enabled}
+                            checked={extras.endSlide?.showProgress !== false}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                endSlide: {
+                                  ...(prev.endSlide ?? {
+                                    enabled: false,
+                                    style: 'celebration',
+                                  }),
+                                  enabled: prev.endSlide?.enabled ?? false,
+                                  style: prev.endSlide?.style ?? 'celebration',
+                                  showProgress: e.target.checked,
+                                },
+                              }))
+                            }
+                          />
+                          {tr('extrasEndShowProgress')}
+                        </label>
+                        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-[var(--ink)]">
+                          <input
+                            type="checkbox"
+                            className="accent-[var(--accent)]"
+                            disabled={!extras.endSlide?.enabled}
+                            checked={extras.endSlide?.showQuizScore !== false}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                endSlide: {
+                                  ...(prev.endSlide ?? {
+                                    enabled: false,
+                                    style: 'celebration',
+                                  }),
+                                  enabled: prev.endSlide?.enabled ?? false,
+                                  style: prev.endSlide?.style ?? 'celebration',
+                                  showQuizScore: e.target.checked,
+                                },
+                              }))
+                            }
+                          />
+                          {tr('extrasEndShowQuiz')}
+                        </label>
+                        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-[var(--ink)]">
+                          <input
+                            type="checkbox"
+                            className="accent-[var(--accent)]"
+                            disabled={!extras.endSlide?.enabled}
+                            checked={extras.endSlide?.showLabProgress !== false}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                endSlide: {
+                                  ...(prev.endSlide ?? {
+                                    enabled: false,
+                                    style: 'celebration',
+                                  }),
+                                  enabled: prev.endSlide?.enabled ?? false,
+                                  style: prev.endSlide?.style ?? 'celebration',
+                                  showLabProgress: e.target.checked,
+                                },
+                              }))
+                            }
+                          />
+                          {tr('extrasEndShowLabs')}
+                        </label>
+                      </div>
+                    </div>
+                    <div className="space-y-2 border-t border-[var(--line)] pt-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+                        {tr('extrasAuthorContact')}
+                      </div>
+                      <p className="text-[10px] text-[var(--ink-muted)]">{tr('extrasAuthorContactHint')}</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <Field label={tr('extrasAuthorFullName')}>
+                          <input
+                            className={inputClass}
+                            value={extras.authorContact?.fullName ?? ''}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                authorContact: {
+                                  ...(prev.authorContact ?? {}),
+                                  fullName: e.target.value,
+                                },
+                              }))
+                            }
+                          />
+                        </Field>
+                        <Field label={tr('extrasAuthorEmail')}>
+                          <input
+                            className={inputClass}
+                            value={extras.authorContact?.email ?? ''}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                authorContact: {
+                                  ...(prev.authorContact ?? {}),
+                                  email: e.target.value,
+                                },
+                              }))
+                            }
+                          />
+                        </Field>
+                        <Field label={tr('extrasAuthorPhone')}>
+                          <input
+                            className={inputClass}
+                            value={extras.authorContact?.phone ?? ''}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                authorContact: {
+                                  ...(prev.authorContact ?? {}),
+                                  phone: e.target.value,
+                                },
+                              }))
+                            }
+                          />
+                        </Field>
+                        <Field label={tr('extrasAuthorUrl')}>
+                          <input
+                            className={inputClass}
+                            value={extras.authorContact?.url ?? ''}
+                            onChange={(e) =>
+                              setExtras((prev) => ({
+                                ...prev,
+                                authorContact: {
+                                  ...(prev.authorContact ?? {}),
+                                  url: e.target.value,
+                                },
+                              }))
+                            }
+                          />
+                        </Field>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

@@ -12,13 +12,18 @@ import type {
   SequenceItem,
 } from '@shared/types';
 import { sidebarNumbersActive } from '@shared/sidebarNumbers';
+import {
+  contentPageNumber,
+  contentPageTotal,
+  isSpecialSlideType,
+} from '@shared/specialSlides';
 import { AppShell } from './components/AppShell';
+import { FullPageSlideView } from './components/FullPageSlideView';
 import { HomeView } from './components/HomeView';
 import { LabView } from './components/LabView';
 import { LessonView } from './components/LessonView';
 import { PresenterChrome } from './components/PresenterChrome';
-import { QuizView } from './components/QuizView';
-import { SettingsModal } from './components/SettingsModal';
+import { QuizView } from './components/QuizView';import { SettingsModal } from './components/SettingsModal';
 import {
   clampNavigatorSidebarWidth,
   NAVIGATOR_SIDEBAR_DEFAULT_WIDTH,
@@ -227,9 +232,20 @@ export default function App() {
       const clamped = Math.max(0, Math.min(course.sequence.length - 1, next));
       setIndex(clamped);
       setQuizResult(null);
-      void persistIndex(clamped, current?.key);
+      const completedKey =
+        current && !current.meta && !isSpecialSlideType(current.type) ? current.key : undefined;
+      void persistIndex(clamped, completedKey);
     },
-    [course, current?.key, persistIndex],
+    [course, current, persistIndex],
+  );
+
+  const goToKey = useCallback(
+    (key: string) => {
+      if (!course) return;
+      const i = course.sequence.findIndex((s) => s.key === key);
+      if (i >= 0) goTo(i);
+    },
+    [course, goTo],
   );
 
   const handleStructureChange = useCallback(
@@ -377,9 +393,9 @@ export default function App() {
 
   const onCodeSaved = useCallback(
     (slideKey: string) => {
-      if (!course || !current || current.key !== slideKey || current.type !== 'lesson' || !current.file) {
-        return;
-      }
+      if (!course || !current || current.key !== slideKey || !current.file) return;
+      const editable = current.type === 'lesson' || isSpecialSlideType(current.type);
+      if (!editable) return;
       void (async () => {
         const res = await apiFetch<LessonPayload>({
           method: 'GET',
@@ -457,7 +473,10 @@ export default function App() {
     if (!current || !inspectorTool || isCourseLevelInspectorTool(inspectorTool)) return;
     const codeOk =
       inspectorTool === 'code' &&
-      (current.type === 'lesson' || current.type === 'quiz' || current.type === 'lab');
+      (current.type === 'lesson' ||
+        current.type === 'quiz' ||
+        current.type === 'lab' ||
+        isSpecialSlideType(current.type));
     const insertOk = inspectorTool !== 'code' && current.type === 'lesson';
     if (!codeOk && !insertOk) closeInspector();
   }, [current, inspectorTool, closeInspector]);
@@ -472,7 +491,10 @@ export default function App() {
       setQuiz(null);
       setLab(null);
 
-      if (current.type === 'lesson' && current.file) {
+      if (
+        (current.type === 'lesson' || isSpecialSlideType(current.type)) &&
+        current.file
+      ) {
         const res = await apiFetch<LessonPayload>({
           method: 'GET',
           path: `/api/courses/${course.summary.id}/lesson`,
@@ -744,11 +766,26 @@ export default function App() {
                         courseFolder={course.summary.folder}
                         theme={course.theme}
                         slideBg={current.bg}
-                        slideIndex={index}
-                        slideTotal={course.sequence.length}
+                        slideIndex={contentPageNumber(course.sequence, index)}
+                        slideTotal={contentPageTotal(course.sequence)}
                         slideContainer={course.packageManifest?.extras?.slideContainer}
                       />
                     )}
+                    {!loading &&
+                      current &&
+                      isSpecialSlideType(current.type) &&
+                      lesson &&
+                      course && (
+                        <FullPageSlideView
+                          kind={current.type}
+                          html={lesson.html}
+                          manifest={course.manifest}
+                          sequence={course.sequence}
+                          extras={course.packageManifest?.extras}
+                          progress={progress}
+                          onGotoKey={goToKey}
+                        />
+                      )}
                     {!loading && current?.type === 'quiz' && quiz && course && (
                       <QuizView
                         courseId={course.summary.id}
@@ -861,7 +898,9 @@ export default function App() {
             }
             onNotesBound={onNotesBound}
             codeContext={
-              course && current?.type === 'lesson'
+              course &&
+              current &&
+              (current.type === 'lesson' || isSpecialSlideType(current.type))
                 ? {
                     courseId: course.summary.id,
                     slideKey: current.key,
@@ -926,7 +965,9 @@ export default function App() {
           }
           onNotesBound={onNotesBound}
           codeContext={
-            course && current?.type === 'lesson'
+            course &&
+            current &&
+            (current.type === 'lesson' || isSpecialSlideType(current.type))
               ? {
                   courseId: course.summary.id,
                   slideKey: current.key,

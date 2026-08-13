@@ -171,7 +171,13 @@ export function Toolbar({
   const { tr } = usePrefs();
   const insertEnabled = current?.type === 'lesson';
   const codeEnabled =
-    current?.type === 'lesson' || current?.type === 'quiz' || current?.type === 'lab';
+    current?.type === 'lesson' ||
+    current?.type === 'quiz' ||
+    current?.type === 'lab' ||
+    current?.type === 'title' ||
+    current?.type === 'index' ||
+    current?.type === 'summary' ||
+    current?.type === 'end';
   const codeTitle =
     current?.type === 'quiz'
       ? tr('toolCodeQuiz')
