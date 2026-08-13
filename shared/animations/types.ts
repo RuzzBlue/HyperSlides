@@ -263,6 +263,30 @@ export function normalizeAnimationList(
   return out;
 }
 
+/** Stable playback sequence from current order values (before normalize reindex). */
+export function animationPlaybackOrderIds(items: SlideAnimation[]): string[] {
+  return [...items]
+    .sort(
+      (a, b) =>
+        a.order - b.order || kindRank(a.kind) - kindRank(b.kind) || a.id.localeCompare(b.id),
+    )
+    .map((i) => i.id);
+}
+
+/**
+ * True when the proposed order already matches what normalize would produce
+ * (Entrance → Action → Exit per object, and parent exits after descendants).
+ */
+export function isAnimationOrderValid(
+  items: SlideAnimation[],
+  opts?: { ancestorObjectIds?: (objectId: string) => string[] },
+): boolean {
+  if (items.length < 2) return true;
+  const proposed = animationPlaybackOrderIds(items);
+  const fixed = normalizeAnimationList(items, opts).map((i) => i.id);
+  return proposed.length === fixed.length && proposed.every((id, i) => id === fixed[i]);
+}
+
 export function animationsSidecarPath(lessonFile: string): string {
   const f = lessonFile.replace(/\\/g, '/');
   if (f.toLowerCase().endsWith('.html')) {

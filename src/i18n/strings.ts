@@ -639,7 +639,7 @@ const en = {
   animUnsavedConfirm: 'Discard unsaved animation changes?',
   animBackToList: 'Back to list',
   animOrder: 'Order',
-  animObjectId: 'Object id (data-hc-obj)',
+  animObjectId: 'Object ID',
   animObjectIdHint:
     'Must be unique across every animated element on this slide — duplicates will conflict.',
   animObjectLabel: 'Display label',
@@ -649,7 +649,11 @@ const en = {
   animDiscardTitle: 'Discard changes?',
   animDiscardConfirm: 'Discard',
   animOrderBlocked:
-    'Animation order is Entrance → Action → Exit. That move would break the order for this element.',
+    'Order must be Entrance → Action → Exit, and parent exits after their children. That change is not allowed.',
+  animOrderInvalidTitle: 'Invalid animation order',
+  animOrderInvalidBody:
+    'That order breaks Entrance → Action → Exit (or a parent exit before its children). Cancel to pick a different order, or reorder automatically and save.',
+  animOrderSaveAsLast: 'Reorder and save',
   animLibrarySelectFirst: 'Select an element first, then apply an animation.',
   animKindEntrance: 'Entrance',
   animKindAction: 'Action',
@@ -1329,7 +1333,7 @@ const es: Record<keyof typeof en, string> = {
   animUnsavedConfirm: '¿Descartar los cambios de animación sin guardar?',
   animBackToList: 'Volver a la lista',
   animOrder: 'Orden',
-  animObjectId: 'Id del objeto (data-hc-obj)',
+  animObjectId: 'ID del objeto',
   animObjectIdHint:
     'Debe ser único entre todos los elementos animados de esta diapositiva; los duplicados generan conflictos.',
   animObjectLabel: 'Etiqueta',
@@ -1339,7 +1343,11 @@ const es: Record<keyof typeof en, string> = {
   animDiscardTitle: '¿Descartar cambios?',
   animDiscardConfirm: 'Descartar',
   animOrderBlocked:
-    'El orden es Entrada → Acción → Salida. Ese movimiento rompería el orden de este elemento.',
+    'El orden debe ser Entrada → Acción → Salida, y las salidas de padres después de sus hijos. Ese cambio no está permitido.',
+  animOrderInvalidTitle: 'Orden de animación no válido',
+  animOrderInvalidBody:
+    'Ese orden rompe Entrada → Acción → Salida (o una salida de padre antes de sus hijos). Cancela para elegir otro orden, o reordena automáticamente y guarda.',
+  animOrderSaveAsLast: 'Reordenar y guardar',
   animLibrarySelectFirst: 'Selecciona un elemento primero; luego aplica una animación.',
   animKindEntrance: 'Entrada',
   animKindAction: 'Acción',

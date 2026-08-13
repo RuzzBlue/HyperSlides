@@ -7,12 +7,14 @@ import {
   Crosshair,
   Pencil,
   Trash2,
+  X,
 } from 'lucide-react';
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
 import { effectsForKind, getEffectDef } from '@shared/animations/effects';
 import {
   emptyLessonAnimationsDoc,
+  isAnimationOrderValid,
   normalizeAnimationList,
   type AnimKind,
   type AnimStart,
@@ -33,12 +35,6 @@ import type { StringKey } from '../../i18n/strings';
 
 type Level = 'list' | 'detail';
 
-const KIND_RANK: Record<AnimKind, number> = {
-  entrance: 0,
-  action: 1,
-  exit: 2,
-};
-
 function newId(): string {
   return `anim_${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -56,15 +52,6 @@ function advanceKeyShort(key: AnimationAdvanceKey, tr: (k: StringKey) => string)
     'left-click': 'animAdvanceShortLeftClick',
   };
   return tr(map[key]);
-}
-
-function swapBreaksKindOrder(a: SlideAnimation, b: SlideAnimation): boolean {
-  if (a.objectId !== b.objectId) return false;
-  const afterA = { ...a, order: b.order };
-  const afterB = { ...b, order: a.order };
-  const lo = KIND_RANK[afterA.kind] < KIND_RANK[afterB.kind] ? afterA : afterB;
-  const hi = lo === afterA ? afterB : afterA;
-  return lo.order > hi.order;
 }
 
 export function AnimationsPanel({
@@ -94,16 +81,16 @@ export function AnimationsPanel({
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [orderWarning, setOrderWarning] = useState<string | null>(null);
+  const [orderToast, setOrderToast] = useState<string | null>(null);
   const [libraryTab, setLibraryTab] = useState<AnimKind>('entrance');
   const [level, setLevel] = useState<Level>('list');
   const [draft, setDraft] = useState<SlideAnimation | null>(null);
   const [dirty, setDirty] = useState(false);
   const [labelEdit, setLabelEdit] = useState('');
   const [focusedAnimId, setFocusedAnimId] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<null | { kind: 'discard' } | { kind: 'remove'; id: string }>(
-    null,
-  );
+  const [confirm, setConfirm] = useState<
+    null | { kind: 'discard' } | { kind: 'remove'; id: string } | { kind: 'order-invalid' }
+  >(null);
 
   const saveRef = useRef<() => Promise<void>>(async () => {});
   const deleteRef = useRef<() => Promise<void>>(async () => {});
@@ -152,10 +139,10 @@ export function AnimationsPanel({
   }, [level, onDetailChange]);
 
   useEffect(() => {
-    if (!orderWarning) return;
-    const t = window.setTimeout(() => setOrderWarning(null), 4200);
+    if (!orderToast) return;
+    const t = window.setTimeout(() => setOrderToast(null), 4500);
     return () => window.clearTimeout(t);
-  }, [orderWarning]);
+  }, [orderToast]);
 
   const normalizeOpts = useCallback(() => {
     const root = objectMode?.root;
@@ -328,36 +315,46 @@ export function AnimationsPanel({
     }
   };
 
-  const saveDraft = useCallback(async () => {
-    if (!draft) return;
-    const nextDraft = { ...draft };
-    const root = objectMode?.root;
+  const saveDraft = useCallback(
+    async (opts?: { acceptAutoOrder?: boolean }) => {
+      if (!draft) return;
 
-    if (root) {
-      const el = findByObjectId(root, draft.objectId);
-      if (el) {
-        setObjectLabel(el, labelEdit);
-        objectMode?.selectElement(el);
+      const without = items.filter(
+        (i) =>
+          !(i.objectId === draft.objectId && i.kind === draft.kind && i.id !== draft.id),
+      );
+      const withoutSameId = without.filter((i) => i.id !== draft.id);
+      const nextDraft = { ...draft };
+      const merged = [...withoutSameId, nextDraft];
+      if (!opts?.acceptAutoOrder && !isAnimationOrderValid(merged, normalizeOpts())) {
+        setConfirm({ kind: 'order-invalid' });
+        return;
       }
-      if (onHtmlPersist) {
-        await onHtmlPersist(root.innerHTML);
-      }
-    }
 
-    const without = items.filter(
-      (i) =>
-        !(i.objectId === draft.objectId && i.kind === draft.kind && i.id !== draft.id),
-    );
-    const withoutSameId = without.filter((i) => i.id !== draft.id);
-    const nextItems = normalizeAnimationList([...withoutSameId, nextDraft], normalizeOpts());
-    const ok = await persistDoc({ version: 1, items: nextItems });
-    if (ok) {
-      setDirty(false);
-      setLevel('list');
-      setDraft(null);
-      setFocusedAnimId(nextDraft.id);
-    }
-  }, [draft, objectMode, labelEdit, items, onHtmlPersist, persistDoc, normalizeOpts]);
+      const root = objectMode?.root;
+      if (root) {
+        const el = findByObjectId(root, draft.objectId);
+        if (el) {
+          setObjectLabel(el, labelEdit);
+          objectMode?.selectElement(el);
+        }
+        if (onHtmlPersist) {
+          await onHtmlPersist(root.innerHTML);
+        }
+      }
+
+      const nextItems = normalizeAnimationList(merged, normalizeOpts());
+      const ok = await persistDoc({ version: 1, items: nextItems });
+      if (ok) {
+        setConfirm(null);
+        setDirty(false);
+        setLevel('list');
+        setDraft(null);
+        setFocusedAnimId(nextDraft.id);
+      }
+    },
+    [draft, objectMode, labelEdit, items, onHtmlPersist, persistDoc, normalizeOpts],
+  );
 
   const deleteDraft = useCallback(async () => {
     if (!draft) return;
@@ -371,7 +368,7 @@ export function AnimationsPanel({
     }
   }, [draft, items, persistDoc]);
 
-  saveRef.current = saveDraft;
+  saveRef.current = () => saveDraft();
   deleteRef.current = deleteDraft;
 
   useEffect(() => {
@@ -430,15 +427,18 @@ export function AnimationsPanel({
     if (swap < 0 || swap >= list.length) return;
     const a = list[idx]!;
     const b = list[swap]!;
-    if (swapBreaksKindOrder(a, b)) {
-      setOrderWarning(tr('animOrderBlocked'));
-      return;
-    }
     const ao = a.order;
     const bo = b.order;
-    list[idx] = { ...a, order: bo === 0 ? 1 : bo };
-    list[swap] = { ...b, order: ao === 0 ? 1 : ao };
-    await persistDoc({ version: 1, items: list });
+    const proposed = list.map((it, i) => {
+      if (i === idx) return { ...a, order: bo === 0 ? 1 : bo };
+      if (i === swap) return { ...b, order: ao === 0 ? 1 : ao };
+      return it;
+    });
+    if (!isAnimationOrderValid(proposed, normalizeOpts())) {
+      setOrderToast(tr('animOrderBlocked'));
+      return;
+    }
+    await persistDoc({ version: 1, items: proposed });
   };
 
   if (!loaded) {
@@ -555,6 +555,17 @@ export function AnimationsPanel({
           onClose={() => setConfirm(null)}
           onConfirm={confirmDiscard}
         />
+        <AnimConfirmModal
+          open={confirm?.kind === 'order-invalid'}
+          title={tr('animOrderInvalidTitle')}
+          body={tr('animOrderInvalidBody')}
+          confirmLabel={tr('animOrderSaveAsLast')}
+          onClose={() => setConfirm(null)}
+          onConfirm={() => {
+            void saveDraft({ acceptAutoOrder: true });
+          }}
+        />
+        <AnimOrderToast message={orderToast} onDismiss={() => setOrderToast(null)} />
       </div>
     );
   }
@@ -569,20 +580,13 @@ export function AnimationsPanel({
           {error}
         </div>
       )}
-      {orderWarning && (
-        <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] text-amber-800">
-          {orderWarning}
-        </div>
-      )}
-      {!libraryEnabled && !objectMode?.picking && (
-        <div className="shrink-0 border-b border-[var(--line)] px-3 pt-2">
-          <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800">
-            {tr('animLibrarySelectFirst')}
-          </p>
-        </div>
-      )}
       {!objectMode?.selected && !objectMode?.picking && (
-        <div className="shrink-0 border-b border-[var(--line)] px-3 py-2">
+        <div className="shrink-0 space-y-2 border-b border-[var(--line)] px-3 py-2">
+          {!libraryEnabled && (
+            <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800">
+              {tr('animLibrarySelectFirst')}
+            </p>
+          )}
           <button
             type="button"
             onClick={() => objectMode?.startPicking()}
@@ -840,7 +844,44 @@ export function AnimationsPanel({
         onClose={() => setConfirm(null)}
         onConfirm={() => void confirmRemove()}
       />
+      <AnimOrderToast message={orderToast} onDismiss={() => setOrderToast(null)} />
     </div>
+  );
+}
+
+function AnimOrderToast({
+  message,
+  onDismiss,
+}: {
+  message: string | null;
+  onDismiss: () => void;
+}) {
+  return (
+    <AnimatePresence>
+      {message && (
+        <motion.div
+          role="status"
+          aria-live="polite"
+          initial={{ opacity: 0, y: -12, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -8, scale: 0.98 }}
+          transition={{ duration: 0.2 }}
+          className="pointer-events-auto fixed left-1/2 top-4 z-[200] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2"
+        >
+          <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 shadow-[var(--shadow)]">
+            <p className="min-w-0 flex-1 text-[13px] leading-snug text-amber-950">{message}</p>
+            <button
+              type="button"
+              onClick={onDismiss}
+              aria-label="Dismiss"
+              className="shrink-0 cursor-pointer rounded-md p-1 text-amber-900/70 hover:bg-amber-100 hover:text-amber-950"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
