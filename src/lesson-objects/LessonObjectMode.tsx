@@ -41,6 +41,9 @@ type LessonObjectModeContextValue = {
   selectByObjectId: (objectId: string) => void;
   breadcrumb: LessonObjectSelection[];
   stampIds: () => boolean;
+  /** Bumps when the user finishes a stage pick (not cancel). */
+  pickEpoch: number;
+  signalPicked: () => void;
   onDomMutated?: (html: string) => void;
 };
 
@@ -67,9 +70,14 @@ export function LessonObjectModeProvider({
   const [picking, setPicking] = useState(false);
   const [hovered, setHovered] = useState<LessonObjectSelection | null>(null);
   const [selected, setSelected] = useState<LessonObjectSelection | null>(null);
+  const [pickEpoch, setPickEpoch] = useState(0);
 
   const setRoot = useCallback((el: HTMLElement | null) => {
     setRootState((prev) => (prev === el ? prev : el));
+  }, []);
+
+  const signalPicked = useCallback(() => {
+    setPickEpoch((n) => n + 1);
   }, []);
 
   useEffect(() => {
@@ -143,6 +151,8 @@ export function LessonObjectModeProvider({
       selectByObjectId,
       breadcrumb,
       stampIds,
+      pickEpoch,
+      signalPicked,
       onDomMutated,
     }),
     [
@@ -159,6 +169,8 @@ export function LessonObjectModeProvider({
       selectByObjectId,
       breadcrumb,
       stampIds,
+      pickEpoch,
+      signalPicked,
       onDomMutated,
     ],
   );
@@ -271,6 +283,7 @@ export function LessonPickOverlay() {
       e.preventDefault();
       e.stopPropagation();
       mode.selectElement(deep);
+      mode.signalPicked();
       mode.stopPicking();
       setHoverBox(null);
     };

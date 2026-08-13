@@ -43,49 +43,55 @@ function resolveTargets(
   return el;
 }
 
-function runPreset(
-  targets: HTMLElement | HTMLElement[],
+type PresetId = NonNullable<ReturnType<typeof getEffectDef>>['preset'] | 'fadeIn';
+
+function isExitPreset(preset: PresetId): boolean {
+  return (
+    preset === 'fadeOut' ||
+    preset === 'slideOut' ||
+    preset === 'wipeOut' ||
+    preset === 'zoomOut' ||
+    preset === 'shrinkOut' ||
+    preset === 'blurOut'
+  );
+}
+
+/** One cycle of an effect (no anime.js loop — repeats are sequenced by the caller). */
+function runPresetCycle(
+  list: HTMLElement[],
   effectId: string,
-  durationSec: number,
-  direction?: AnimDirection,
+  durationMs: number,
+  direction: AnimDirection | undefined,
+  hideWhenDone: boolean,
 ): Promise<void> {
   const def = getEffectDef(effectId);
-  const preset = def?.preset ?? 'fadeIn';
-  const duration = Math.max(100, Math.round(durationSec * 1000));
-  const list = Array.isArray(targets) ? targets : [targets];
-  list.forEach((t) => {
-    t.style.visibility = 'visible';
-    t.style.pointerEvents = '';
-  });
+  const preset: PresetId = def?.preset ?? 'fadeIn';
+  const duration = Math.max(40, durationMs);
 
   return new Promise((resolve) => {
-    const done = () => resolve();
+    const finish = () => resolve();
+    const hideTargets = () => {
+      list.forEach((t) => {
+        t.style.visibility = 'hidden';
+        t.style.opacity = '0';
+      });
+    };
     const common = {
       targets: list,
       duration,
       easing: 'easeOutQuad' as const,
-      complete: done,
+      complete: () => {
+        if (hideWhenDone) hideTargets();
+        finish();
+      },
     };
 
     switch (preset) {
       case 'fadeIn':
-        anime({
-          ...common,
-          opacity: [0, 1],
-        });
+        anime({ ...common, opacity: [0, 1] });
         break;
       case 'fadeOut':
-        anime({
-          ...common,
-          opacity: [1, 0],
-          complete: () => {
-            list.forEach((t) => {
-              t.style.visibility = 'hidden';
-              t.style.opacity = '0';
-            });
-            done();
-          },
-        });
+        anime({ ...common, opacity: [1, 0] });
         break;
       case 'slideIn':
         anime({
@@ -102,12 +108,6 @@ function runPreset(
           opacity: [1, 0],
           translateX: [0, dirOffset(direction, 'x') || (direction === 'right' ? 60 : -60)],
           translateY: [0, dirOffset(direction, 'y')],
-          complete: () => {
-            list.forEach((t) => {
-              t.style.visibility = 'hidden';
-            });
-            done();
-          },
         });
         break;
       case 'zoomIn':
@@ -121,17 +121,7 @@ function runPreset(
         break;
       case 'zoomOut':
       case 'shrinkOut':
-        anime({
-          ...common,
-          opacity: [1, 0],
-          scale: [1, 0.7],
-          complete: () => {
-            list.forEach((t) => {
-              t.style.visibility = 'hidden';
-            });
-            done();
-          },
-        });
+        anime({ ...common, opacity: [1, 0], scale: [1, 0.7] });
         break;
       case 'blurIn':
         anime({
@@ -145,12 +135,6 @@ function runPreset(
           ...common,
           opacity: [1, 0],
           filter: ['blur(0px)', 'blur(8px)'],
-          complete: () => {
-            list.forEach((t) => {
-              t.style.visibility = 'hidden';
-            });
-            done();
-          },
         });
         break;
       case 'flipIn':
@@ -185,27 +169,49 @@ function runPreset(
         });
         break;
       case 'wiggle':
-        anime({
-          ...common,
-          rotate: [-4, 4, -3, 3, 0],
-        });
+        anime({ ...common, rotate: [-4, 4, -3, 3, 0] });
         break;
       case 'flash':
-        anime({
-          ...common,
-          opacity: [1, 0.2, 1, 0.2, 1],
-        });
+        anime({ ...common, opacity: [1, 0.2, 1, 0.2, 1] });
         break;
       case 'spin':
-        anime({
-          ...common,
-          rotate: [0, 360],
-        });
+        anime({ ...common, rotate: [0, 360] });
         break;
       default:
         anime({ ...common, opacity: [0.5, 1] });
     }
   });
+}
+
+/**
+ * Play an effect across `durationSec`.
+ * Action `repeatCount` splits that total time into N sequential cycles
+ * (e.g. heartbeat, 1s, repeat 3 → three beats in one second).
+ */
+async function runPreset(
+  targets: HTMLElement | HTMLElement[],
+  effectId: string,
+  durationSec: number,
+  direction?: AnimDirection,
+  repeatCount = 1,
+): Promise<void> {
+  const def = getEffectDef(effectId);
+  const preset: PresetId = def?.preset ?? 'fadeIn';
+  const loops = Math.max(1, Math.min(30, Math.round(repeatCount) || 1));
+  const totalMs = Math.max(100, Math.round(durationSec * 1000));
+  const cycleMs = Math.max(40, Math.round(totalMs / loops));
+  const list = Array.isArray(targets) ? targets : [targets];
+
+  anime.remove(list);
+  list.forEach((t) => {
+    t.style.visibility = 'visible';
+    t.style.pointerEvents = '';
+  });
+
+  for (let i = 0; i < loops; i++) {
+    const last = i === loops - 1;
+    await runPresetCycle(list, effectId, cycleMs, direction, last && isExitPreset(preset));
+  }
 }
 
 export async function playSlideAnimation(
@@ -215,7 +221,9 @@ export async function playSlideAnimation(
   const el = findByObjectId(root, anim.objectId);
   if (!el) return;
   const targets = resolveTargets(el, anim.params.childScope);
-  await runPreset(targets, anim.effectId, anim.durationSec, anim.params.direction);
+  const repeat =
+    anim.kind === 'action' ? Math.max(1, Math.round(Number(anim.repeat) || 1)) : 1;
+  await runPreset(targets, anim.effectId, anim.durationSec, anim.params.direction, repeat);
 }
 
 export type AnimationRunner = {
@@ -245,6 +253,7 @@ export function createAnimationRunner(
   );
   let cursor = 0;
   let destroyed = false;
+  let advancing = false;
 
   const prepare = () => {
     // Reset transforms on all animated nodes
@@ -252,6 +261,7 @@ export function createAnimationRunner(
     ids.forEach((id) => {
       const el = findByObjectId(root, id);
       if (!el) return;
+      anime.remove(el);
       el.style.transform = '';
       el.style.filter = '';
       el.style.opacity = '';
@@ -307,15 +317,15 @@ export function createAnimationRunner(
   };
 
   const advance = async () => {
-    if (destroyed) return false;
+    if (destroyed || advancing) return false;
     if (cursor >= sorted.length) return false;
-    // Skip if still in after-previous? cursor already past those
-    const step = sorted[cursor]!;
-    if (step.start === 'after-previous' || step.start === 'with-previous') {
-      // Shouldn't happen if cursor managed correctly — play anyway
+    advancing = true;
+    try {
+      cursor = await playGroupFrom(cursor);
+      return true;
+    } finally {
+      advancing = false;
     }
-    cursor = await playGroupFrom(cursor);
-    return true;
   };
 
   return {

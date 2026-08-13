@@ -21,10 +21,10 @@ async function bootApi() {
   await startServer(8765, { appRoot, serveDist: false });
 
   ipcMain.handle('hyperclass:api', async (_event, req) => {
-    // Dev: pick up shared API route changes without a full Electron relaunch.
+    // Dev: pick up shared API / animation changes without a full Electron relaunch.
     if (!app.isPackaged) {
       for (const key of Object.keys(require.cache)) {
-        if (key.includes(`${path.sep}shared${path.sep}api${path.sep}`)) {
+        if (key.includes(`${path.sep}shared${path.sep}`)) {
           delete require.cache[key];
         }
       }

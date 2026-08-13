@@ -20,6 +20,11 @@ export interface SlideAnimation {
   order: number;
   start: AnimStart;
   durationSec: number;
+  /**
+   * Action only: how many times the effect plays within `durationSec`.
+   * Entrance/exit ignore this (always 1).
+   */
+  repeat: number;
   params: SlideAnimationParams;
 }
 
@@ -86,6 +91,9 @@ function normalizeSlideAnimation(
     0.1,
     Math.min(30, Number(raw.durationSec) || 0.6),
   );
+  const repeatRaw = Math.round(Number(raw.repeat) || 1);
+  const repeat =
+    kind === 'action' ? Math.max(1, Math.min(30, repeatRaw)) : 1;
   const params: SlideAnimationParams = {};
   if (
     raw.params?.direction === 'up' ||
@@ -111,6 +119,7 @@ function normalizeSlideAnimation(
     order: Number.isFinite(raw.order) ? Number(raw.order) : fallbackIndex + 1,
     start,
     durationSec,
+    repeat,
     params,
   };
 }
@@ -237,7 +246,11 @@ export function normalizeAnimationList(
   items: SlideAnimation[],
   opts?: { ancestorObjectIds?: (objectId: string) => string[] },
 ): SlideAnimation[] {
-  const enforced = enforceConstraints(items, opts);
+  // Re-coerce via normalizeSlideAnimation so fields like `repeat` always persist.
+  const coerced = items
+    .map((it, i) => normalizeSlideAnimation(it, i))
+    .filter((it): it is SlideAnimation => it != null);
+  const enforced = enforceConstraints(coerced, opts);
   const sorted = [...enforced].sort(
     (a, b) => a.order - b.order || kindRank(a.kind) - kindRank(b.kind) || a.id.localeCompare(b.id),
   );

@@ -240,6 +240,20 @@ export function AnimationsPanel({
     objectMode?.stopPicking();
   };
 
+  // Stage pick → highlight the first animation already on this object (if any).
+  useEffect(() => {
+    if (!objectMode?.pickEpoch || level === 'detail') return;
+    const objectId = objectMode.selected?.objectId;
+    if (!objectId) return;
+    const first = items.find((i) => i.objectId === objectId);
+    if (first) {
+      setFocusedAnimId(first.id);
+      setLibraryTab(first.kind);
+    } else {
+      setFocusedAnimId(null);
+    }
+  }, [objectMode?.pickEpoch, objectMode?.selected?.objectId, items, level]);
+
   const selectLibraryTab = (kind: AnimKind) => {
     setLibraryTab(kind);
     const objectId =
@@ -290,6 +304,7 @@ export function AnimationsPanel({
       order: existing?.order === 0 ? 0 : nextOrder,
       start: existing?.start ?? 'on-key',
       durationSec: def.defaultDurationSec,
+      repeat: kind === 'action' ? existing?.repeat ?? 1 : 1,
       params: { ...def.defaultParams },
     };
     setFocusedAnimId(draftAnim.id);
@@ -324,7 +339,13 @@ export function AnimationsPanel({
           !(i.objectId === draft.objectId && i.kind === draft.kind && i.id !== draft.id),
       );
       const withoutSameId = without.filter((i) => i.id !== draft.id);
-      const nextDraft = { ...draft };
+      const nextDraft: SlideAnimation = {
+        ...draft,
+        repeat:
+          draft.kind === 'action'
+            ? Math.max(1, Math.min(30, Math.round(Number(draft.repeat) || 1)))
+            : 1,
+      };
       const merged = [...withoutSameId, nextDraft];
       if (!opts?.acceptAutoOrder && !isAnimationOrderValid(merged, normalizeOpts())) {
         setConfirm({ kind: 'order-invalid' });
@@ -519,6 +540,25 @@ export function AnimationsPanel({
               }}
             />
           </Field>
+          {draft.kind === 'action' && (
+            <Field label={tr('animRepeat')} hint={tr('animRepeatHint')}>
+              <input
+                type="number"
+                min={1}
+                max={30}
+                step={1}
+                className={inputClass}
+                value={draft.repeat ?? 1}
+                onChange={(e) => {
+                  setDraft({
+                    ...draft,
+                    repeat: Math.max(1, Math.min(30, Math.round(Number(e.target.value) || 1))),
+                  });
+                  setDirty(true);
+                }}
+              />
+            </Field>
+          )}
           {(def?.params ?? []).map((spec) => (
             <Field key={spec.key} label={spec.label}>
               <select
@@ -632,7 +672,7 @@ export function AnimationsPanel({
       )}
 
       <div
-        className={`flex min-h-0 flex-1 flex-col border-b border-[var(--line)] ${
+        className={`flex min-h-0 shrink-0 flex-col border-b border-[var(--line)] ${
           libraryEnabled ? '' : 'opacity-55'
         }`}
       >
@@ -662,7 +702,7 @@ export function AnimationsPanel({
           ))}
         </div>
         <div
-          className={`min-h-0 flex-1 overflow-y-auto px-3 pb-2 ${
+          className={`max-h-[7.75rem] overflow-y-auto px-3 pb-2 ${
             libraryEnabled ? '' : 'pointer-events-none'
           }`}
           aria-disabled={!libraryEnabled}
@@ -730,6 +770,11 @@ export function AnimationsPanel({
                 key={it.id}
                 role="button"
                 tabIndex={0}
+                ref={(node) => {
+                  if (focused && node) {
+                    node.scrollIntoView({ block: 'nearest' });
+                  }
+                }}
                 onClick={() => focusAnim(it)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
