@@ -14,7 +14,9 @@ import {
   Code2,
   Film,
   Heading1,
+  LayoutTemplate,
   LibraryBig,
+  Link2,
   List,
   Maximize2,
   Minimize2,
@@ -36,6 +38,7 @@ import { usePrefs } from '../../prefs/PrefsProvider';
 import type { StringKey } from '../../i18n/strings';
 import { CodePanel, type CodeContext } from './CodePanel';
 import { AnimationsPanel } from './AnimationsPanel';
+import { ElementsPanel } from './ElementsPanel';
 import { TemplatePickerButton } from './TemplatePicker';
 import { QuizEditPanel, type QuizEditContext } from './QuizEditPanel';
 import { QuestionTemplatePickerButton } from './QuestionTemplatePicker';
@@ -49,6 +52,10 @@ export type InspectorTool =
   | 'text'
   | 'shape'
   | 'media'
+  | 'elements'
+  | 'links'
+  | 'shapesMedia'
+  | 'charts'
   | 'animations'
   | 'notes'
   | 'activities'
@@ -88,6 +95,10 @@ const TOOL_META: Record<InspectorTool, { labelKey: StringKey; icon: ReactNode }>
   text: { labelKey: 'toolText', icon: <Type className="h-4 w-4" /> },
   shape: { labelKey: 'toolShape', icon: <Shapes className="h-4 w-4" /> },
   media: { labelKey: 'toolMedia', icon: <Film className="h-4 w-4" /> },
+  elements: { labelKey: 'toolElements', icon: <Shapes className="h-4 w-4" /> },
+  links: { labelKey: 'toolLinks', icon: <Link2 className="h-4 w-4" /> },
+  shapesMedia: { labelKey: 'toolShapesMedia', icon: <LayoutTemplate className="h-4 w-4" /> },
+  charts: { labelKey: 'toolCharts', icon: <BarChart3 className="h-4 w-4" /> },
   animations: { labelKey: 'toolAnimations', icon: <Sparkles className="h-4 w-4" /> },
   notes: { labelKey: 'toolNotes', icon: <StickyNote className="h-4 w-4" /> },
   activities: { labelKey: 'toolActivities', icon: <LibraryBig className="h-4 w-4" /> },
@@ -155,6 +166,7 @@ export function Inspector({
   animationsContext,
   onHtmlPersist,
   onAnimationsChange,
+  onOpenTool,
   floatResetToken = 0,
   floatInsets,
 }: {
@@ -174,6 +186,7 @@ export function Inspector({
   animationsContext?: { courseId: string; slideKey: string } | null;
   onHtmlPersist?: (html: string) => Promise<void>;
   onAnimationsChange?: (doc: import('@shared/animations/types').LessonAnimationsDoc) => void;
+  onOpenTool?: (tool: InspectorTool) => void;
   /** Bump to re-center a floating inspector on screen. */
   floatResetToken?: number;
   /** Content area insets for Code expand-to-fill (title/toolbar/sidebar/status). */
@@ -185,6 +198,7 @@ export function Inspector({
   const isCode = tool === 'code';
   const isProgress = tool === 'progress';
   const isAnimations = tool === 'animations';
+  const isElements = tool === 'elements';
   const editKind: 'lesson' | 'quiz' | 'lab' | null = !isCode
     ? null
     : quizEditContext
@@ -434,14 +448,27 @@ export function Inspector({
           <div className="flex flex-1 items-center justify-center px-4 text-center text-[12px] text-[var(--ink-muted)]">
             {tr('animLessonOnly')}
           </div>
+        ) : tool === 'elements' && animationsContext ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <ElementsPanel
+              courseId={animationsContext.courseId}
+              slideKey={animationsContext.slideKey}
+              onHtmlPersist={onHtmlPersist}
+              onOpenTool={onOpenTool}
+            />
+          </div>
+        ) : tool === 'elements' ? (
+          <div className="flex flex-1 items-center justify-center px-4 text-center text-[12px] text-[var(--ink-muted)]">
+            {tr('elementsNeedLesson')}
+          </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-            <InspectorBody tool={tool} />
+            <InspectorBody tool={tool} onOpenTool={onOpenTool} />
           </div>
         )}
       </div>
 
-      {!(isAnimations && !animDetail) && (
+      {!(isAnimations && !animDetail) && !isElements && (
       <footer className="flex shrink-0 items-center gap-2 border-t border-[var(--line)] bg-[var(--panel)] px-3 py-2">
         {isNotes || isCode ? (
           <>
@@ -1113,7 +1140,14 @@ function FormatBtn({
   );
 }
 
-function InspectorBody({ tool }: { tool: InspectorTool }) {
+function InspectorBody({
+  tool,
+  onOpenTool,
+}: {
+  tool: InspectorTool;
+  onOpenTool?: (tool: InspectorTool) => void;
+}) {
+  const { tr } = usePrefs();
   switch (tool) {
     case 'graphs':
       return <GraphsPanel />;
@@ -1125,6 +1159,31 @@ function InspectorBody({ tool }: { tool: InspectorTool }) {
       return <ShapePanel />;
     case 'media':
       return <MediaPanel />;
+    case 'links':
+      return <LinksPanel />;
+    case 'shapesMedia':
+      return (
+        <ChooserPanel
+          title={tr('toolShapesMedia')}
+          options={[
+            { tool: 'shape', label: tr('toolShape'), icon: <Shapes className="h-5 w-5" /> },
+            { tool: 'media', label: tr('toolMedia'), icon: <Film className="h-5 w-5" /> },
+          ]}
+          onOpenTool={onOpenTool}
+        />
+      );
+    case 'charts':
+      return (
+        <ChooserPanel
+          title={tr('toolCharts')}
+          options={[
+            { tool: 'graphs', label: tr('toolGraphs'), icon: <BarChart3 className="h-5 w-5" /> },
+            { tool: 'tables', label: tr('toolTables'), icon: <Table2 className="h-5 w-5" /> },
+          ]}
+          onOpenTool={onOpenTool}
+        />
+      );
+    case 'elements':
     case 'animations':
       return null;
     case 'activities':
@@ -1138,6 +1197,54 @@ function InspectorBody({ tool }: { tool: InspectorTool }) {
     case 'code':
       return null;
   }
+}
+
+function ChooserPanel({
+  title,
+  options,
+  onOpenTool,
+}: {
+  title: string;
+  options: Array<{ tool: InspectorTool; label: string; icon: ReactNode }>;
+  onOpenTool?: (tool: InspectorTool) => void;
+}) {
+  return (
+    <Section title={title}>
+      <div className="grid grid-cols-2 gap-2">
+        {options.map((opt) => (
+          <button
+            key={opt.tool}
+            type="button"
+            onClick={() => onOpenTool?.(opt.tool)}
+            className="flex cursor-pointer flex-col items-start gap-2 rounded-lg border border-[var(--line)] bg-[var(--panel)] px-3 py-3 text-left hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]/40"
+          >
+            <span className="text-[var(--accent)]">{opt.icon}</span>
+            <span className="text-[12px] font-semibold text-[var(--ink)]">{opt.label}</span>
+          </button>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function LinksPanel() {
+  const { tr } = usePrefs();
+  return (
+    <Section title={tr('toolLinks')}>
+      <Field label="Label">
+        <DemoInput defaultValue="Learn more" />
+      </Field>
+      <Field label="URL">
+        <DemoInput defaultValue="https://" />
+      </Field>
+      <Field label="Style">
+        <DemoSelect defaultValue="button">
+          <option value="button">Button</option>
+          <option value="link">Text link</option>
+        </DemoSelect>
+      </Field>
+    </Section>
+  );
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {

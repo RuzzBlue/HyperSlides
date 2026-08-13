@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { Pencil } from 'lucide-react';
 import { usePrefs } from '../prefs/PrefsProvider';
 import {
   deepestSelectable,
@@ -29,6 +30,8 @@ type HighlightBox = { top: number; left: number; width: number; height: number }
 type LessonObjectModeContextValue = {
   active: boolean;
   picking: boolean;
+  /** 'pick' = animations one-shot pick; 'edit' = always-on Elementor-like hover. */
+  interaction: 'pick' | 'edit';
   startPicking: () => void;
   stopPicking: () => void;
   root: HTMLElement | null;
@@ -44,6 +47,7 @@ type LessonObjectModeContextValue = {
   /** Bumps when the user finishes a stage pick (not cancel). */
   pickEpoch: number;
   signalPicked: () => void;
+  onEditRequest?: (sel: LessonObjectSelection) => void;
   onDomMutated?: (html: string) => void;
 };
 
@@ -56,13 +60,17 @@ function toSelection(el: HTMLElement): LessonObjectSelection {
 
 export function LessonObjectModeProvider({
   active,
+  interaction = 'pick',
   autoStartPicking = true,
+  onEditRequest,
   onDomMutated,
   children,
 }: {
   active: boolean;
-  /** When true, entering active mode starts pick mode. */
+  interaction?: 'pick' | 'edit';
+  /** When true, entering active mode starts pick mode (animations). */
   autoStartPicking?: boolean;
+  onEditRequest?: (sel: LessonObjectSelection) => void;
   onDomMutated?: (html: string) => void;
   children: ReactNode;
 }) {
@@ -87,8 +95,13 @@ export function LessonObjectModeProvider({
       setSelected(null);
       return;
     }
+    // Edit mode: always hoverable (treat as continuous picking without banner).
+    if (interaction === 'edit') {
+      setPicking(true);
+      return;
+    }
     setPicking(Boolean(autoStartPicking));
-  }, [active, autoStartPicking]);
+  }, [active, autoStartPicking, interaction]);
 
   const selectElement = useCallback((el: HTMLElement | null) => {
     if (!el) {
@@ -139,6 +152,7 @@ export function LessonObjectModeProvider({
     () => ({
       active,
       picking,
+      interaction,
       startPicking,
       stopPicking,
       root,
@@ -153,11 +167,13 @@ export function LessonObjectModeProvider({
       stampIds,
       pickEpoch,
       signalPicked,
+      onEditRequest,
       onDomMutated,
     }),
     [
       active,
       picking,
+      interaction,
       startPicking,
       stopPicking,
       root,
@@ -171,6 +187,7 @@ export function LessonObjectModeProvider({
       stampIds,
       pickEpoch,
       signalPicked,
+      onEditRequest,
       onDomMutated,
     ],
   );
@@ -284,6 +301,12 @@ export function LessonPickOverlay() {
       e.stopPropagation();
       mode.selectElement(deep);
       mode.signalPicked();
+      if (mode.interaction === 'edit') {
+        // Stay in continuous hover; open inspector for this element.
+        mode.onEditRequest?.(toSelection(deep));
+        setHoverBox(null);
+        return;
+      }
       mode.stopPicking();
       setHoverBox(null);
     };
@@ -291,6 +314,12 @@ export function LessonPickOverlay() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
+        if (mode.interaction === 'edit') {
+          mode.selectElement(null);
+          mode.setHovered(null);
+          setHoverBox(null);
+          return;
+        }
         mode.stopPicking();
         setHoverBox(null);
       }
@@ -310,16 +339,24 @@ export function LessonPickOverlay() {
 
   if (!mode?.active) return null;
 
-  const showPickLayer = mode.picking;
-  const box = mode.picking ? hoverBox : selectedBox;
-  const label = mode.picking ? mode.hovered?.label : mode.selected?.label;
+  const isEdit = mode.interaction === 'edit';
+  const showPickBanner = mode.picking && !isEdit;
+  const box = mode.picking || isEdit ? (mode.picking ? hoverBox : selectedBox) : selectedBox;
+  const liveBox =
+    isEdit && mode.hovered
+      ? hoverBox
+      : isEdit && mode.selected
+        ? selectedBox
+        : box;
+  const handleSel = isEdit ? mode.hovered ?? mode.selected : mode.selected;
+  const label = mode.picking && !isEdit ? mode.hovered?.label : handleSel?.label;
 
   return (
     <div
       className="hc-obj-picker-ui pointer-events-none absolute inset-0 z-[50]"
       data-hc-obj-overlay
     >
-      {showPickLayer && (
+      {showPickBanner && (
         <div className="absolute inset-x-3 top-3 z-[1] flex justify-center">
           <div className="max-w-[min(520px,100%)] rounded-lg border border-[var(--accent)] bg-[var(--panel)]/95 px-3 py-2 text-center text-[12px] shadow-lg backdrop-blur">
             <div className="font-semibold text-[var(--accent)]">{tr('animPickActive')}</div>
@@ -333,7 +370,7 @@ export function LessonPickOverlay() {
         </div>
       )}
 
-      {!showPickLayer && mode.selected && (
+      {!isEdit && !showPickBanner && mode.selected && (
         <div
           data-hc-pick-chrome
           className="pointer-events-auto absolute left-3 top-3 z-[1] flex max-w-[min(420px,90%)] flex-wrap items-center gap-1.5"
@@ -355,20 +392,48 @@ export function LessonPickOverlay() {
         </div>
       )}
 
-      {box && box.width > 0 && box.height > 0 && (
-        <div
-          className={`absolute z-0 rounded-sm ${
-            mode.picking
-              ? 'border-2 border-dashed border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)]'
-              : 'border-2 border-solid border-[var(--accent)] shadow-[0_0_0_4px_color-mix(in_srgb,var(--accent)_18%,transparent)]'
-          }`}
-          style={{
-            top: box.top,
-            left: box.left,
-            width: box.width,
-            height: box.height,
-          }}
-        />
+      {liveBox && liveBox.width > 0 && liveBox.height > 0 && (
+        <>
+          <div
+            className={`absolute z-0 rounded-sm ${
+              isEdit || mode.picking
+                ? 'border-2 border-dashed border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)]'
+                : 'border-2 border-solid border-[var(--accent)] shadow-[0_0_0_4px_color-mix(in_srgb,var(--accent)_18%,transparent)]'
+            }`}
+            style={{
+              top: liveBox.top,
+              left: liveBox.left,
+              width: liveBox.width,
+              height: liveBox.height,
+            }}
+          />
+          {isEdit && handleSel && (
+            <div
+              data-hc-pick-chrome
+              className="pointer-events-auto absolute z-[2]"
+              style={{
+                top: Math.max(0, liveBox.top - 28),
+                left: liveBox.left,
+              }}
+            >
+              <button
+                type="button"
+                title={tr('elementsEditHandle')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  mode.selectElement(handleSel.element);
+                  mode.signalPicked();
+                  mode.onEditRequest?.(handleSel);
+                }}
+                className="inline-flex cursor-pointer items-center gap-1 rounded-t-md border border-b-0 border-[var(--accent)] bg-[var(--accent)] px-2 py-1 text-[10px] font-semibold text-white shadow-sm hover:brightness-110"
+              >
+                <Pencil className="h-3 w-3" />
+                <span className="max-w-[10rem] truncate">{handleSel.label}</span>
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

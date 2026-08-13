@@ -4,8 +4,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Code2,
-  Film,
+  LayoutTemplate,
   LibraryBig,
+  Link2,
   StickyNote,
   MonitorCog,
   PanelLeft,
@@ -13,7 +14,6 @@ import {
   Radio,
   Shapes,
   Sparkles,
-  Table2,
   Trophy,
   Type,
 } from 'lucide-react';
@@ -24,18 +24,18 @@ import type { InspectorTool } from './inspector/Inspector';
 import { ZoomControl } from './ZoomControl';
 import { AddContentButton, type InsertKind } from './AddContentButton';
 
-type InsertToolId = 'text' | 'shape' | 'media' | 'graphs' | 'tables';
+type InsertToolId = 'elements' | 'text' | 'links' | 'shapesMedia' | 'charts';
 
 const INSERT_TOOLS: Array<{ id: InsertToolId; key: StringKey; icon: ReactNode }> = [
+  { id: 'elements', key: 'toolElements', icon: <Shapes className="h-3.5 w-3.5" /> },
   { id: 'text', key: 'toolText', icon: <Type className="h-3.5 w-3.5" /> },
-  { id: 'shape', key: 'toolShape', icon: <Shapes className="h-3.5 w-3.5" /> },
-  { id: 'media', key: 'toolMedia', icon: <Film className="h-3.5 w-3.5" /> },
-  { id: 'graphs', key: 'toolGraphs', icon: <BarChart3 className="h-3.5 w-3.5" /> },
-  { id: 'tables', key: 'toolTables', icon: <Table2 className="h-3.5 w-3.5" /> },
+  { id: 'links', key: 'toolLinks', icon: <Link2 className="h-3.5 w-3.5" /> },
+  { id: 'shapesMedia', key: 'toolShapesMedia', icon: <LayoutTemplate className="h-3.5 w-3.5" /> },
+  { id: 'charts', key: 'toolCharts', icon: <BarChart3 className="h-3.5 w-3.5" /> },
 ];
 
 const ACTIVITY_TOOLS: Array<{
-  id: Exclude<InspectorTool, InsertToolId | 'code' | 'connect' | 'progress'>;
+  id: Exclude<InspectorTool, InsertToolId | 'code' | 'connect' | 'progress' | 'shape' | 'media' | 'graphs' | 'tables'>;
   key: StringKey;
   icon: ReactNode;
 }> = [
@@ -46,11 +46,11 @@ const ACTIVITY_TOOLS: Array<{
 
 function isInsertTool(tool: InspectorTool | null): tool is InsertToolId {
   return (
+    tool === 'elements' ||
     tool === 'text' ||
-    tool === 'shape' ||
-    tool === 'media' ||
-    tool === 'graphs' ||
-    tool === 'tables'
+    tool === 'links' ||
+    tool === 'shapesMedia' ||
+    tool === 'charts'
   );
 }
 
@@ -151,6 +151,8 @@ export function Toolbar({
   onInspectorTool,
   onInsert,
   onOpenCourseSettings,
+  editMode,
+  onEditModeChange,
 }: {
   index: number;
   total: number;
@@ -167,6 +169,8 @@ export function Toolbar({
   onInspectorTool: (tool: InspectorTool | null) => void;
   onInsert?: (kind: InsertKind) => void;
   onOpenCourseSettings?: () => void;
+  editMode: boolean;
+  onEditModeChange: (open: boolean) => void;
 }) {
   const { tr } = usePrefs();
   const insertEnabled = current?.type === 'lesson';
@@ -185,15 +189,14 @@ export function Toolbar({
         ? tr('toolCodeLab')
         : tr('toolCode');
   const [draft, setDraft] = useState(String(total ? index + 1 : 0));
-  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     setDraft(String(total ? index + 1 : 0));
   }, [index, total]);
 
   useEffect(() => {
-    if (isInsertTool(inspectorTool)) setEditOpen(true);
-  }, [inspectorTool]);
+    if (isInsertTool(inspectorTool)) onEditModeChange(true);
+  }, [inspectorTool, onEditModeChange]);
 
   const commitSlide = () => {
     const n = Number.parseInt(draft, 10);
@@ -256,7 +259,7 @@ export function Toolbar({
         </div>
 
         <div className="flex items-center justify-center gap-1.5 justify-self-center">
-          {editOpen ? (
+          {editMode ? (
             <div
               className="inline-flex overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 shadow-sm backdrop-blur-sm"
               title={insertEnabled ? undefined : tr('inspectorToolsDisabled')}
@@ -264,7 +267,7 @@ export function Toolbar({
               <button
                 type="button"
                 title={tr('toolbarEditCollapse')}
-                onClick={() => setEditOpen(false)}
+                onClick={() => onEditModeChange(false)}
                 className="inline-flex w-6 shrink-0 cursor-pointer items-center justify-center self-stretch bg-[var(--accent)] text-white"
               >
                 <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -283,7 +286,10 @@ export function Toolbar({
             <button
               type="button"
               title={tr('toolbarEditExpand')}
-              onClick={() => setEditOpen(true)}
+              onClick={() => {
+                onEditModeChange(true);
+                if (insertEnabled) onInspectorTool('elements');
+              }}
               className="group inline-flex overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 shadow-sm backdrop-blur-sm"
             >
               <span className="inline-flex items-center px-2.5 py-1 text-[11px] font-semibold text-[var(--ink)] transition group-hover:bg-[var(--panel)]">

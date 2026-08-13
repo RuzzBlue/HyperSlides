@@ -46,7 +46,11 @@ import { StageZoomFrame } from './components/ZoomControl';
 import { usePrefs } from './prefs/PrefsProvider';
 import type { ContentZoomPreset } from '@shared/types';
 import type { LessonAnimationsDoc } from '@shared/animations/types';
-import { LessonObjectModeProvider } from './lesson-objects/LessonObjectMode';
+import {
+  LessonObjectModeProvider,
+  type LessonObjectSelection,
+} from './lesson-objects/LessonObjectMode';
+import { inspectorToolForElement } from './lesson-objects/elementRouting';
 import type { AnimationRunner } from './lesson-objects/AnimationRunner';
 import { APP_MIN_WIDTH_PX } from './layoutConstants';
 
@@ -73,6 +77,7 @@ export default function App() {
   const sidebarTreeApiRef = useRef<SidebarTreeApi | null>(null);
   const [inspectorTool, setInspectorTool] = useState<InspectorTool | null>(null);
   const [inspectorMode, setInspectorMode] = useState<InspectorMode>('docked');
+  const [editMode, setEditMode] = useState(false);
   const [lastInspectorTool, setLastInspectorTool] = useState<InspectorTool>('notes');
   const [floatResetToken, setFloatResetToken] = useState(0);
   const [zoomBeforeInspector, setZoomBeforeInspector] = useState<ContentZoomPreset | null>(null);
@@ -735,8 +740,18 @@ export default function App() {
   return (
     <AppShell>
       <LessonObjectModeProvider
-        active={inspectorTool === 'animations' && current?.type === 'lesson'}
-        autoStartPicking={settings.animationAutoSelect !== false}
+        active={
+          current?.type === 'lesson' &&
+          (inspectorTool === 'animations' || editMode)
+        }
+        interaction={inspectorTool === 'animations' ? 'pick' : 'edit'}
+        autoStartPicking={
+          inspectorTool === 'animations' && settings.animationAutoSelect !== false
+        }
+        onEditRequest={(sel: LessonObjectSelection) => {
+          const tool = inspectorToolForElement(sel.element);
+          handleInspectorTool(tool);
+        }}
       >
       {!fullscreenStage && (
         <TitleBar
@@ -789,6 +804,13 @@ export default function App() {
           onZoomChange={setContentZoom}
           inspectorTool={inspectorTool}
           onInspectorTool={handleInspectorTool}
+          editMode={editMode}
+          onEditModeChange={(open) => {
+            setEditMode(open);
+            if (!open && inspectorTool && ['elements', 'text', 'links', 'shapesMedia', 'charts', 'shape', 'media', 'graphs', 'tables'].includes(inspectorTool)) {
+              closeInspector();
+            }
+          }}
           onInsert={(kind) => void handleInsert(kind)}
           onOpenCourseSettings={() => setCourseSettingsOpen(true)}
         />
@@ -1072,6 +1094,7 @@ export default function App() {
               }
             }}
             onAnimationsChange={(doc) => setLessonAnimations(doc)}
+            onOpenTool={(tool) => handleInspectorTool(tool)}
           />
         )}
       </div>
@@ -1158,6 +1181,7 @@ export default function App() {
             }
           }}
           onAnimationsChange={(doc) => setLessonAnimations(doc)}
+          onOpenTool={(tool) => handleInspectorTool(tool)}
         />
       )}
 
