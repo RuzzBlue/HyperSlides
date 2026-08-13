@@ -326,6 +326,17 @@ export function createAnimationRunner(
     destroy: () => {
       destroyed = true;
       anime.remove(root.querySelectorAll(`[${HC_OBJ_ATTR}]`));
+      // Leave DOM fully visible when leaving present mode / tearing down.
+      const ids = new Set(sorted.map((i) => i.objectId));
+      ids.forEach((id) => {
+        const el = findByObjectId(root, id);
+        if (!el) return;
+        el.style.transform = '';
+        el.style.filter = '';
+        el.style.opacity = '';
+        el.style.visibility = '';
+        el.style.pointerEvents = '';
+      });
     },
   };
 }

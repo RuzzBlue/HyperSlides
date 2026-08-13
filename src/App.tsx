@@ -883,7 +883,7 @@ export default function App() {
                         slideTotal={contentPageTotal(course.sequence)}
                         slideContainer={course.packageManifest?.extras?.slideContainer}
                         animationsDoc={lessonAnimations}
-                        presentPlayback={inspectorTool !== 'animations'}
+                        presentPlayback={fullscreenStage}
                         runnerRef={animRunnerRef}
                       />
                     )}

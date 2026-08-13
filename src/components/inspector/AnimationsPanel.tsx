@@ -316,7 +316,14 @@ export function AnimationsPanel({
       if (el) {
         el.style.visibility = 'visible';
         el.style.opacity = '1';
-        void playSlideAnimation(objectMode.root, draftAnim);
+        void playSlideAnimation(objectMode.root, draftAnim).finally(() => {
+          // Preview only — keep edit view fully visible afterward.
+          el.style.visibility = 'visible';
+          el.style.opacity = '1';
+          el.style.transform = '';
+          el.style.filter = '';
+          el.style.pointerEvents = '';
+        });
       }
     }
   };
@@ -567,6 +574,13 @@ export function AnimationsPanel({
           {orderWarning}
         </div>
       )}
+      {!libraryEnabled && !objectMode?.picking && (
+        <div className="shrink-0 border-b border-[var(--line)] px-3 pt-2">
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800">
+            {tr('animLibrarySelectFirst')}
+          </p>
+        </div>
+      )}
       {!objectMode?.selected && !objectMode?.picking && (
         <div className="shrink-0 border-b border-[var(--line)] px-3 py-2">
           <button
@@ -619,11 +633,6 @@ export function AnimationsPanel({
         }`}
       >
         <div className="shrink-0 px-3 pt-2">
-          {!libraryEnabled && (
-            <p className="mb-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800">
-              {tr('animLibrarySelectFirst')}
-            </p>
-          )}
           <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
             {tr('animEffectLibrary')}
           </div>

@@ -101,12 +101,28 @@ export function LessonView({
   }, [objectMode?.active, html]);
 
   useEffect(() => {
-    if (!presentPlayback || !contentRef.current) {
+    const root = contentRef.current;
+    if (!root) {
       if (runnerRef) runnerRef.current = null;
       return;
     }
+
+    // Edit / inspector view: always show every element (no entrance pre-hide).
+    if (!presentPlayback) {
+      root.querySelectorAll('[data-hc-obj]').forEach((node) => {
+        const el = node as HTMLElement;
+        el.style.visibility = '';
+        el.style.opacity = '';
+        el.style.transform = '';
+        el.style.filter = '';
+        el.style.pointerEvents = '';
+      });
+      if (runnerRef) runnerRef.current = null;
+      return;
+    }
+
     const items = animationsDoc?.items ?? [];
-    const runner = createAnimationRunner(contentRef.current, items);
+    const runner = createAnimationRunner(root, items);
     runner.prepare();
     if (runnerRef) runnerRef.current = runner;
     void runner.playAutostart();
