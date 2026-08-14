@@ -31,6 +31,8 @@ import {
   ElementStylePanel,
   InspectorContentStyleTabs,
 } from './ElementStylePanel';
+import { ElementEffectsPanel } from './ElementEffectsPanel';
+import type { ThemeSwatch } from './styleThemeColors';
 
 type Level = 'catalog' | 'props';
 
@@ -107,11 +109,13 @@ function applyColumnPreset(el: HTMLElement, presetId: string, gapPx: number) {
 }
 
 export function ElementsPanel({
+  courseId,
   onHtmlPersist,
   onOpenTool,
   registerSave,
   onDirtyChange,
   onSavingChange,
+  themeSwatches,
 }: {
   courseId: string;
   slideKey: string;
@@ -120,11 +124,12 @@ export function ElementsPanel({
   registerSave?: (fn: () => Promise<void>) => void;
   onDirtyChange?: (dirty: boolean) => void;
   onSavingChange?: (saving: boolean) => void;
+  themeSwatches: ThemeSwatch[];
 }) {
   const { tr } = usePrefs();
   const objectMode = useLessonObjectModeOptional();
   const [level, setLevel] = useState<Level>('catalog');
-  const [editTab, setEditTab] = useState<'content' | 'style'>('content');
+  const [editTab, setEditTab] = useState<'content' | 'style' | 'effects'>('content');
   const [openCats, setOpenCats] = useState<Record<ElementCatalogCategoryId, boolean>>({
     single: true,
     structure: true,
@@ -417,7 +422,16 @@ export function ElementsPanel({
               </button>
             </div>
           }
-          style={<ElementStylePanel onDirtyChange={onDirtyChange} />}
+          style={
+            <ElementStylePanel
+              onDirtyChange={onDirtyChange}
+              courseId={courseId}
+              themeSwatches={themeSwatches}
+            />
+          }
+          effects={
+            <ElementEffectsPanel themeSwatches={themeSwatches} onDirtyChange={onDirtyChange} />
+          }
         />
       ) : (
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 py-2">

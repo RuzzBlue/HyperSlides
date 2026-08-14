@@ -77,6 +77,9 @@ type LessonObjectModeContextValue = {
   elementDrag: { objectId: string; label: string } | null;
   beginElementDrag: (objectId: string, label: string) => void;
   endElementDrag: () => void;
+  /** When false (edit mode), hide the selected-element outline so styles/effects are visible. */
+  showSelectionOutline: boolean;
+  setShowSelectionOutline: (show: boolean) => void;
 };
 
 const LessonObjectModeContext = createContext<LessonObjectModeContextValue | null>(null);
@@ -112,6 +115,10 @@ export function LessonObjectModeProvider({
   );
   const [elementDrag, setElementDrag] = useState<{ objectId: string; label: string } | null>(
     null,
+  );
+  const { settings } = usePrefs();
+  const [showSelectionOutline, setShowSelectionOutline] = useState(
+    () => settings.defaultShowSelected !== false,
   );
 
   const setRoot = useCallback((el: HTMLElement | null) => {
@@ -225,6 +232,8 @@ export function LessonObjectModeProvider({
       elementDrag,
       beginElementDrag,
       endElementDrag,
+      showSelectionOutline,
+      setShowSelectionOutline,
     }),
     [
       active,
@@ -251,6 +260,8 @@ export function LessonObjectModeProvider({
       elementDrag,
       beginElementDrag,
       endElementDrag,
+      showSelectionOutline,
+      setShowSelectionOutline,
     ],
   );
 
@@ -278,7 +289,9 @@ export function ClearLessonSelectionWhenInspectorClosed({
   inspectorOpen: boolean;
 }) {
   const mode = useLessonObjectModeOptional();
+  const { settings } = usePrefs();
   const prevOpen = useRef(inspectorOpen);
+  const defaultShow = settings.defaultShowSelected !== false;
 
   useEffect(() => {
     if (!mode || mode.interaction !== 'edit') {
@@ -287,9 +300,10 @@ export function ClearLessonSelectionWhenInspectorClosed({
     }
     if (prevOpen.current && !inspectorOpen) {
       mode.selectElement(null);
+      mode.setShowSelectionOutline(defaultShow);
     }
     prevOpen.current = inspectorOpen;
-  }, [inspectorOpen, mode]);
+  }, [inspectorOpen, mode, defaultShow]);
 
   return null;
 }
@@ -594,7 +608,9 @@ export function LessonPickOverlay() {
   const liveBox = isEdit
     ? mode.hovered
       ? hoverBox
-      : selectedBox
+      : mode.showSelectionOutline
+        ? selectedBox
+        : null
     : mode.picking
       ? hoverBox
       : selectedBox;
@@ -607,7 +623,7 @@ export function LessonPickOverlay() {
   const pickingLabel = mode.hovered?.label;
   // Edit: solid box on the clicked selection when not hovering; dashed while hovering others
   const showSolid = isEdit
-    ? Boolean(mode.selected && !mode.hovered)
+    ? Boolean(mode.selected && !mode.hovered && mode.showSelectionOutline)
     : !mode.picking && Boolean(mode.selected);
 
   const persistMutation = (el?: HTMLElement | null) => {

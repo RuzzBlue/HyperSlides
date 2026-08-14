@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -36,6 +37,7 @@ import {
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
 import type { StringKey } from '../../i18n/strings';
+import type { CourseTheme } from '@shared/types';
 import { CodePanel, type CodeContext } from './CodePanel';
 import { AnimationsPanel } from './AnimationsPanel';
 import { ElementsPanel } from './ElementsPanel';
@@ -44,6 +46,8 @@ import {
   ElementStylePanel,
   InspectorContentStyleTabs,
 } from './ElementStylePanel';
+import { ElementEffectsPanel } from './ElementEffectsPanel';
+import { swatchesFromCourseTheme } from './styleThemeColors';
 import { TemplatePickerButton } from './TemplatePicker';
 import { QuizEditPanel, type QuizEditContext } from './QuizEditPanel';
 import { QuestionTemplatePickerButton } from './QuestionTemplatePicker';
@@ -51,7 +55,6 @@ import { LabEditPanel, type LabEditContext } from './LabEditPanel';
 import { LabSectionTemplatePickerButton } from './LabSectionTemplatePicker';
 import { ProgressPanel, type ProgressContext } from './ProgressPanel';
 import { useLessonObjectModeOptional } from '../../lesson-objects/LessonObjectMode';
-
 export type InspectorTool =
   | 'graphs'
   | 'tables'
@@ -175,6 +178,9 @@ export function Inspector({
   onOpenTool,
   floatResetToken = 0,
   floatInsets,
+  courseTheme,
+  coverAccent,
+  editMode = false,
 }: {
   tool: InspectorTool;
   mode: InspectorMode;
@@ -197,8 +203,17 @@ export function Inspector({
   floatResetToken?: number;
   /** Content area insets for Code expand-to-fill (title/toolbar/sidebar/status). */
   floatInsets?: FloatInsets;
+  courseTheme?: CourseTheme | null;
+  coverAccent?: string;
+  /** When true, show the edit-mode “show selected outline” control on insert/style tools. */
+  editMode?: boolean;
 }) {
   const { tr } = usePrefs();
+  const objectMode = useLessonObjectModeOptional();
+  const themeSwatches = useMemo(
+    () => swatchesFromCourseTheme(courseTheme, coverAccent),
+    [courseTheme, coverAccent],
+  );
   const meta = TOOL_META[tool];
   const isNotes = tool === 'notes';
   const isCode = tool === 'code';
@@ -214,6 +229,8 @@ export function Inspector({
     tool === 'media' ||
     tool === 'graphs' ||
     tool === 'tables';
+  const showSelectionOutlineToggle =
+    editMode && (isElements || isText || isStyleTool) && Boolean(objectMode);
   const editKind: 'lesson' | 'quiz' | 'lab' | null = !isCode
     ? null
     : quizEditContext
@@ -346,6 +363,20 @@ export function Inspector({
             <Search className="h-4 w-4" />
           </button>
         )}
+        {showSelectionOutlineToggle && objectMode && (
+          <label
+            className="flex max-w-[9.5rem] cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-[10px] font-medium leading-tight text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)] dark:hover:bg-white/10"
+            title={tr('inspectorShowSelected')}
+          >
+            <input
+              type="checkbox"
+              className="accent-[var(--accent)]"
+              checked={objectMode.showSelectionOutline}
+              onChange={(e) => objectMode.setShowSelectionOutline(e.target.checked)}
+            />
+            <span className="truncate">{tr('inspectorShowSelected')}</span>
+          </label>
+        )}
         <button
           type="button"
           title={mode === 'docked' ? tr('inspectorFloat') : tr('inspectorPin')}
@@ -475,6 +506,7 @@ export function Inspector({
               registerSave={registerSave}
               onDirtyChange={setPanelDirty}
               onSavingChange={setPanelSaving}
+              themeSwatches={themeSwatches}
             />
           </div>
         ) : tool === 'elements' ? (
@@ -489,6 +521,7 @@ export function Inspector({
               registerSave={registerSave}
               onDirtyChange={setPanelDirty}
               onSavingChange={setPanelSaving}
+              themeSwatches={themeSwatches}
             />
           </div>
         ) : isStyleTool ? (
@@ -500,6 +533,8 @@ export function Inspector({
               registerSave={registerSave}
               onDirtyChange={setPanelDirty}
               onSavingChange={setPanelSaving}
+              themeSwatches={themeSwatches}
+              courseId={animationsContext?.courseId}
             />
           </div>
         ) : (
@@ -1181,6 +1216,8 @@ function StyledToolPanel({
   registerSave,
   onDirtyChange,
   onSavingChange,
+  themeSwatches,
+  courseId,
 }: {
   tool: InspectorTool;
   onOpenTool?: (tool: InspectorTool) => void;
@@ -1188,8 +1225,10 @@ function StyledToolPanel({
   registerSave?: (fn: () => Promise<void>) => void;
   onDirtyChange?: (dirty: boolean) => void;
   onSavingChange?: (saving: boolean) => void;
+  themeSwatches: import('./styleThemeColors').ThemeSwatch[];
+  courseId?: string;
 }) {
-  const [tab, setTab] = useState<'content' | 'style'>('content');
+  const [tab, setTab] = useState<'content' | 'style' | 'effects'>('content');
   const objectMode = useLessonObjectModeOptional();
 
   useEffect(() => {
@@ -1216,7 +1255,16 @@ function StyledToolPanel({
           <InspectorBody tool={tool} onOpenTool={onOpenTool} />
         </div>
       }
-      style={<ElementStylePanel onDirtyChange={onDirtyChange} />}
+      style={
+        <ElementStylePanel
+          onDirtyChange={onDirtyChange}
+          courseId={courseId}
+          themeSwatches={themeSwatches}
+        />
+      }
+      effects={
+        <ElementEffectsPanel themeSwatches={themeSwatches} onDirtyChange={onDirtyChange} />
+      }
     />
   );
 }

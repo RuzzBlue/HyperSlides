@@ -35,6 +35,7 @@ const DEFAULT_SETTINGS: AppPrefs = {
   useCourseSettings: true,
   contentZoom: '100',
   presenterMenu: 'fixed-footer',
+  defaultShowSelected: true,
   animationAdvanceKeys: [...DEFAULT_ANIMATION_ADVANCE_KEYS] as AnimationAdvanceKeys,
   animationAutoSelect: true,
   navigatorSidebarWidth: 260,
@@ -109,6 +110,9 @@ function normalizeSettings(raw: Partial<AppPrefs> | undefined): AppPrefs {
   merged.animationAdvanceKeys = normalizeAdvanceKeys(raw?.animationAdvanceKeys);
   if (typeof raw?.animationAutoSelect !== 'boolean') {
     merged.animationAutoSelect = DEFAULT_SETTINGS.animationAutoSelect;
+  }
+  if (typeof raw?.defaultShowSelected !== 'boolean') {
+    merged.defaultShowSelected = DEFAULT_SETTINGS.defaultShowSelected;
   }
   return merged;
 }

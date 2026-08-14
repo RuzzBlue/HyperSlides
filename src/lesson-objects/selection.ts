@@ -48,6 +48,7 @@ export function isSelectableElement(el: Element | null | undefined): boolean {
   if (!el || !(el instanceof HTMLElement)) return false;
   if (SKIP_TAGS.has(el.tagName)) return false;
   if (el.hasAttribute('data-hc-source') || el.hidden) return false;
+  if (el.hasAttribute('data-hc-slide-inject') || el.closest('[data-hc-slide-inject]')) return false;
   if (el.classList.contains('hc-obj-chrome')) return false;
   if (el.closest('.hc-obj-chrome')) return false;
   // Prefer data-component hosts as whole objects

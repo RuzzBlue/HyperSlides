@@ -909,6 +909,19 @@ function PresenterSettingsTab({
         </select>
       </Field>
 
+      <Field label={tr('defaultShowSelected')} hint={tr('defaultShowSelectedHint')}>
+        <select
+          value={draft.defaultShowSelected === false ? 'off' : 'on'}
+          onChange={(e) =>
+            setDraft({ ...draft, defaultShowSelected: e.target.value === 'on' })
+          }
+          className={textInputClass()}
+        >
+          <option value="on">{tr('defaultShowSelectedOn')}</option>
+          <option value="off">{tr('defaultShowSelectedOff')}</option>
+        </select>
+      </Field>
+
       <Field label={tr('animAdvanceKeys')} hint={tr('animAdvanceKeysHint')}>
         <div className="space-y-2">
           {([0, 1, 2] as const).map((slot) => (

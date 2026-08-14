@@ -16,6 +16,7 @@ import {
   Bold,
   Check,
   ChevronDown,
+  Highlighter,
   Indent,
   Italic,
   List,
@@ -24,6 +25,7 @@ import {
   Strikethrough,
   Underline,
   Upload,
+  X,
 } from 'lucide-react';
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
@@ -50,6 +52,8 @@ import {
   InspectorContentStyleTabs,
   hexAlphaToCss,
 } from './ElementStylePanel';
+import { ElementEffectsPanel } from './ElementEffectsPanel';
+import type { ThemeSwatch } from './styleThemeColors';
 
 type TextCase = 'regular' | 'uppercase' | 'lowercase' | 'capitalize' | 'camelCase';
 
@@ -492,12 +496,14 @@ export function TextEditPanel({
   registerSave,
   onDirtyChange,
   onSavingChange,
+  themeSwatches,
 }: {
   courseId?: string | null;
   onHtmlPersist?: (html: string) => Promise<void>;
   registerSave?: (fn: () => Promise<void>) => void;
   onDirtyChange?: (dirty: boolean) => void;
   onSavingChange?: (saving: boolean) => void;
+  themeSwatches: ThemeSwatch[];
 }) {
   const { tr } = usePrefs();
   const objectMode = useLessonObjectModeOptional();
@@ -510,7 +516,7 @@ export function TextEditPanel({
   const [draft, setDraft] = useState<Snapshot | null>(null);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'content' | 'style'>('content');
+  const [tab, setTab] = useState<'content' | 'style' | 'effects'>('content');
   const fileRef = useRef<HTMLInputElement>(null);
   const skipNextLoad = useRef(false);
   const uploadedRef = useRef(uploaded);
@@ -826,56 +832,75 @@ export function TextEditPanel({
     <InspectorContentStyleTabs
       tab={tab}
       onTabChange={setTab}
-      style={<ElementStylePanel onDirtyChange={onDirtyChange} />}
+      style={
+        <ElementStylePanel
+          key={`${selected.objectId}-${tab}`}
+          onDirtyChange={onDirtyChange}
+          courseId={courseId ?? undefined}
+          themeSwatches={themeSwatches}
+        />
+      }
+      effects={
+        <ElementEffectsPanel themeSwatches={themeSwatches} onDirtyChange={onDirtyChange} />
+      }
       content={
-    <div className="space-y-4">
+    <div className="space-y-5">
       {error && (
         <div className="rounded-md border border-rose-200 bg-rose-50 px-2 py-1.5 text-[11px] text-rose-700">
           {error}
         </div>
       )}
       {dirty && (
-        <div className="text-[10px] text-[var(--ink-muted)]">{tr('inspectorNotesUnsaved')}</div>
+        <div className="-mt-2 text-[10px] text-[var(--ink-muted)]">{tr('inspectorNotesUnsaved')}</div>
       )}
 
-      <section className="space-y-2.5">
+      {/* 1. Type — what this text is */}
+      <section className="space-y-2">
         <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-          {tr('inspectorTextSection')}
+          {tr('textEditSectionType')}
         </div>
-        <div>
-          <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
-            {tr('textEditType')}
-          </span>
-          <TextTypeSelect
-            value={draft.typeId}
-            options={typeOptions}
-            disabled={!draft.canChangeTag && draft.typeId !== 'custom'}
-            onChange={onTypeChange}
-          />
+        <TextTypeSelect
+          value={draft.typeId}
+          options={typeOptions}
+          disabled={!draft.canChangeTag && draft.typeId !== 'custom'}
+          onChange={onTypeChange}
+        />
+        {!isCustom && (
+          <p className="text-[10px] leading-snug text-[var(--ink-muted)]">
+            {tr('textEditTypeDrivenFont')}
+          </p>
+        )}
+      </section>
+
+      {/* 2. Content — the words */}
+      <section className="space-y-2">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          {tr('textEditSectionContent')}
         </div>
-        <label className="block">
-          <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
-            {tr('textEditContent')}
-          </span>
-          <textarea
-            className={`${fieldClass} min-h-[88px] whitespace-pre-wrap`}
-            value={draft.text}
-            onChange={(e) => {
-              const text = e.target.value;
-              setDraft({ ...draft, text });
-              markDirty();
-            }}
-            onBlur={flushContent}
-            onKeyDown={(e) => {
-              // Keep Enter inside the textarea (don't bubble to app shortcuts)
-              e.stopPropagation();
-            }}
-          />
-          <span className="mt-1 block text-[10px] text-[var(--ink-muted)]">
-            {tr('textEditNewlineHint')}
-          </span>
-        </label>
-        <div className="flex flex-wrap gap-1">
+        <textarea
+          className={`${fieldClass} min-h-[96px] whitespace-pre-wrap`}
+          value={draft.text}
+          onChange={(e) => {
+            const text = e.target.value;
+            setDraft({ ...draft, text });
+            markDirty();
+          }}
+          onBlur={flushContent}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+          }}
+          aria-label={tr('textEditContent')}
+        />
+        <p className="text-[10px] text-[var(--ink-muted)]">{tr('textEditNewlineHint')}</p>
+      </section>
+
+      {/* 3. Typography — character formatting + typeface + metrics (PowerPoint Font group) */}
+      <section className="space-y-3">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          {tr('textEditSectionTypography')}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--panel)]/60 p-1">
           <ToggleBtn active={draft.bold} title="Bold" onClick={() => patch({ bold: !draft.bold })}>
             <Bold className="h-3.5 w-3.5" />
           </ToggleBtn>
@@ -900,15 +925,23 @@ export function TextEditPanel({
           >
             <Strikethrough className="h-3.5 w-3.5" />
           </ToggleBtn>
+          <span className="mx-0.5 h-5 w-px bg-[var(--line)]" />
+          <select
+            className="h-7 min-w-0 flex-1 cursor-pointer rounded-md border-0 bg-transparent px-1.5 text-[11px] font-medium text-[var(--ink)] outline-none"
+            value={draft.textCase}
+            title={tr('textEditCase')}
+            onChange={(e) => patch({ textCase: e.target.value as TextCase })}
+          >
+            <option value="regular">{tr('textEditCaseRegular')}</option>
+            <option value="uppercase">{tr('textEditCaseUpper')}</option>
+            <option value="lowercase">{tr('textEditCaseLower')}</option>
+            <option value="capitalize">{tr('textEditCaseCapitalize')}</option>
+            <option value="camelCase">{tr('textEditCaseCamel')}</option>
+          </select>
         </div>
-      </section>
 
-      <section className="space-y-2.5">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-          {tr('inspectorFont')}
-        </div>
-        <div className="space-y-1">
-          <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+        <div className="space-y-1.5">
+          <span className="block text-[11px] font-medium text-[var(--ink)]">
             {tr('inspectorFontFamily')}
           </span>
           <FontFamilySelect
@@ -918,7 +951,7 @@ export function TextEditPanel({
             onChange={(id) => patch({ fontId: id }, { makeCustom: true })}
           />
           {courseId && (
-            <div className="mt-1.5 flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <input
                 ref={fileRef}
                 type="file"
@@ -938,17 +971,12 @@ export function TextEditPanel({
             </div>
           )}
         </div>
+
         <div className="grid grid-cols-2 gap-2">
           <NumField
             label={tr('inspectorFontSize')}
             value={draft.fontSize}
             onChange={(v) => patch({ fontSize: v }, { makeCustom: true })}
-          />
-          <NumField
-            label={tr('inspectorLineHeight')}
-            value={draft.lineHeight}
-            step="0.05"
-            onChange={(v) => patch({ lineHeight: v }, { makeCustom: true })}
           />
           <label className="block">
             <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
@@ -968,41 +996,96 @@ export function TextEditPanel({
             </select>
           </label>
           <NumField
+            label={tr('inspectorLineHeight')}
+            value={draft.lineHeight}
+            step="0.05"
+            onChange={(v) => patch({ lineHeight: v }, { makeCustom: true })}
+          />
+          <NumField
             label={tr('textEditLetterSpacing')}
             value={draft.letterSpacing}
             step="0.1"
             onChange={(v) => patch({ letterSpacing: v }, { makeCustom: true })}
           />
         </div>
-        {!isCustom && (
-          <p className="text-[10px] text-[var(--ink-muted)]">{tr('textEditTypeDrivenFont')}</p>
-        )}
-        <label className="block">
-          <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
-            {tr('textEditCase')}
-          </span>
-          <select
-            className={fieldClass}
-            value={draft.textCase}
-            onChange={(e) => patch({ textCase: e.target.value as TextCase })}
-          >
-            <option value="regular">{tr('textEditCaseRegular')}</option>
-            <option value="uppercase">{tr('textEditCaseUpper')}</option>
-            <option value="lowercase">{tr('textEditCaseLower')}</option>
-            <option value="capitalize">{tr('textEditCaseCapitalize')}</option>
-            <option value="camelCase">{tr('textEditCaseCamel')}</option>
-          </select>
-          <span className="mt-1 block text-[10px] text-[var(--ink-muted)]">
-            {tr('textEditCaseHint')}
-          </span>
-        </label>
       </section>
 
+      {/* 4. Appearance — color + highlight (Canva-style) */}
       <section className="space-y-2.5">
         <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-          {tr('inspectorParagraph')}
+          {tr('textEditSectionAppearance')}
         </div>
-        <div className="flex flex-wrap gap-1">
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+              {tr('inspectorColor')}
+            </span>
+            <input
+              type="color"
+              className="h-8 w-full cursor-pointer rounded-md border border-[var(--line)] bg-[var(--panel)] p-1"
+              value={draft.color}
+              onChange={(e) => patch({ color: e.target.value })}
+            />
+          </label>
+          <div className="block">
+            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+              {tr('textEditHighlight')}
+            </span>
+            <div className="flex items-center gap-1">
+              <ToggleBtn
+                active={draft.highlightEnabled}
+                title={tr('textEditHighlight')}
+                onClick={() =>
+                  patch({
+                    highlightEnabled: !draft.highlightEnabled,
+                    highlightAlpha: 1,
+                    highlight: draft.highlight || '#ffff00',
+                  })
+                }
+              >
+                <Highlighter className="h-3.5 w-3.5" />
+              </ToggleBtn>
+              {draft.highlightEnabled ? (
+                <>
+                  <input
+                    type="color"
+                    className="h-7 min-w-0 flex-1 cursor-pointer rounded-md border border-[var(--line)] bg-[var(--panel)] p-0.5"
+                    value={draft.highlight || '#ffff00'}
+                    onChange={(e) =>
+                      patch({
+                        highlight: e.target.value,
+                        highlightEnabled: true,
+                        highlightAlpha: 1,
+                      })
+                    }
+                  />
+                  <button
+                    type="button"
+                    title={tr('styleClearValue')}
+                    onClick={() =>
+                      patch({ highlightEnabled: false, highlightAlpha: 0 })
+                    }
+                    className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-[var(--line)] text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)]"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              ) : (
+                <span className="text-[10px] text-[var(--ink-muted)]">
+                  {tr('textEditHighlightOff')}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. Paragraph — alignment + indent (PowerPoint Paragraph group) */}
+      <section className="space-y-2">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          {tr('textEditSectionParagraph')}
+        </div>
+        <div className="flex flex-wrap gap-1 rounded-lg border border-[var(--line)] bg-[var(--panel)]/60 p-1">
           {(
             [
               ['left', AlignLeft],
@@ -1020,6 +1103,7 @@ export function TextEditPanel({
               <Icon className="h-3.5 w-3.5" />
             </ToggleBtn>
           ))}
+          <span className="mx-0.5 h-5 w-px bg-[var(--line)]" />
           <ToggleBtn active={false} title="Indent" onClick={() => indent(1)}>
             <Indent className="h-3.5 w-3.5" />
           </ToggleBtn>
@@ -1027,127 +1111,70 @@ export function TextEditPanel({
             <Outdent className="h-3.5 w-3.5" />
           </ToggleBtn>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
-              {tr('inspectorColor')}
-            </span>
-            <input
-              type="color"
-              className="h-8 w-full cursor-pointer rounded-md border border-[var(--line)] bg-[var(--panel)] p-1"
-              value={draft.color}
-              onChange={(e) => patch({ color: e.target.value })}
-            />
-          </label>
-          <div className="block">
-            <label className="mb-1 flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-[var(--ink)]">
-              <input
-                type="checkbox"
-                className="accent-[var(--accent)]"
-                checked={draft.highlightEnabled}
-                onChange={(e) =>
-                  patch({
-                    highlightEnabled: e.target.checked,
-                    highlightAlpha: e.target.checked
-                      ? draft.highlightAlpha > 0
-                        ? draft.highlightAlpha
-                        : 1
-                      : draft.highlightAlpha,
-                  })
-                }
-              />
-              {tr('textEditHighlight')}
-            </label>
-            {!draft.highlightEnabled && (
-              <p className="text-[10px] text-[var(--ink-muted)]">{tr('textEditHighlightOff')}</p>
-            )}
-          </div>
-        </div>
-        {draft.highlightEnabled && (
-          <div className="grid grid-cols-2 gap-2">
-            <label className="block">
-              <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
-                {tr('textEditHighlightColor')}
-              </span>
-              <input
-                type="color"
-                className="h-8 w-full cursor-pointer rounded-md border border-[var(--line)] bg-[var(--panel)] p-1"
-                value={draft.highlight || '#ffff00'}
-                onChange={(e) => patch({ highlight: e.target.value })}
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
-                {tr('textEditHighlightOpacity')} ({Math.round(draft.highlightAlpha * 100)}%)
-              </span>
-              <input
-                type="range"
-                min={5}
-                max={100}
-                value={Math.round(Math.max(0.05, draft.highlightAlpha) * 100)}
-                onChange={(e) => patch({ highlightAlpha: Number(e.target.value) / 100 })}
-                className="mt-2 w-full cursor-pointer accent-[var(--accent)]"
-              />
-            </label>
-          </div>
-        )}
-        <div className="flex flex-wrap gap-1">
-          <ToggleBtn
-            active={draft.listType === 'ul'}
-            title="Bulleted list"
-            disabled={!draft.canLists}
-            onClick={() =>
-              patch({
-                listType: draft.listType === 'ul' ? 'none' : 'ul',
-                listStyle: 'disc',
-              })
-            }
-          >
-            <List className="h-3.5 w-3.5" />
-          </ToggleBtn>
-          <ToggleBtn
-            active={draft.listType === 'ol'}
-            title="Numbered list"
-            disabled={!draft.canLists}
-            onClick={() =>
-              patch({
-                listType: draft.listType === 'ol' ? 'none' : 'ol',
-                listStyle: 'decimal',
-              })
-            }
-          >
-            <ListOrdered className="h-3.5 w-3.5" />
-          </ToggleBtn>
-        </div>
-        {draft.canLists && draft.listType !== 'none' && (
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
-              {tr('textEditListStyle')}
-            </span>
-            <select
-              className={fieldClass}
-              value={draft.listStyle}
-              onChange={(e) => patch({ listStyle: e.target.value })}
-            >
-              {draft.listType === 'ul' ? (
-                <>
-                  <option value="disc">Disc</option>
-                  <option value="circle">Circle</option>
-                  <option value="square">Square</option>
-                </>
-              ) : (
-                <>
-                  <option value="decimal">Decimal</option>
-                  <option value="lower-alpha">Lower alpha</option>
-                  <option value="upper-alpha">Upper alpha</option>
-                  <option value="lower-roman">Lower roman</option>
-                  <option value="upper-roman">Upper roman</option>
-                </>
-              )}
-            </select>
-          </label>
-        )}
       </section>
+
+      {/* 6. Lists — structure tools last */}
+      {draft.canLists && (
+        <section className="space-y-2">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            {tr('textEditSectionLists')}
+          </div>
+          <div className="flex flex-wrap gap-1 rounded-lg border border-[var(--line)] bg-[var(--panel)]/60 p-1">
+            <ToggleBtn
+              active={draft.listType === 'ul'}
+              title="Bulleted list"
+              onClick={() =>
+                patch({
+                  listType: draft.listType === 'ul' ? 'none' : 'ul',
+                  listStyle: 'disc',
+                })
+              }
+            >
+              <List className="h-3.5 w-3.5" />
+            </ToggleBtn>
+            <ToggleBtn
+              active={draft.listType === 'ol'}
+              title="Numbered list"
+              onClick={() =>
+                patch({
+                  listType: draft.listType === 'ol' ? 'none' : 'ol',
+                  listStyle: 'decimal',
+                })
+              }
+            >
+              <ListOrdered className="h-3.5 w-3.5" />
+            </ToggleBtn>
+          </div>
+          {draft.listType !== 'none' && (
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+                {tr('textEditListStyle')}
+              </span>
+              <select
+                className={fieldClass}
+                value={draft.listStyle}
+                onChange={(e) => patch({ listStyle: e.target.value })}
+              >
+                {draft.listType === 'ul' ? (
+                  <>
+                    <option value="disc">Disc</option>
+                    <option value="circle">Circle</option>
+                    <option value="square">Square</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="decimal">Decimal</option>
+                    <option value="lower-alpha">Lower alpha</option>
+                    <option value="upper-alpha">Upper alpha</option>
+                    <option value="lower-roman">Lower roman</option>
+                    <option value="upper-roman">Upper roman</option>
+                  </>
+                )}
+              </select>
+            </label>
+          )}
+        </section>
+      )}
     </div>
       }
     />

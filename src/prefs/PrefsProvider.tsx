@@ -116,6 +116,7 @@ const fallbackSettings: AppPrefs = {
   useCourseSettings: true,
   contentZoom: '100',
   presenterMenu: 'fixed-footer',
+  defaultShowSelected: true,
   animationAdvanceKeys: [...DEFAULT_ANIMATION_ADVANCE_KEYS],
   animationAutoSelect: true,
   navigatorSidebarWidth: 260,

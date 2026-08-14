@@ -41,7 +41,7 @@ import {
   writeLabSource,
   writeQuizSource,
 } from './quizLabSource.ts';
-import { createCourse, deleteCourse, listCourseThemeFonts, listThemeTemplates, updateCourse, uploadCourseThemeAsset, uploadCourseThemeFont, type CreateCourseInput } from './createCourse.ts';
+import { createCourse, deleteCourse, listCourseThemeFonts, listThemeTemplates, updateCourse, uploadCourseAsset, uploadCourseThemeAsset, uploadCourseThemeFont, type CreateCourseInput } from './createCourse.ts';
 import { insertCourseItem, type InsertKind } from './insertCourseItem.ts';
 import {
   deleteStructureNode,
@@ -163,6 +163,36 @@ export async function handleApiRequest(
         return { ok: true, status: 201, data: saved };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to upload theme asset';
+        const status = message === 'Course not found' ? 404 : 400;
+        return { ok: false, status, error: message };
+      }
+    }
+
+    if (
+      method === 'POST' &&
+      segments[0] === 'courses' &&
+      segments.length === 3 &&
+      segments[2] === 'assets'
+    ) {
+      try {
+        const payload = (body ?? {}) as {
+          filename?: string;
+          dataBase64?: string;
+          folder?: 'images' | 'documents' | 'others';
+        };
+        if (!payload.filename || !payload.dataBase64) {
+          return { ok: false, status: 400, error: 'filename and dataBase64 are required' };
+        }
+        const saved = uploadCourseAsset(
+          ctx.appRoot,
+          segments[1],
+          payload.filename,
+          payload.dataBase64,
+          payload.folder ?? 'images',
+        );
+        return { ok: true, status: 201, data: saved };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to upload course asset';
         const status = message === 'Course not found' ? 404 : 400;
         return { ok: false, status, error: message };
       }

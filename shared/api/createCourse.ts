@@ -402,6 +402,31 @@ export function uploadCourseThemeAsset(
   return { path: rel };
 }
 
+/**
+ * Write a binary into courses/<id>/assets/images/ (or documents/others).
+ * Returns path relative to the course root (e.g. "assets/images/hero.png").
+ */
+export function uploadCourseAsset(
+  appRoot: string,
+  courseId: string,
+  filename: string,
+  dataBase64: string,
+  folder: 'images' | 'documents' | 'others' = 'images',
+): { path: string } {
+  const loaded = loadCourse(appRoot, courseId);
+  if (!loaded) throw new Error('Course not found');
+  const dir = path.join(loaded.rootPath, 'assets', folder);
+  ensureDir(dir);
+  const base = path.basename(filename || 'file.bin').replace(/[^\w.\-]+/g, '_');
+  const safe = base || 'file.bin';
+  const raw = dataBase64.replace(/^data:[^;]+;base64,/, '');
+  const buf = Buffer.from(raw, 'base64');
+  if (!buf.length) throw new Error('Empty file data');
+  if (buf.length > 8_000_000) throw new Error('File too large (max ~8MB)');
+  fs.writeFileSync(path.join(dir, safe), buf);
+  return { path: `assets/${folder}/${safe}` };
+}
+
 const FONT_EXT = new Set(['.woff2', '.woff', '.ttf', '.otf']);
 
 function fontFormatFromExt(ext: string): string {

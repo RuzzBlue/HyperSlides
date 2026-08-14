@@ -4070,3 +4070,160 @@ a.hc-index__row:hover {
   pointer-events: none;
 }
 
+/* ── Element effects (inspector) ─────────────────────────────────────────── */
+
+[data-hc-fx-hover-lift='1'] {
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease;
+  will-change: transform;
+}
+[data-hc-fx-hover-lift='1']:hover {
+  transform: translateY(calc(var(--hc-fx-lift, 6px) * -1)) scale(1.02);
+  box-shadow:
+    0 calc(var(--hc-fx-lift, 6px) * 0.85) calc(var(--hc-fx-lift, 6px) * 1.6)
+      color-mix(in srgb, #000 18%, transparent);
+}
+
+[data-hc-fx-glass='1'] {
+  background: color-mix(
+    in srgb,
+    var(--hc-fx-glass-tint, #ffffff) calc(var(--hc-fx-glass-opacity, 0.28) * 100%),
+    transparent
+  ) !important;
+  backdrop-filter: blur(var(--hc-fx-glass-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--hc-fx-glass-blur, 12px));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      #fff calc(var(--hc-fx-glass-border, 0.35) * 100%),
+      transparent
+    );
+}
+
+[data-hc-fx-border-anim='1'] {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+}
+
+@property --hc-fx-ba-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+[data-hc-fx-border-anim='1']::before,
+[data-hc-fx-border-anim='1']::after {
+  content: '';
+  position: absolute;
+  border-radius: inherit;
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 1;
+  background: conic-gradient(
+    from var(--hc-fx-ba-angle, 0deg),
+    var(
+      --hc-fx-ba-stops,
+      #22d3ee 0%,
+      transparent 14%,
+      transparent 38%,
+      #a78bfa 52%,
+      transparent 66%,
+      transparent 100%
+    )
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Crisp ring + optional inward soft bleed (thickness grows outward from the element) */
+[data-hc-fx-border-anim='1']::after {
+  /* Outer edge sits (extend + thickness) outside the element; padding draws the ring outward-only. */
+  inset: calc((var(--hc-fx-ba-extend, 0px) + var(--hc-fx-ba-thickness, 2px)) * -1);
+  /* Extra padding when blur-in > 0 lets soft color bleed inward into the element. */
+  padding: calc(var(--hc-fx-ba-thickness, 2px) + var(--hc-fx-ba-blur-in, 0px));
+  filter: blur(var(--hc-fx-ba-blur-in, 0px));
+  opacity: var(--hc-fx-ba-inner-opacity, 1);
+  z-index: 2;
+}
+
+/* Outer glow — further outside the crisp ring (hidden when blur-out is 0 via opacity) */
+[data-hc-fx-border-anim='1']::before {
+  inset: calc(
+    (var(--hc-fx-ba-extend, 0px) + var(--hc-fx-ba-thickness, 2px) + var(--hc-fx-ba-blur-out, 0px)) *
+      -1
+  );
+  padding: calc(var(--hc-fx-ba-thickness, 2px) + var(--hc-fx-ba-blur-out, 0px));
+  filter: blur(max(0.01px, var(--hc-fx-ba-blur-out, 0px)));
+  opacity: var(--hc-fx-ba-outer-opacity, 0);
+  z-index: 1;
+}
+
+/* Trail: colors travel along the border (animate conic angle — no box rotate) */
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='trail']::before,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='trail']::after {
+  animation: hc-fx-ba-trail var(--hc-fx-ba-speed, 3s) linear infinite;
+}
+
+/* Legacy spin attr still maps in JS to rotate; keep CSS alias */
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='spin']::before,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='spin']::after,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='rotate']::before,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='rotate']::after {
+  transform-origin: center;
+  animation: hc-fx-ba-rotate var(--hc-fx-ba-speed, 3s) linear infinite;
+}
+
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='pulse']::after {
+  animation: hc-fx-ba-pulse var(--hc-fx-ba-speed, 3s) ease-in-out infinite;
+}
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='pulse']::before {
+  animation: none;
+}
+
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='dash']::before,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='dash']::after {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--hc-fx-ba-a, #0d9488) 0 8px,
+    var(--hc-fx-ba-b, #6366f1) 8px 16px
+  );
+  background-size: 32px 100%;
+  animation: hc-fx-ba-dash var(--hc-fx-ba-speed, 3s) linear infinite;
+}
+
+@keyframes hc-fx-ba-trail {
+  to {
+    --hc-fx-ba-angle: 360deg;
+  }
+}
+@keyframes hc-fx-ba-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes hc-fx-ba-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+@keyframes hc-fx-ba-dash {
+  to {
+    background-position: 32px 0;
+  }
+}
+
+

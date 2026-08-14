@@ -743,6 +743,7 @@ export default function App() {
       <LessonObjectModeProvider
         active={
           current?.type === 'lesson' &&
+          !fullscreenStage &&
           (inspectorTool === 'animations' || editMode)
         }
         interaction={inspectorTool === 'animations' ? 'pick' : 'edit'}
@@ -813,6 +814,7 @@ export default function App() {
           onPresent={() => {
             setSidebarOpen(false);
             setFullscreenStage(true);
+            setEditMode(false);
             if (inspectorTool && inspectorTool !== 'notes') closeInspector();
           }}
           zoom={contentZoom}
@@ -1040,6 +1042,9 @@ export default function App() {
             mode="docked"
             onModeChange={handleInspectorMode}
             onClose={closeInspector}
+            editMode={editMode}
+            courseTheme={course?.theme}
+            coverAccent={course?.summary.coverAccent}
             notesContext={
               course && current
                 ? {
@@ -1120,6 +1125,9 @@ export default function App() {
           mode="floating"
           onModeChange={handleInspectorMode}
           onClose={closeInspector}
+          editMode={editMode}
+          courseTheme={course?.theme}
+          coverAccent={course?.summary.coverAccent}
           floatResetToken={floatResetToken}
           floatInsets={{
             top: 48 + 44, // TitleBar + Toolbar

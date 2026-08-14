@@ -773,6 +773,11 @@ export interface AppPrefs {
   /** Where the presenter chrome appears while presenting. */
   presenterMenu: PresenterMenuMode;
   /**
+   * Default for the edit-mode “Show selected” inspector checkbox.
+   * Applied when the inspector closes (so the next open resets to this default).
+   */
+  defaultShowSelected: boolean;
+  /**
    * Up to 3 keys/actions that advance animations (then slides) while presenting.
    * Slot 0 is required; slots 1–2 may be `none`.
    */
