@@ -162,7 +162,7 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb {
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--lesson-h1, 2.15rem);
-  font-weight: 650;
+  font-weight: var(--lesson-h1-weight, 650);
   letter-spacing: -0.02em;
   line-height: 1.2;
   color: var(--ink);
@@ -197,6 +197,37 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb {
 
 .lesson-stage .hc-slide__body p:empty {
   min-height: 1.5em;
+}
+
+/* Semantic text types — sizes/weights from course theme CSS variables */
+.lesson-stage h1 {
+  font-size: var(--lesson-h1, 2.15rem);
+  font-weight: var(--lesson-h1-weight, 650);
+}
+.lesson-stage h2 {
+  font-size: var(--lesson-h2, 1.55rem);
+  font-weight: var(--lesson-h2-weight, 600);
+}
+.lesson-stage h3 {
+  font-size: var(--lesson-h3, 1.2rem);
+  font-weight: var(--lesson-h3-weight, 600);
+}
+.lesson-stage h4 {
+  font-size: var(--lesson-h4, 1.1rem);
+  font-weight: var(--lesson-h4-weight, 600);
+}
+.lesson-stage h5 {
+  font-size: var(--lesson-h5, 1rem);
+  font-weight: var(--lesson-h5-weight, 550);
+}
+.lesson-stage h6 {
+  font-size: var(--lesson-h6, 0.95rem);
+  font-weight: var(--lesson-h6-weight, 550);
+}
+.lesson-stage p,
+.lesson-stage li {
+  font-size: var(--lesson-body, 1rem);
+  font-weight: var(--lesson-body-weight, 400);
 }
 
 /* Zoom: Full width — stretch the lesson reading column to the stage */
@@ -4020,13 +4051,20 @@ a.hc-index__row:hover {
   }
 }
 
-/* Lesson object mode (Animations / future Edit) */
-.hc-obj-mode {
+/* Lesson object mode — crosshair only over the lesson article, not chrome UI */
+.lesson-stage.hc-obj-picking,
+.lesson-stage.hc-obj-picking *,
+[data-hc-lesson-root].hc-obj-picking,
+[data-hc-lesson-root].hc-obj-picking * {
   cursor: crosshair !important;
 }
-body.hc-obj-picking,
-body.hc-obj-picking * {
-  cursor: crosshair !important;
+.hc-obj-picker-ui,
+.hc-obj-picker-ui * {
+  cursor: default !important;
+}
+.hc-obj-picker-ui [data-hc-pick-chrome],
+.hc-obj-picker-ui [data-hc-pick-chrome] * {
+  cursor: pointer !important;
 }
 .hc-obj-chrome {
   pointer-events: none;

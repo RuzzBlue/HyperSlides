@@ -47,6 +47,7 @@ import { usePrefs } from './prefs/PrefsProvider';
 import type { ContentZoomPreset } from '@shared/types';
 import type { LessonAnimationsDoc } from '@shared/animations/types';
 import {
+  ClearLessonSelectionWhenInspectorClosed,
   LessonObjectModeProvider,
   type LessonObjectSelection,
 } from './lesson-objects/LessonObjectMode';
@@ -752,7 +753,21 @@ export default function App() {
           const tool = inspectorToolForElement(sel.element);
           handleInspectorTool(tool);
         }}
+        onDomMutated={(html) => {
+          if (!course || !current || current.type !== 'lesson') return;
+          void (async () => {
+            const res = await apiFetch<{ slideKey: string; file: string; html: string }>({
+              method: 'PUT',
+              path: `/api/courses/${course.summary.id}/lesson-source`,
+              body: { slideKey: current.key, html },
+            });
+            if (res.ok && res.data) {
+              setLesson((prev) => (prev ? { ...prev, html: res.data!.html } : prev));
+            }
+          })();
+        }}
       >
+      <ClearLessonSelectionWhenInspectorClosed inspectorOpen={Boolean(inspectorTool)} />
       {!fullscreenStage && (
         <TitleBar
           courseTitle={course?.summary.title}

@@ -83,6 +83,9 @@ export type CreateCourseInput = {
   };
   /** Presentation extras (content shell, title/index/summary/end slides). */
   extras?: import('../types.ts').CourseExtras;
+  /** Type scale + weights patched onto theme.json after template/custom write. */
+  typeScale?: import('../types.ts').CourseTheme['typeScale'];
+  textWeights?: import('../types.ts').CourseTheme['textWeights'];
 };
 
 export type UpdateCourseInput = CreateCourseInput;
@@ -352,6 +355,19 @@ function patchThemeDecorations(
   writeJson(themePath, theme);
 }
 
+function patchThemeTextStyles(
+  themePath: string,
+  typeScale?: CourseTheme['typeScale'],
+  textWeights?: CourseTheme['textWeights'],
+) {
+  if (!typeScale && !textWeights) return;
+  if (!fs.existsSync(themePath)) return;
+  const theme = JSON.parse(fs.readFileSync(themePath, 'utf-8')) as CourseTheme;
+  if (typeScale) theme.typeScale = { ...(theme.typeScale ?? {}), ...typeScale };
+  if (textWeights) theme.textWeights = { ...(theme.textWeights ?? {}), ...textWeights };
+  writeJson(themePath, theme);
+}
+
 /**
  * Write a binary asset into courses/<id>/theme/assets/ and return the path
  * relative to theme/ for theme.json (e.g. "assets/watermark.png").
@@ -602,6 +618,13 @@ export function createCourse(appRoot: string, input: CreateCourseInput): CourseS
     input.watermark,
     input.watermarkImage,
   );
+  if (input.typeScale || input.textWeights) {
+    patchThemeTextStyles(
+      path.join(rootPath, 'theme', 'theme.json'),
+      input.typeScale,
+      input.textWeights,
+    );
+  }
 
   fs.writeFileSync(
     path.join(rootPath, 'modules', 'module-01', 'unit-01', 'lesson-01.html'),
@@ -796,6 +819,13 @@ export function updateCourse(
   }
   patchThemeDecorations(path.join(themeDir, 'theme.json'), input.watermark, input.pageNumber);
   applyWatermarkImage(themeDir, path.join(themeDir, 'theme.json'), input.watermark, input.watermarkImage);
+  if (input.typeScale || input.textWeights) {
+    patchThemeTextStyles(
+      path.join(themeDir, 'theme.json'),
+      input.typeScale,
+      input.textWeights,
+    );
+  }
 
   if (input.security?.accessEnabled || input.security?.authorEnabled) {
     writeJson(path.join(rootPath, 'security.json'), {

@@ -19,14 +19,18 @@ import type { InspectorTool } from './Inspector';
 import { useLessonObjectModeOptional } from '../../lesson-objects/LessonObjectMode';
 import {
   catalogItemsForCategory,
-  ELEMENT_CATALOG,
   type ElementCatalogCategoryId,
   type ElementCatalogItem,
   type ElementCatalogItemId,
 } from '../../lesson-objects/elementCatalog';
 import { isStructureElement } from '../../lesson-objects/elementRouting';
+import { nearestSection, topLevelSections } from '../../lesson-objects/elementInsert';
 import { ensureObjectId } from '../../lesson-objects/selection';
 import { TemplatePickerButton } from './TemplatePicker';
+import {
+  ElementStylePanel,
+  InspectorContentStyleTabs,
+} from './ElementStylePanel';
 
 type Level = 'catalog' | 'props';
 
@@ -79,22 +83,6 @@ function findArticle(root: HTMLElement): HTMLElement {
   return (root.querySelector('article') as HTMLElement | null) ?? root;
 }
 
-function topLevelSections(root: HTMLElement): HTMLElement[] {
-  const article = findArticle(root);
-  return Array.from(article.children).filter(
-    (n): n is HTMLElement => n instanceof HTMLElement && n.tagName === 'SECTION',
-  );
-}
-
-function nearestSection(el: HTMLElement, root: HTMLElement): HTMLElement | null {
-  let cur: HTMLElement | null = el;
-  while (cur && root.contains(cur)) {
-    if (cur.tagName === 'SECTION') return cur;
-    cur = cur.parentElement;
-  }
-  return null;
-}
-
 function applyColumnPreset(el: HTMLElement, presetId: string, gapPx: number) {
   const preset = COLUMN_PRESETS.find((p) => p.id === presetId) ?? COLUMN_PRESETS[1]!;
   el.classList.remove('hc-cols-2', 'hc-cols-3', 'hc-cols-4', 'hc-cols-5');
@@ -121,15 +109,22 @@ function applyColumnPreset(el: HTMLElement, presetId: string, gapPx: number) {
 export function ElementsPanel({
   onHtmlPersist,
   onOpenTool,
+  registerSave,
+  onDirtyChange,
+  onSavingChange,
 }: {
   courseId: string;
   slideKey: string;
   onHtmlPersist?: (html: string) => Promise<void>;
   onOpenTool?: (tool: InspectorTool) => void;
+  registerSave?: (fn: () => Promise<void>) => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  onSavingChange?: (saving: boolean) => void;
 }) {
   const { tr } = usePrefs();
   const objectMode = useLessonObjectModeOptional();
   const [level, setLevel] = useState<Level>('catalog');
+  const [editTab, setEditTab] = useState<'content' | 'style'>('content');
   const [openCats, setOpenCats] = useState<Record<ElementCatalogCategoryId, boolean>>({
     single: true,
     structure: true,
@@ -147,24 +142,37 @@ export function ElementsPanel({
   const structureSelected = Boolean(selected && isStructureElement(selected.element));
 
   useEffect(() => {
-    if (structureSelected && selected) {
+    if (selected) {
       setLevel('props');
       const el = selected.element;
       setColPreset(el.getAttribute('data-hc-col-preset') ?? 'half');
       const gap = Number.parseInt(String(el.style.gap || el.getAttribute('data-hc-spacer') || '16'), 10);
       setGapPx(Number.isFinite(gap) ? gap : 16);
-    } else if (!selected) {
+    } else {
       setLevel('catalog');
+      setEditTab('content');
     }
-  }, [selected?.objectId, structureSelected, selected]);
+  }, [selected?.objectId, selected]);
 
   const persistRoot = useCallback(async () => {
     const root = objectMode?.root;
     if (!root || !onHtmlPersist) return false;
     objectMode.stampIds();
-    await onHtmlPersist(root.innerHTML);
+    onSavingChange?.(true);
+    try {
+      await onHtmlPersist(root.innerHTML);
+      onDirtyChange?.(false);
+    } finally {
+      onSavingChange?.(false);
+    }
     return true;
-  }, [objectMode, onHtmlPersist]);
+  }, [objectMode, onHtmlPersist, onDirtyChange, onSavingChange]);
+
+  useEffect(() => {
+    registerSave?.(async () => {
+      await persistRoot();
+    });
+  }, [registerSave, persistRoot]);
 
   useEffect(() => {
     templateInsertRef.current = (html: string) => {
@@ -253,6 +261,19 @@ export function ElementsPanel({
   const onDragStart = (e: DragEvent, item: ElementCatalogItem) => {
     e.dataTransfer.setData('application/x-hc-element', item.id);
     e.dataTransfer.effectAllowed = 'copy';
+    // Hide the browser's native ghost; we render a custom card preview.
+    const blank = document.createElement('div');
+    blank.style.width = '1px';
+    blank.style.height = '1px';
+    blank.style.opacity = '0';
+    document.body.appendChild(blank);
+    e.dataTransfer.setDragImage(blank, 0, 0);
+    window.setTimeout(() => blank.remove(), 0);
+    objectMode?.beginCatalogDrag(item.id, tr(ITEM_LABEL[item.id]));
+  };
+
+  const onDragEnd = () => {
+    objectMode?.endCatalogDrag();
   };
 
   const saveStructureProps = async () => {
@@ -288,11 +309,11 @@ export function ElementsPanel({
       list.push({
         id: selected.objectId,
         label: selected.label,
-        action: () => setLevel(structureSelected ? 'props' : 'catalog'),
+        action: () => setLevel('props'),
       });
     }
     return list;
-  }, [selected, structureSelected, objectMode, tr]);
+  }, [selected, objectMode, tr]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -319,62 +340,85 @@ export function ElementsPanel({
         </div>
       )}
 
-      {level === 'props' && selected && structureSelected ? (
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
-          <div className="text-[12px] font-semibold text-[var(--ink)]">
-            {tr('elementsEditStructure')}: {selected.label}
-          </div>
-          <p className="font-mono text-[10px] text-[var(--ink-muted)]">
-            {selected.element.tagName.toLowerCase()} · {selected.objectId}
-          </p>
+      {level === 'props' && selected ? (
+        <InspectorContentStyleTabs
+          tab={editTab}
+          onTabChange={setEditTab}
+          content={
+            <div className="space-y-3">
+              <div className="text-[12px] font-semibold text-[var(--ink)]">
+                {structureSelected ? tr('elementsEditStructure') : tr('elementsEditElement')}:{' '}
+                {selected.label}
+              </div>
+              <p className="font-mono text-[10px] text-[var(--ink-muted)]">
+                {selected.element.tagName.toLowerCase()} · {selected.objectId}
+              </p>
 
-          <label className="block space-y-1">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-muted)]">
-              {tr('elementsColumnLayout')}
-            </span>
-            <select
-              className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2 py-1.5 text-[12px]"
-              value={colPreset}
-              onChange={(e) => setColPreset(e.target.value)}
-            >
-              {COLUMN_PRESETS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {tr(p.labelKey)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block space-y-1">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-muted)]">
-              {selected.element.hasAttribute('data-hc-spacer')
-                ? tr('elementsSpacerHeight')
-                : tr('elementsColumnGap')}
-            </span>
-            <input
-              type="number"
-              min={0}
-              max={240}
-              className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2 py-1.5 text-[12px]"
-              value={gapPx}
-              onChange={(e) => setGapPx(Math.max(0, Number(e.target.value) || 0))}
-            />
-          </label>
+              {structureSelected ? (
+                <>
+                  <label className="block space-y-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+                      {tr('elementsColumnLayout')}
+                    </span>
+                    <select
+                      className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2 py-1.5 text-[12px]"
+                      value={colPreset}
+                      onChange={(e) => {
+                        setColPreset(e.target.value);
+                        onDirtyChange?.(true);
+                      }}
+                    >
+                      {COLUMN_PRESETS.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {tr(p.labelKey)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+                      {selected.element.hasAttribute('data-hc-spacer')
+                        ? tr('elementsSpacerHeight')
+                        : tr('elementsColumnGap')}
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={240}
+                      className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2 py-1.5 text-[12px]"
+                      value={gapPx}
+                      onChange={(e) => {
+                        setGapPx(Math.max(0, Number(e.target.value) || 0));
+                        onDirtyChange?.(true);
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void saveStructureProps()}
+                    className="inline-flex w-full cursor-pointer items-center justify-center rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-semibold text-white hover:brightness-110"
+                  >
+                    {tr('elementsApplyProps')}
+                  </button>
+                </>
+              ) : (
+                <p className="text-[12px] text-[var(--ink-muted)]">{tr('elementsStyleTabHint')}</p>
+              )}
 
-          <button
-            type="button"
-            onClick={() => void saveStructureProps()}
-            className="inline-flex w-full cursor-pointer items-center justify-center rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-semibold text-white hover:brightness-110"
-          >
-            {tr('elementsApplyProps')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setLevel('catalog')}
-            className="inline-flex w-full cursor-pointer items-center justify-center rounded-md border border-[var(--line)] px-3 py-1.5 text-[12px] font-semibold text-[var(--ink)] hover:bg-black/5"
-          >
-            {tr('elementsBackToCatalog')}
-          </button>
-        </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setLevel('catalog');
+                  objectMode?.selectElement(null);
+                }}
+                className="inline-flex w-full cursor-pointer items-center justify-center rounded-md border border-[var(--line)] px-3 py-1.5 text-[12px] font-semibold text-[var(--ink)] hover:bg-black/5"
+              >
+                {tr('elementsBackToCatalog')}
+              </button>
+            </div>
+          }
+          style={<ElementStylePanel onDirtyChange={onDirtyChange} />}
+        />
       ) : (
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 py-2">
           {!selected && (
@@ -405,6 +449,7 @@ export function ElementsPanel({
                         type="button"
                         draggable
                         onDragStart={(e) => onDragStart(e, item)}
+                        onDragEnd={onDragEnd}
                         onClick={() => void insertItem(item)}
                         className="flex cursor-grab flex-col items-start gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--stage)] px-2.5 py-2.5 text-left hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]/40 active:cursor-grabbing"
                       >
@@ -437,43 +482,4 @@ export function ElementsPanel({
       )}
     </div>
   );
-}
-
-export function insertCatalogItemAt(
-  root: HTMLElement,
-  itemId: ElementCatalogItemId,
-  dropTarget: HTMLElement | null,
-  position: 'before' | 'after' | 'inside',
-): HTMLElement | null {
-  const item = ELEMENT_CATALOG.find((i) => i.id === itemId);
-  if (!item || item.id === 'templates') return null;
-
-  const wrap = document.createElement('div');
-  wrap.innerHTML = item.createHtml().trim();
-  const node = wrap.firstElementChild as HTMLElement | null;
-  if (!node) return null;
-  ensureObjectId(node);
-
-  if (item.dropRule === 'section-sibling') {
-    const section = dropTarget ? nearestSection(dropTarget, root) : null;
-    if (section) {
-      section.insertAdjacentElement(position === 'before' ? 'beforebegin' : 'afterend', node);
-    } else {
-      findArticle(root).appendChild(node);
-    }
-    return node;
-  }
-
-  const host =
-    position === 'inside' && dropTarget
-      ? dropTarget
-      : dropTarget
-        ? nearestSection(dropTarget, root) ?? dropTarget
-        : topLevelSections(root).at(-1) ?? findArticle(root);
-
-  if (position === 'before' && dropTarget) dropTarget.insertAdjacentElement('beforebegin', node);
-  else if (position === 'after' && dropTarget) dropTarget.insertAdjacentElement('afterend', node);
-  else host.appendChild(node);
-
-  return node;
 }

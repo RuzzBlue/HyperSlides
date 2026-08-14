@@ -4,11 +4,21 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
-import { Pencil } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import {
+  ArrowDown,
+  ArrowUp,
+  Copy,
+  GripVertical,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
 import { usePrefs } from '../prefs/PrefsProvider';
+import { StructureDeleteModal } from '../components/structure/StructureModals';
 import {
   deepestSelectable,
   ensureObjectId,
@@ -18,6 +28,16 @@ import {
   selectableParent,
   stampObjectIds,
 } from './selection';
+import type { ElementCatalogItemId } from './elementCatalog';
+import { insertCatalogItemAt } from './elementInsert';
+import {
+  canMoveDown,
+  canMoveUp,
+  deleteElement,
+  duplicateElement,
+  moveElementSibling,
+  relocateElement,
+} from './elementMutate';
 
 export type LessonObjectSelection = {
   element: HTMLElement;
@@ -49,6 +69,14 @@ type LessonObjectModeContextValue = {
   signalPicked: () => void;
   onEditRequest?: (sel: LessonObjectSelection) => void;
   onDomMutated?: (html: string) => void;
+  /** Active catalog card drag (Elements panel → stage). */
+  catalogDrag: { itemId: string; label: string } | null;
+  beginCatalogDrag: (itemId: string, label: string) => void;
+  endCatalogDrag: () => void;
+  /** Active stage element reorder drag (grip handle). */
+  elementDrag: { objectId: string; label: string } | null;
+  beginElementDrag: (objectId: string, label: string) => void;
+  endElementDrag: () => void;
 };
 
 const LessonObjectModeContext = createContext<LessonObjectModeContextValue | null>(null);
@@ -79,6 +107,12 @@ export function LessonObjectModeProvider({
   const [hovered, setHovered] = useState<LessonObjectSelection | null>(null);
   const [selected, setSelected] = useState<LessonObjectSelection | null>(null);
   const [pickEpoch, setPickEpoch] = useState(0);
+  const [catalogDrag, setCatalogDrag] = useState<{ itemId: string; label: string } | null>(
+    null,
+  );
+  const [elementDrag, setElementDrag] = useState<{ objectId: string; label: string } | null>(
+    null,
+  );
 
   const setRoot = useCallback((el: HTMLElement | null) => {
     setRootState((prev) => (prev === el ? prev : el));
@@ -86,6 +120,22 @@ export function LessonObjectModeProvider({
 
   const signalPicked = useCallback(() => {
     setPickEpoch((n) => n + 1);
+  }, []);
+
+  const beginCatalogDrag = useCallback((itemId: string, label: string) => {
+    setCatalogDrag({ itemId, label });
+  }, []);
+
+  const endCatalogDrag = useCallback(() => {
+    setCatalogDrag(null);
+  }, []);
+
+  const beginElementDrag = useCallback((objectId: string, label: string) => {
+    setElementDrag({ objectId, label });
+  }, []);
+
+  const endElementDrag = useCallback(() => {
+    setElementDrag(null);
   }, []);
 
   useEffect(() => {
@@ -169,6 +219,12 @@ export function LessonObjectModeProvider({
       signalPicked,
       onEditRequest,
       onDomMutated,
+      catalogDrag,
+      beginCatalogDrag,
+      endCatalogDrag,
+      elementDrag,
+      beginElementDrag,
+      endElementDrag,
     }),
     [
       active,
@@ -189,6 +245,12 @@ export function LessonObjectModeProvider({
       signalPicked,
       onEditRequest,
       onDomMutated,
+      catalogDrag,
+      beginCatalogDrag,
+      endCatalogDrag,
+      elementDrag,
+      beginElementDrag,
+      endElementDrag,
     ],
   );
 
@@ -207,6 +269,29 @@ export function useLessonObjectMode(): LessonObjectModeContextValue {
 
 export function useLessonObjectModeOptional(): LessonObjectModeContextValue | null {
   return useContext(LessonObjectModeContext);
+}
+
+/** Clears stage selection when the inspector closes while staying in edit mode. */
+export function ClearLessonSelectionWhenInspectorClosed({
+  inspectorOpen,
+}: {
+  inspectorOpen: boolean;
+}) {
+  const mode = useLessonObjectModeOptional();
+  const prevOpen = useRef(inspectorOpen);
+
+  useEffect(() => {
+    if (!mode || mode.interaction !== 'edit') {
+      prevOpen.current = inspectorOpen;
+      return;
+    }
+    if (prevOpen.current && !inspectorOpen) {
+      mode.selectElement(null);
+    }
+    prevOpen.current = inspectorOpen;
+  }, [inspectorOpen, mode]);
+
+  return null;
 }
 
 function relativeBox(el: HTMLElement, container: HTMLElement): HighlightBox {
@@ -245,30 +330,80 @@ function hitFromPoint(
  */
 export function LessonPickOverlay() {
   const mode = useLessonObjectModeOptional();
-  const { tr } = usePrefs();
+  const { tr, trf } = usePrefs();
   const [hoverBox, setHoverBox] = useState<HighlightBox | null>(null);
   const [selectedBox, setSelectedBox] = useState<HighlightBox | null>(null);
+  const [dropMark, setDropMark] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    position: 'before' | 'after';
+  } | null>(null);
+  const [ghostPos, setGhostPos] = useState<{ x: number; y: number } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<LessonObjectSelection | null>(null);
 
+  // Keep highlight boxes locked to elements while the lesson scrolls.
   useEffect(() => {
-    if (!mode?.active || !mode.selected?.element?.isConnected || !mode.root) {
+    if (!mode?.active || !mode.root) {
       setSelectedBox(null);
+      setHoverBox(null);
       return;
     }
     const host = mode.root.closest('.lesson-theme-root') as HTMLElement | null;
     if (!host) return;
+    const scroller =
+      (host.querySelector('.overflow-y-auto') as HTMLElement | null) ?? host;
+
     const sync = () => {
       if (mode.selected?.element?.isConnected) {
         setSelectedBox(relativeBox(mode.selected.element, host));
+      } else {
+        setSelectedBox(null);
+      }
+      if (mode.hovered?.element?.isConnected) {
+        setHoverBox(relativeBox(mode.hovered.element, host));
+      } else if (!mode.picking) {
+        setHoverBox(null);
       }
     };
+
     sync();
+    scroller.addEventListener('scroll', sync, { passive: true });
     window.addEventListener('scroll', sync, true);
     window.addEventListener('resize', sync);
     return () => {
+      scroller.removeEventListener('scroll', sync);
       window.removeEventListener('scroll', sync, true);
       window.removeEventListener('resize', sync);
     };
-  }, [mode?.active, mode?.selected, mode?.root]);
+  }, [mode?.active, mode?.selected, mode?.hovered, mode?.picking, mode?.root]);
+
+  // Catalog / element drag ghost + cleanup
+  useEffect(() => {
+    if (!mode?.catalogDrag && !mode?.elementDrag) {
+      setGhostPos(null);
+      setDropMark(null);
+      return;
+    }
+    const onDragOver = (e: DragEvent) => {
+      if (e.clientX === 0 && e.clientY === 0) return;
+      setGhostPos({ x: e.clientX, y: e.clientY });
+    };
+    const onEnd = () => {
+      mode.endCatalogDrag();
+      mode.endElementDrag();
+      setDropMark(null);
+      setGhostPos(null);
+    };
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('dragend', onEnd);
+    window.addEventListener('drop', onEnd);
+    return () => {
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('dragend', onEnd);
+      window.removeEventListener('drop', onEnd);
+    };
+  }, [mode, mode?.catalogDrag, mode?.elementDrag]);
 
   // Pick listeners on the scroll container — scroll stays native
   useEffect(() => {
@@ -277,11 +412,19 @@ export function LessonPickOverlay() {
     const scroller =
       (host?.querySelector('.overflow-y-auto') as HTMLElement | null) ?? host ?? mode.root;
 
+    const clearHover = () => {
+      mode.setHovered(null);
+      setHoverBox(null);
+    };
+
     const onMove = (e: PointerEvent) => {
+      if (mode.catalogDrag || mode.elementDrag) return;
+      const target = e.target as Element | null;
+      // Keep hover stable while the pointer is on the edit chrome (tabs sit outside the scroller)
+      if (target?.closest?.('.hc-obj-picker-ui [data-hc-pick-chrome]')) return;
       const deep = hitFromPoint(e.clientX, e.clientY, mode.root!);
       if (!deep) {
-        mode.setHovered(null);
-        setHoverBox(null);
+        clearHover();
         return;
       }
       const next = toSelection(deep);
@@ -291,10 +434,19 @@ export function LessonPickOverlay() {
       if (host) setHoverBox(relativeBox(deep, host));
     };
 
+    const onLeave = (e: PointerEvent) => {
+      const related = e.relatedTarget as Element | null;
+      if (scroller.contains(related as Node)) return;
+      // Overlay chrome is a sibling of the scroller — don't drop hover when moving onto it
+      if (related?.closest?.('.hc-obj-picker-ui, [data-hc-obj-overlay]')) return;
+      clearHover();
+    };
+
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
       const target = e.target as Element | null;
       if (target?.closest?.('.hc-obj-picker-ui [data-hc-pick-chrome]')) return;
+      if (mode.catalogDrag || mode.elementDrag) return;
       const deep = hitFromPoint(e.clientX, e.clientY, mode.root!);
       if (!deep) return;
       e.preventDefault();
@@ -302,9 +454,7 @@ export function LessonPickOverlay() {
       mode.selectElement(deep);
       mode.signalPicked();
       if (mode.interaction === 'edit') {
-        // Stay in continuous hover; open inspector for this element.
         mode.onEditRequest?.(toSelection(deep));
-        setHoverBox(null);
         return;
       }
       mode.stopPicking();
@@ -325,15 +475,115 @@ export function LessonPickOverlay() {
       }
     };
 
+    const updateDropMark = (clientX: number, clientY: number) => {
+      if (!host || !mode.root) {
+        setDropMark(null);
+        return;
+      }
+      const deep = hitFromPoint(clientX, clientY, mode.root);
+      if (!deep) {
+        setDropMark(null);
+        return;
+      }
+      // Don't show a drop line on the dragged element itself
+      if (mode.elementDrag && deep.getAttribute('data-hc-obj') === mode.elementDrag.objectId) {
+        setDropMark(null);
+        return;
+      }
+      if (mode.elementDrag) {
+        const dragging = findByObjectId(mode.root, mode.elementDrag.objectId);
+        if (dragging && (dragging === deep || dragging.contains(deep))) {
+          setDropMark(null);
+          return;
+        }
+      }
+      const box = relativeBox(deep, host);
+      const er = deep.getBoundingClientRect();
+      const mid = er.top + er.height / 2;
+      const position: 'before' | 'after' = clientY < mid ? 'before' : 'after';
+      setDropMark({
+        top: position === 'before' ? box.top : box.top + box.height,
+        left: box.left,
+        width: box.width,
+        position,
+      });
+      mode.setHovered(toSelection(deep));
+      setHoverBox(box);
+    };
+
+    const onDragOver = (e: DragEvent) => {
+      if (!mode.catalogDrag && !mode.elementDrag) return;
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = mode.elementDrag ? 'move' : 'copy';
+      }
+      updateDropMark(e.clientX, e.clientY);
+    };
+
+    const onDrop = (e: DragEvent) => {
+      if (!mode.root || !host) return;
+      if (!mode.catalogDrag && !mode.elementDrag) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const deep = hitFromPoint(e.clientX, e.clientY, mode.root);
+      const position: 'before' | 'after' =
+        deep && e.clientY < deep.getBoundingClientRect().top + deep.getBoundingClientRect().height / 2
+          ? 'before'
+          : 'after';
+
+      if (mode.elementDrag) {
+        const moving = findByObjectId(mode.root, mode.elementDrag.objectId);
+        mode.endElementDrag();
+        setDropMark(null);
+        setGhostPos(null);
+        if (moving && deep && relocateElement(moving, deep, position)) {
+          mode.onDomMutated?.(mode.root.innerHTML);
+          mode.selectElement(moving);
+          mode.signalPicked();
+          mode.onEditRequest?.(toSelection(moving));
+        }
+        return;
+      }
+
+      const itemId = ((e.dataTransfer?.getData('application/x-hc-element') ||
+        mode.catalogDrag!.itemId) ?? '') as ElementCatalogItemId;
+      const node = insertCatalogItemAt(mode.root, itemId, deep, position);
+      mode.endCatalogDrag();
+      setDropMark(null);
+      setGhostPos(null);
+      if (node) {
+        mode.stampIds();
+        mode.onDomMutated?.(mode.root.innerHTML);
+        mode.selectElement(node);
+        mode.signalPicked();
+      }
+    };
+
+    const onDragLeave = (e: DragEvent) => {
+      if (!scroller.contains(e.relatedTarget as Node)) setDropMark(null);
+    };
+
+    const stage = mode.root.closest('.lesson-stage') as HTMLElement | null;
+    stage?.classList.add('hc-obj-picking');
+    mode.root.classList.add('hc-obj-picking');
     scroller.addEventListener('pointermove', onMove, true);
     scroller.addEventListener('pointerdown', onDown, true);
+    scroller.addEventListener('pointerleave', onLeave, true);
+    scroller.addEventListener('dragover', onDragOver, true);
+    scroller.addEventListener('drop', onDrop, true);
+    scroller.addEventListener('dragleave', onDragLeave, true);
     window.addEventListener('keydown', onKey, true);
-    document.body.classList.add('hc-obj-picking');
     return () => {
       scroller.removeEventListener('pointermove', onMove, true);
       scroller.removeEventListener('pointerdown', onDown, true);
+      scroller.removeEventListener('pointerleave', onLeave, true);
+      scroller.removeEventListener('dragover', onDragOver, true);
+      scroller.removeEventListener('drop', onDrop, true);
+      scroller.removeEventListener('dragleave', onDragLeave, true);
       window.removeEventListener('keydown', onKey, true);
-      document.body.classList.remove('hc-obj-picking');
+      stage?.classList.remove('hc-obj-picking');
+      mode.root?.classList.remove('hc-obj-picking');
     };
   }, [mode]);
 
@@ -341,101 +591,273 @@ export function LessonPickOverlay() {
 
   const isEdit = mode.interaction === 'edit';
   const showPickBanner = mode.picking && !isEdit;
-  const box = mode.picking || isEdit ? (mode.picking ? hoverBox : selectedBox) : selectedBox;
-  const liveBox =
-    isEdit && mode.hovered
+  const liveBox = isEdit
+    ? mode.hovered
       ? hoverBox
-      : isEdit && mode.selected
-        ? selectedBox
-        : box;
-  const handleSel = isEdit ? mode.hovered ?? mode.selected : mode.selected;
-  const label = mode.picking && !isEdit ? mode.hovered?.label : handleSel?.label;
+      : selectedBox
+    : mode.picking
+      ? hoverBox
+      : selectedBox;
+  /** Action tab only while hovering — not when merely selected. */
+  const tabSel = isEdit ? mode.hovered : null;
+  /** Top-left popover: hover wins while pointer is over the stage; else selected. */
+  const chromeSel = isEdit ? mode.hovered ?? mode.selected : mode.selected;
+  const chromeCanParent =
+    Boolean(chromeSel && mode.root && selectableParent(chromeSel.element, mode.root));
+  const pickingLabel = mode.hovered?.label;
+  // Edit: solid box on the clicked selection when not hovering; dashed while hovering others
+  const showSolid = isEdit
+    ? Boolean(mode.selected && !mode.hovered)
+    : !mode.picking && Boolean(mode.selected);
+
+  const persistMutation = (el?: HTMLElement | null) => {
+    if (!mode.root) return;
+    mode.onDomMutated?.(mode.root.innerHTML);
+    if (el?.isConnected) {
+      mode.selectElement(el);
+      mode.setHovered(toSelection(el));
+      mode.signalPicked();
+      mode.onEditRequest?.(toSelection(el));
+    }
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget || !mode.root) {
+      setDeleteTarget(null);
+      return;
+    }
+    const wasSelected = mode.selected?.objectId === deleteTarget.objectId;
+    if (deleteTarget.element.isConnected) deleteElement(deleteTarget.element);
+    mode.setHovered(null);
+    if (wasSelected) mode.selectElement(null);
+    mode.onDomMutated?.(mode.root.innerHTML);
+    setDeleteTarget(null);
+  };
+
+  const selectionChrome = (sel: NonNullable<typeof mode.selected>) => (
+    <div
+      data-hc-pick-chrome
+      className="pointer-events-auto absolute left-3 top-3 z-[1] flex max-w-[min(420px,90%)] flex-wrap items-center gap-1.5"
+    >
+      <div className="flex items-center gap-1 rounded-lg border border-[var(--accent)] bg-[var(--panel)]/95 px-2 py-1 text-[11px] shadow-md backdrop-blur">
+        <button
+          type="button"
+          className="cursor-pointer rounded px-1.5 py-0.5 font-semibold text-[var(--accent)] hover:bg-[var(--accent-soft)] disabled:opacity-40"
+          disabled={!chromeCanParent}
+          onClick={() => {
+            if (!mode.root) return;
+            const parent = selectableParent(sel.element, mode.root);
+            if (!parent) return;
+            mode.selectElement(parent);
+            mode.signalPicked();
+            if (isEdit) mode.onEditRequest?.(toSelection(parent));
+          }}
+        >
+          ↑ Parent
+        </button>
+        <span className="text-[var(--ink-muted)]">|</span>
+        <span className="truncate font-medium text-[var(--ink)]" title={sel.objectId}>
+          {sel.label}
+        </span>
+      </div>
+    </div>
+  );
+
+  const tabBtn =
+    'inline-flex h-6 w-6 items-center justify-center rounded text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40';
 
   return (
+    <>
     <div
       className="hc-obj-picker-ui pointer-events-none absolute inset-0 z-[50]"
       data-hc-obj-overlay
     >
       {showPickBanner && (
-        <div className="absolute inset-x-3 top-3 z-[1] flex justify-center">
-          <div className="max-w-[min(520px,100%)] rounded-lg border border-[var(--accent)] bg-[var(--panel)]/95 px-3 py-2 text-center text-[12px] shadow-lg backdrop-blur">
-            <div className="font-semibold text-[var(--accent)]">{tr('animPickActive')}</div>
-            <div className="mt-0.5 text-[11px] text-[var(--ink-muted)]">
-              {mode.root ? tr('animPickHint') : tr('animPickWaitingRoot')}
+        <div className="absolute left-3 top-3 z-[1] max-w-[min(420px,calc(100%-1.5rem))]">
+          <div className="rounded-lg border border-[var(--accent)] bg-[var(--panel)]/95 px-2.5 py-1.5 text-[11px] shadow-md backdrop-blur">
+            <div className="truncate font-medium text-[var(--ink)]">
+              {mode.root
+                ? trf('animSelectingLabel', { name: pickingLabel || '…' })
+                : tr('animPickWaitingRoot')}
             </div>
-            {label ? (
-              <div className="mt-1 truncate text-[11px] font-medium text-[var(--ink)]">{label}</div>
-            ) : null}
           </div>
         </div>
       )}
 
-      {!isEdit && !showPickBanner && mode.selected && (
-        <div
-          data-hc-pick-chrome
-          className="pointer-events-auto absolute left-3 top-3 z-[1] flex max-w-[min(420px,90%)] flex-wrap items-center gap-1.5"
-        >
-          <div className="flex items-center gap-1 rounded-lg border border-[var(--accent)] bg-[var(--panel)]/95 px-2 py-1 text-[11px] shadow-md backdrop-blur">
-            <button
-              type="button"
-              className="cursor-pointer rounded px-1.5 py-0.5 font-semibold text-[var(--accent)] hover:bg-[var(--accent-soft)] disabled:opacity-40"
-              disabled={mode.breadcrumb.length <= 1}
-              onClick={() => mode.selectParent()}
-            >
-              ↑ Parent
-            </button>
-            <span className="text-[var(--ink-muted)]">|</span>
-            <span className="truncate font-medium text-[var(--ink)]" title={mode.selected.objectId}>
-              {mode.selected.label}
-            </span>
-          </div>
-        </div>
-      )}
+      {!isEdit && !showPickBanner && mode.selected ? selectionChrome(mode.selected) : null}
+      {isEdit && chromeSel ? selectionChrome(chromeSel) : null}
 
       {liveBox && liveBox.width > 0 && liveBox.height > 0 && (
-        <>
-          <div
-            className={`absolute z-0 rounded-sm ${
-              isEdit || mode.picking
-                ? 'border-2 border-dashed border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)]'
-                : 'border-2 border-solid border-[var(--accent)] shadow-[0_0_0_4px_color-mix(in_srgb,var(--accent)_18%,transparent)]'
-            }`}
-            style={{
-              top: liveBox.top,
-              left: liveBox.left,
-              width: liveBox.width,
-              height: liveBox.height,
-            }}
-          />
-          {isEdit && handleSel && (
+        <div
+          className={`absolute z-0 overflow-visible rounded-sm ${
+            showSolid
+              ? 'border-2 border-solid border-[var(--accent)] shadow-[0_0_0_4px_color-mix(in_srgb,var(--accent)_18%,transparent)]'
+              : 'border-2 border-dashed border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)]'
+          }`}
+          style={{
+            top: liveBox.top,
+            left: liveBox.left,
+            width: liveBox.width,
+            height: liveBox.height,
+          }}
+        >
+          {isEdit && tabSel && (
             <div
               data-hc-pick-chrome
-              className="pointer-events-auto absolute z-[2]"
-              style={{
-                top: Math.max(0, liveBox.top - 28),
-                left: liveBox.left,
+              className="pointer-events-auto absolute -top-px left-0 z-[2] flex -translate-y-full items-center gap-0.5 rounded-t-md border border-b-0 border-[var(--accent)] bg-[var(--accent)] p-0.5 shadow-sm"
+              onPointerEnter={() => {
+                // Keep this element as hovered while interacting with its tab
+                if (mode.hovered?.objectId !== tabSel.objectId) {
+                  mode.setHovered(tabSel);
+                }
               }}
             >
               <button
                 type="button"
-                title={tr('elementsEditHandle')}
+                title={tr('elementsDragHandle')}
+                draggable
+                onPointerDown={(e) => e.stopPropagation()}
+                onDragStart={(e) => {
+                  e.stopPropagation();
+                  e.dataTransfer.setData('application/x-hc-move-obj', tabSel.objectId);
+                  e.dataTransfer.effectAllowed = 'move';
+                  try {
+                    const img = new Image();
+                    img.src =
+                      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                    e.dataTransfer.setDragImage(img, 0, 0);
+                  } catch {
+                    /* ignore */
+                  }
+                  mode.beginElementDrag(tabSel.objectId, tabSel.label);
+                }}
+                onDragEnd={() => {
+                  mode.endElementDrag();
+                  setDropMark(null);
+                  setGhostPos(null);
+                }}
+                className={`${tabBtn} cursor-grab active:cursor-grabbing`}
+              >
+                <GripVertical className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                title={tr('elementsMoveDown')}
+                disabled={!canMoveDown(tabSel.element)}
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  mode.selectElement(handleSel.element);
-                  mode.signalPicked();
-                  mode.onEditRequest?.(handleSel);
+                  if (!moveElementSibling(tabSel.element, 'down')) return;
+                  persistMutation(tabSel.element);
                 }}
-                className="inline-flex cursor-pointer items-center gap-1 rounded-t-md border border-b-0 border-[var(--accent)] bg-[var(--accent)] px-2 py-1 text-[10px] font-semibold text-white shadow-sm hover:brightness-110"
+                className={tabBtn}
               >
-                <Pencil className="h-3 w-3" />
-                <span className="max-w-[10rem] truncate">{handleSel.label}</span>
+                <ArrowDown className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                title={tr('elementsMoveUp')}
+                disabled={!canMoveUp(tabSel.element)}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!moveElementSibling(tabSel.element, 'up')) return;
+                  persistMutation(tabSel.element);
+                }}
+                className={tabBtn}
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                title={tr('elementsDuplicate')}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const clone = duplicateElement(tabSel.element);
+                  persistMutation(clone);
+                }}
+                className={tabBtn}
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                title={tr('elementsDelete')}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDeleteTarget(tabSel);
+                }}
+                className={tabBtn}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                title={tr('elementsEditHandle')}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  mode.selectElement(tabSel.element);
+                  mode.signalPicked();
+                  mode.onEditRequest?.(tabSel);
+                }}
+                className={tabBtn}
+              >
+                <Pencil className="h-3.5 w-3.5" />
               </button>
             </div>
           )}
-        </>
+        </div>
       )}
+
+      {dropMark && (
+        <div
+          className="absolute z-[3] h-0.5 rounded-full bg-[var(--accent)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_35%,transparent)]"
+          style={{
+            top: dropMark.top - 1,
+            left: dropMark.left,
+            width: dropMark.width,
+          }}
+        />
+      )}
+
+      {(mode.catalogDrag || mode.elementDrag) &&
+        ghostPos &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[9999] opacity-90"
+            style={{ left: ghostPos.x + 12, top: ghostPos.y + 8 }}
+          >
+            <div className="max-w-[11rem] rounded-md border border-[var(--accent)] bg-[var(--stage)] px-2.5 py-1.5 shadow-lg">
+              <div className="truncate text-[11px] font-semibold text-[var(--ink)]">
+                {mode.catalogDrag?.label ?? mode.elementDrag?.label}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
+
+    <StructureDeleteModal
+      open={Boolean(deleteTarget)}
+      title={tr('elementsDeleteTitle')}
+      body={
+        deleteTarget
+          ? `${tr('elementsDeleteConfirm')} (${deleteTarget.label})`
+          : tr('elementsDeleteConfirm')
+      }
+      onClose={() => setDeleteTarget(null)}
+      onConfirm={confirmDelete}
+    />
+    </>
   );
 }
 

@@ -39,12 +39,18 @@ import type { StringKey } from '../../i18n/strings';
 import { CodePanel, type CodeContext } from './CodePanel';
 import { AnimationsPanel } from './AnimationsPanel';
 import { ElementsPanel } from './ElementsPanel';
+import { TextEditPanel } from './TextEditPanel';
+import {
+  ElementStylePanel,
+  InspectorContentStyleTabs,
+} from './ElementStylePanel';
 import { TemplatePickerButton } from './TemplatePicker';
 import { QuizEditPanel, type QuizEditContext } from './QuizEditPanel';
 import { QuestionTemplatePickerButton } from './QuestionTemplatePicker';
 import { LabEditPanel, type LabEditContext } from './LabEditPanel';
 import { LabSectionTemplatePickerButton } from './LabSectionTemplatePicker';
 import { ProgressPanel, type ProgressContext } from './ProgressPanel';
+import { useLessonObjectModeOptional } from '../../lesson-objects/LessonObjectMode';
 
 export type InspectorTool =
   | 'graphs'
@@ -199,6 +205,15 @@ export function Inspector({
   const isProgress = tool === 'progress';
   const isAnimations = tool === 'animations';
   const isElements = tool === 'elements';
+  const isText = tool === 'text';
+  const isStyleTool =
+    tool === 'links' ||
+    tool === 'shapesMedia' ||
+    tool === 'charts' ||
+    tool === 'shape' ||
+    tool === 'media' ||
+    tool === 'graphs' ||
+    tool === 'tables';
   const editKind: 'lesson' | 'quiz' | 'lab' | null = !isCode
     ? null
     : quizEditContext
@@ -225,9 +240,11 @@ export function Inspector({
     }
     if (!isAnimations) {
       setAnimDetail(false);
+    }
+    if (!isAnimations && !isText && !isNotes && !isCode) {
       setPanelDirty(false);
     }
-  }, [isCode, isAnimations, tool]);
+  }, [isCode, isAnimations, isText, isNotes, tool]);
 
   const [panelDirty, setPanelDirty] = useState(false);
   const [panelSaving, setPanelSaving] = useState(false);
@@ -455,11 +472,35 @@ export function Inspector({
               slideKey={animationsContext.slideKey}
               onHtmlPersist={onHtmlPersist}
               onOpenTool={onOpenTool}
+              registerSave={registerSave}
+              onDirtyChange={setPanelDirty}
+              onSavingChange={setPanelSaving}
             />
           </div>
         ) : tool === 'elements' ? (
           <div className="flex flex-1 items-center justify-center px-4 text-center text-[12px] text-[var(--ink-muted)]">
             {tr('elementsNeedLesson')}
+          </div>
+        ) : tool === 'text' ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <TextEditPanel
+              courseId={animationsContext?.courseId}
+              onHtmlPersist={onHtmlPersist}
+              registerSave={registerSave}
+              onDirtyChange={setPanelDirty}
+              onSavingChange={setPanelSaving}
+            />
+          </div>
+        ) : isStyleTool ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <StyledToolPanel
+              tool={tool}
+              onOpenTool={onOpenTool}
+              onHtmlPersist={onHtmlPersist}
+              registerSave={registerSave}
+              onDirtyChange={setPanelDirty}
+              onSavingChange={setPanelSaving}
+            />
           </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
@@ -468,7 +509,7 @@ export function Inspector({
         )}
       </div>
 
-      {!(isAnimations && !animDetail) && !isElements && (
+      {!(isAnimations && !animDetail) && (
       <footer className="flex shrink-0 items-center gap-2 border-t border-[var(--line)] bg-[var(--panel)] px-3 py-2">
         {isNotes || isCode ? (
           <>
@@ -546,6 +587,20 @@ export function Inspector({
                 {panelSaving ? tr('animSaving') : tr('animSave')}
               </button>
             </div>
+          </>
+        ) : isText || isStyleTool || isElements ? (
+          <>
+            <span className="text-[10px] text-[var(--ink-muted)]">
+              {panelDirty ? tr('inspectorNotesUnsaved') : tr('inspectorNotesSaved')}
+            </span>
+            <button
+              type="button"
+              disabled={panelSaving || !panelDirty}
+              onClick={() => void panelSaveRef.current?.()}
+              className="ml-auto cursor-pointer rounded-md bg-[var(--accent)] px-3 py-1.5 text-[11px] font-semibold text-white enabled:hover:brightness-110 disabled:cursor-default disabled:opacity-40"
+            >
+              {panelSaving ? tr('animSaving') : tr('inspectorApply')}
+            </button>
           </>
         ) : (
           <>
@@ -1119,6 +1174,53 @@ function htmlToNotesMarkdown(root: HTMLElement): string {
   return blocks.join('\n\n');
 }
 
+function StyledToolPanel({
+  tool,
+  onOpenTool,
+  onHtmlPersist,
+  registerSave,
+  onDirtyChange,
+  onSavingChange,
+}: {
+  tool: InspectorTool;
+  onOpenTool?: (tool: InspectorTool) => void;
+  onHtmlPersist?: (html: string) => Promise<void>;
+  registerSave?: (fn: () => Promise<void>) => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  onSavingChange?: (saving: boolean) => void;
+}) {
+  const [tab, setTab] = useState<'content' | 'style'>('content');
+  const objectMode = useLessonObjectModeOptional();
+
+  useEffect(() => {
+    registerSave?.(async () => {
+      const root = objectMode?.root;
+      if (!root || !onHtmlPersist) return;
+      objectMode.stampIds();
+      onSavingChange?.(true);
+      try {
+        await onHtmlPersist(root.innerHTML);
+        onDirtyChange?.(false);
+      } finally {
+        onSavingChange?.(false);
+      }
+    });
+  }, [registerSave, objectMode, onHtmlPersist, onDirtyChange, onSavingChange]);
+
+  return (
+    <InspectorContentStyleTabs
+      tab={tab}
+      onTabChange={setTab}
+      content={
+        <div className="space-y-3">
+          <InspectorBody tool={tool} onOpenTool={onOpenTool} />
+        </div>
+      }
+      style={<ElementStylePanel onDirtyChange={onDirtyChange} />}
+    />
+  );
+}
+
 function FormatBtn({
   title,
   onClick,
@@ -1154,7 +1256,7 @@ function InspectorBody({
     case 'tables':
       return <TablesPanel />;
     case 'text':
-      return <TextPanel />;
+      return null;
     case 'shape':
       return <ShapePanel />;
     case 'media':
@@ -1364,51 +1466,6 @@ function TablesPanel() {
             <option value="lines">Horizontal lines</option>
             <option value="none">None</option>
           </DemoSelect>
-        </Field>
-      </Section>
-    </>
-  );
-}
-
-function TextPanel() {
-  const { tr } = usePrefs();
-  return (
-    <>
-      <Section title={tr('inspectorFont')}>
-        <Field label={tr('inspectorFontFamily')}>
-          <DemoSelect defaultValue="serif">
-            <option value="serif">Source Serif 4</option>
-            <option value="sans">Outfit</option>
-            <option value="mono">JetBrains Mono</option>
-          </DemoSelect>
-        </Field>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label={tr('inspectorFontSize')}>
-            <DemoInput type="number" defaultValue={16} />
-          </Field>
-          <Field label={tr('inspectorLineHeight')}>
-            <DemoInput type="number" step={0.1} defaultValue={1.5} />
-          </Field>
-        </div>
-        <Field label={tr('inspectorFontWeight')}>
-          <DemoSelect defaultValue="400">
-            <option value="400">Regular</option>
-            <option value="600">Semibold</option>
-            <option value="700">Bold</option>
-          </DemoSelect>
-        </Field>
-      </Section>
-      <Section title={tr('inspectorParagraph')}>
-        <Field label={tr('inspectorAlign')}>
-          <DemoSelect defaultValue="left">
-            <option value="left">Left</option>
-            <option value="center">Center</option>
-            <option value="right">Right</option>
-            <option value="justify">Justify</option>
-          </DemoSelect>
-        </Field>
-        <Field label={tr('inspectorColor')}>
-          <DemoInput type="color" defaultValue="#1c1f26" className="h-8 p-1" />
         </Field>
       </Section>
     </>

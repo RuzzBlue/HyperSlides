@@ -5,11 +5,12 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Info, Lock, Palette, Settings2, ToggleRight, Upload, X } from 'lucide-react';
+import { Info, Lock, Palette, Settings2, ToggleRight, Type, Upload, X } from 'lucide-react';
 import type {
   AppLocale,
   CourseExtras,
   CourseSummary,
+  CourseTheme,
   LoadedCourse,
   SlideContainerEditMode,
   ThemeBgSpec,
@@ -41,7 +42,7 @@ import {
   type UploadedFontOption,
 } from '@shared/themeFonts';
 
-type Tab = 'info' | 'theme' | 'course' | 'extras' | 'security';
+type Tab = 'info' | 'theme' | 'styles' | 'course' | 'extras' | 'security';
 type ThemeSource = 'template' | 'custom';
 type BgMode = 'solid' | 'gradient' | 'css';
 
@@ -712,6 +713,24 @@ export function CourseSettingsModal({
 
   const [quizColor, setQuizColor] = useState(DEFAULT_QUIZ_COLOR);
   const [labColor, setLabColor] = useState(DEFAULT_LAB_COLOR);
+  const [typeScale, setTypeScale] = useState<NonNullable<CourseTheme['typeScale']>>({
+    h1: '2.15rem',
+    h2: '1.55rem',
+    h3: '1.2rem',
+    h4: '1.1rem',
+    h5: '1rem',
+    h6: '0.95rem',
+    body: '16px',
+  });
+  const [textWeights, setTextWeights] = useState<NonNullable<CourseTheme['textWeights']>>({
+    h1: '650',
+    h2: '600',
+    h3: '600',
+    h4: '600',
+    h5: '550',
+    h6: '550',
+    body: '400',
+  });
   const [bgMode, setBgMode] = useState<BgMode>('gradient');
   const [bgSolid, setBgSolid] = useState(() => accentSolidLight(DEMO_DEFAULTS.coverAccent));
   const [bgSolidDark, setBgSolidDark] = useState(() => accentSolidDark(DEMO_DEFAULTS.coverAccent));
@@ -786,6 +805,26 @@ export function CourseSettingsModal({
       setFontLocalCss(course.theme?.fonts?.localCss);
       setQuizColor(course.theme?.quiz ?? DEFAULT_QUIZ_COLOR);
       setLabColor(course.theme?.lab ?? DEFAULT_LAB_COLOR);
+      setTypeScale({
+        h1: '2.15rem',
+        h2: '1.55rem',
+        h3: '1.2rem',
+        h4: '1.1rem',
+        h5: '1rem',
+        h6: '0.95rem',
+        body: '16px',
+        ...course.theme?.typeScale,
+      });
+      setTextWeights({
+        h1: '650',
+        h2: '600',
+        h3: '600',
+        h4: '600',
+        h5: '550',
+        h6: '550',
+        body: '400',
+        ...course.theme?.textWeights,
+      });
       const bg = hydrateBgFromTheme(course.theme);
       setBgMode(bg.bgMode);
       setBgSolid(bg.bgSolid);
@@ -1137,6 +1176,8 @@ export function CourseSettingsModal({
         authorPasswordConfigured: Boolean(authorPassword),
       },
       extras: normalizeCourseExtras(extras),
+      typeScale,
+      textWeights,
     };
   };
 
@@ -1229,6 +1270,7 @@ export function CourseSettingsModal({
                 [
                   ['info', tr('newCourseTabInfo'), <Info className="h-3.5 w-3.5" />],
                   ['theme', tr('newCourseTabTheme'), <Palette className="h-3.5 w-3.5" />],
+                  ['styles', tr('newCourseTabStyles'), <Type className="h-3.5 w-3.5" />],
                   ['course', tr('newCourseTabCourseSettings'), <Settings2 className="h-3.5 w-3.5" />],
                   ['extras', tr('newCourseTabExtras'), <ToggleRight className="h-[18px] w-[18px]" />],
                   ['security', tr('newCourseTabSecurity'), <Lock className="h-3.5 w-3.5" />],
@@ -1562,6 +1604,60 @@ export function CourseSettingsModal({
                       )}
                     </div>
                   )}
+                </div>
+              )}
+
+              {tab === 'styles' && (
+                <div className="space-y-4">
+                  <p className="text-[12px] text-[var(--ink-muted)]">{tr('newCourseStylesHint')}</p>
+                  <div className="overflow-hidden rounded-xl border border-[var(--line)]">
+                    <div className="grid grid-cols-[1fr_7rem_5.5rem] gap-2 border-b border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+                      <span>{tr('textEditType')}</span>
+                      <span>{tr('inspectorFontSize')}</span>
+                      <span>{tr('inspectorFontWeight')}</span>
+                    </div>
+                    {(
+                      [
+                        ['h1', 'Header 1 (H1)'],
+                        ['h2', 'Header 2 (H2)'],
+                        ['h3', 'Header 3 (H3)'],
+                        ['h4', 'Header 4 (H4)'],
+                        ['h5', 'Header 5 (H5)'],
+                        ['h6', 'Header 6 (H6)'],
+                        ['body', 'Paragraph (P)'],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <div
+                        key={key}
+                        className="grid grid-cols-[1fr_7rem_5.5rem] items-center gap-2 border-b border-[var(--line)] px-3 py-2 last:border-b-0"
+                      >
+                        <span className="text-[12px] font-medium text-[var(--ink)]">{label}</span>
+                        <input
+                          className={inputClass}
+                          value={typeScale[key] ?? ''}
+                          onChange={(e) =>
+                            setTypeScale((prev) => ({ ...prev, [key]: e.target.value }))
+                          }
+                        />
+                        <select
+                          className={inputClass}
+                          value={textWeights[key] ?? '400'}
+                          onChange={(e) =>
+                            setTextWeights((prev) => ({ ...prev, [key]: e.target.value }))
+                          }
+                        >
+                          <option value="300">300</option>
+                          <option value="400">400</option>
+                          <option value="500">500</option>
+                          <option value="550">550</option>
+                          <option value="600">600</option>
+                          <option value="650">650</option>
+                          <option value="700">700</option>
+                          <option value="800">800</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 

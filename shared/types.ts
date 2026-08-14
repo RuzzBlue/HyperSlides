@@ -524,6 +524,19 @@ export interface CourseTheme {
     h1?: string;
     h2?: string;
     h3?: string;
+    h4?: string;
+    h5?: string;
+    h6?: string;
+    body?: string;
+  };
+  /** Optional font-weight overrides for semantic text types. */
+  textWeights?: {
+    h1?: string;
+    h2?: string;
+    h3?: string;
+    h4?: string;
+    h5?: string;
+    h6?: string;
     body?: string;
   };
   accent?: string;

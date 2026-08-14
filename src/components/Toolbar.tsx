@@ -26,12 +26,44 @@ import { AddContentButton, type InsertKind } from './AddContentButton';
 
 type InsertToolId = 'elements' | 'text' | 'links' | 'shapesMedia' | 'charts';
 
-const INSERT_TOOLS: Array<{ id: InsertToolId; key: StringKey; icon: ReactNode }> = [
-  { id: 'elements', key: 'toolElements', icon: <Shapes className="h-3.5 w-3.5" /> },
-  { id: 'text', key: 'toolText', icon: <Type className="h-3.5 w-3.5" /> },
-  { id: 'links', key: 'toolLinks', icon: <Link2 className="h-3.5 w-3.5" /> },
-  { id: 'shapesMedia', key: 'toolShapesMedia', icon: <LayoutTemplate className="h-3.5 w-3.5" /> },
-  { id: 'charts', key: 'toolCharts', icon: <BarChart3 className="h-3.5 w-3.5" /> },
+const INSERT_TOOLS: Array<{
+  id: InsertToolId;
+  /** Short label shown on the toolbar button. */
+  labelKey: StringKey;
+  /** Full name for tooltip + inspector parity. */
+  titleKey: StringKey;
+  icon: ReactNode;
+}> = [
+  {
+    id: 'elements',
+    labelKey: 'toolBarElements',
+    titleKey: 'toolElements',
+    icon: <Shapes className="h-3.5 w-3.5" />,
+  },
+  {
+    id: 'text',
+    labelKey: 'toolBarTexts',
+    titleKey: 'toolText',
+    icon: <Type className="h-3.5 w-3.5" />,
+  },
+  {
+    id: 'links',
+    labelKey: 'toolBarButtons',
+    titleKey: 'toolLinks',
+    icon: <Link2 className="h-3.5 w-3.5" />,
+  },
+  {
+    id: 'shapesMedia',
+    labelKey: 'toolBarMedia',
+    titleKey: 'toolShapesMedia',
+    icon: <LayoutTemplate className="h-3.5 w-3.5" />,
+  },
+  {
+    id: 'charts',
+    labelKey: 'toolBarData',
+    titleKey: 'toolCharts',
+    icon: <BarChart3 className="h-3.5 w-3.5" />,
+  },
 ];
 
 const ACTIVITY_TOOLS: Array<{
@@ -44,14 +76,34 @@ const ACTIVITY_TOOLS: Array<{
   { id: 'activities', key: 'toolActivities', icon: <LibraryBig className="h-3.5 w-3.5" /> },
 ];
 
-function isInsertTool(tool: InspectorTool | null): tool is InsertToolId {
+function isInsertTool(tool: InspectorTool | null): boolean {
   return (
     tool === 'elements' ||
     tool === 'text' ||
     tool === 'links' ||
     tool === 'shapesMedia' ||
-    tool === 'charts'
+    tool === 'charts' ||
+    tool === 'shape' ||
+    tool === 'media' ||
+    tool === 'graphs' ||
+    tool === 'tables'
   );
+}
+
+/** Which edit-toolbar button owns the current inspector (includes media/data sub-tools). */
+function insertToolActive(toolId: InsertToolId, inspectorTool: InspectorTool | null): boolean {
+  if (!inspectorTool) return false;
+  if (toolId === 'shapesMedia') {
+    return (
+      inspectorTool === 'shapesMedia' || inspectorTool === 'shape' || inspectorTool === 'media'
+    );
+  }
+  if (toolId === 'charts') {
+    return (
+      inspectorTool === 'charts' || inspectorTool === 'graphs' || inspectorTool === 'tables'
+    );
+  }
+  return inspectorTool === toolId;
 }
 
 function InsertToolButtons({
@@ -71,13 +123,13 @@ function InsertToolButtons({
   return (
     <>
       {INSERT_TOOLS.map((tool) => {
-        const active = inspectorTool === tool.id;
+        const active = insertToolActive(tool.id, inspectorTool);
         return (
           <button
             key={tool.id}
             type="button"
             disabled={!insertEnabled}
-            title={insertEnabled ? tr(tool.key) : tr('inspectorToolsDisabled')}
+            title={insertEnabled ? tr(tool.titleKey) : tr('inspectorToolsDisabled')}
             onClick={() => onInspectorTool(active ? null : tool.id)}
             className={`inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition disabled:cursor-not-allowed disabled:opacity-35 ${
               active
@@ -86,7 +138,7 @@ function InsertToolButtons({
             }`}
           >
             {tool.icon}
-            {showLabels ? <span className="hidden xl:inline">{tr(tool.key)}</span> : null}
+            {showLabels ? <span className="hidden xl:inline">{tr(tool.labelKey)}</span> : null}
           </button>
         );
       })}
@@ -286,10 +338,7 @@ export function Toolbar({
             <button
               type="button"
               title={tr('toolbarEditExpand')}
-              onClick={() => {
-                onEditModeChange(true);
-                if (insertEnabled) onInspectorTool('elements');
-              }}
+              onClick={() => onEditModeChange(true)}
               className="group inline-flex overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 shadow-sm backdrop-blur-sm"
             >
               <span className="inline-flex items-center px-2.5 py-1 text-[11px] font-semibold text-[var(--ink)] transition group-hover:bg-[var(--panel)]">

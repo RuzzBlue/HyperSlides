@@ -78,6 +78,12 @@ export function LessonView({
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
+    // Avoid wiping live DOM (and selection) when we just persisted the same markup.
+    if (el.innerHTML === html) {
+      runInlineScripts(el);
+      setObjectRoot?.(el);
+      return;
+    }
     el.innerHTML = html;
     runInlineScripts(el);
     // Re-assert root after HTML replace (same node, still registered).
@@ -146,8 +152,44 @@ export function LessonView({
   }, [theme?.id, theme?.fonts?.google]);
 
   const accent = theme?.accent || 'var(--accent)';
+  const typeScale = theme?.typeScale;
   const style = {
     ['--lesson-accent' as string]: accent,
+    ...(theme?.fonts?.display
+      ? { ['--font-display' as string]: theme.fonts.display }
+      : {}),
+    ...(theme?.fonts?.body ? { ['--font-body' as string]: theme.fonts.body } : {}),
+    ...(theme?.fontSizeBase
+      ? { ['--lesson-font-base' as string]: theme.fontSizeBase }
+      : {}),
+    ...(typeScale?.h1 ? { ['--lesson-h1' as string]: typeScale.h1 } : {}),
+    ...(typeScale?.h2 ? { ['--lesson-h2' as string]: typeScale.h2 } : {}),
+    ...(typeScale?.h3 ? { ['--lesson-h3' as string]: typeScale.h3 } : {}),
+    ...(typeScale?.h4 ? { ['--lesson-h4' as string]: typeScale.h4 } : {}),
+    ...(typeScale?.h5 ? { ['--lesson-h5' as string]: typeScale.h5 } : {}),
+    ...(typeScale?.h6 ? { ['--lesson-h6' as string]: typeScale.h6 } : {}),
+    ...(typeScale?.body ? { ['--lesson-body' as string]: typeScale.body } : {}),
+    ...(theme?.textWeights?.h1
+      ? { ['--lesson-h1-weight' as string]: theme.textWeights.h1 }
+      : {}),
+    ...(theme?.textWeights?.h2
+      ? { ['--lesson-h2-weight' as string]: theme.textWeights.h2 }
+      : {}),
+    ...(theme?.textWeights?.h3
+      ? { ['--lesson-h3-weight' as string]: theme.textWeights.h3 }
+      : {}),
+    ...(theme?.textWeights?.h4
+      ? { ['--lesson-h4-weight' as string]: theme.textWeights.h4 }
+      : {}),
+    ...(theme?.textWeights?.h5
+      ? { ['--lesson-h5-weight' as string]: theme.textWeights.h5 }
+      : {}),
+    ...(theme?.textWeights?.h6
+      ? { ['--lesson-h6-weight' as string]: theme.textWeights.h6 }
+      : {}),
+    ...(theme?.textWeights?.body
+      ? { ['--lesson-body-weight' as string]: theme.textWeights.body }
+      : {}),
     ...(lightBg ? { ['--lesson-bg-light' as string]: lightBg } : {}),
     ...(darkBg ? { ['--lesson-bg-dark' as string]: darkBg } : {}),
   } as CSSProperties;

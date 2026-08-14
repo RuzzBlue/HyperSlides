@@ -6,7 +6,8 @@ export function inspectorToolForElement(el: HTMLElement): InspectorTool {
     const name = (el.getAttribute('data-component') ?? '').toLowerCase();
     if (name.includes('chart') || name.includes('graph') || name.includes('pie')) return 'graphs';
     if (name.includes('table')) return 'tables';
-    return 'code';
+    // Other widgets / custom components → Elements props view
+    return 'elements';
   }
 
   const tag = el.tagName.toLowerCase();
@@ -14,7 +15,13 @@ export function inspectorToolForElement(el: HTMLElement): InspectorTool {
   if (tag === 'img' || tag === 'video' || tag === 'audio' || tag === 'picture' || tag === 'svg') {
     return 'media';
   }
+  if (el.matches('figure.hc-media, .hc-media, [data-hc-label="Media"]')) {
+    return 'media';
+  }
   if (tag === 'table' || tag === 'thead' || tag === 'tbody' || tag === 'tr' || tag === 'td' || tag === 'th') {
+    return 'tables';
+  }
+  if (el.matches('.hc-table-wrap, [data-hc-label="Table"]')) {
     return 'tables';
   }
   if (tag === 'a' || tag === 'button') return 'links';
@@ -33,7 +40,21 @@ export function inspectorToolForElement(el: HTMLElement): InspectorTool {
     tag === 'ol' ||
     tag === 'blockquote' ||
     tag === 'span' ||
-    tag === 'figcaption'
+    tag === 'figcaption' ||
+    tag === 'code' ||
+    tag === 'pre' ||
+    tag === 'label' ||
+    tag === 'strong' ||
+    tag === 'em'
+  ) {
+    return 'text';
+  }
+
+  // Known template text slots (may be divs / custom tags)
+  if (
+    el.matches(
+      '.hc-hero__title, .hc-hero__lead, .hc-hero__eyebrow, .hc-hero__pill, .hc-slide__title, .hc-icon-block__head h3, [data-hc-editable-text]',
+    )
   ) {
     return 'text';
   }

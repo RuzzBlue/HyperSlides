@@ -1,0 +1,1372 @@
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { createPortal } from 'react-dom';
+import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  Check,
+  ChevronDown,
+  Indent,
+  Italic,
+  List,
+  ListOrdered,
+  Outdent,
+  Strikethrough,
+  Underline,
+  Upload,
+} from 'lucide-react';
+import { apiFetch } from '../../api/client';
+import { usePrefs } from '../../prefs/PrefsProvider';
+import { FontFamilySelect } from '../theme/FontFamilySelect';
+import {
+  matchFontFamilyId,
+  resolveFontById,
+  type UploadedFontOption,
+} from '@shared/themeFonts';
+import {
+  DEFAULT_TEXT_TYPE_STYLES,
+  MULTILINE_TEXT_TAGS,
+  PROTECTED_TEXT_SLOTS,
+  TEXT_TYPE_OPTIONS,
+  clearInlineFontOverrides,
+  hasInlineFontOverrides,
+  typeIdFromTag,
+  type TextTypeId,
+} from '@shared/textTypeStyles';
+import { useLessonObjectModeOptional } from '../../lesson-objects/LessonObjectMode';
+import { ensureObjectId } from '../../lesson-objects/selection';
+import {
+  ElementStylePanel,
+  InspectorContentStyleTabs,
+  hexAlphaToCss,
+} from './ElementStylePanel';
+
+type TextCase = 'regular' | 'uppercase' | 'lowercase' | 'capitalize' | 'camelCase';
+
+type Snapshot = {
+  typeId: TextTypeId;
+  tag: string;
+  canChangeTag: boolean;
+  canLists: boolean;
+  /** Source text as the author typed it (case filter does not mutate this). */
+  text: string;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  strike: boolean;
+  fontId: string;
+  fontSize: string;
+  lineHeight: string;
+  fontWeight: string;
+  letterSpacing: string;
+  textCase: TextCase;
+  align: string;
+  color: string;
+  highlightEnabled: boolean;
+  highlight: string;
+  highlightAlpha: number;
+  listType: 'none' | 'ul' | 'ol';
+  listStyle: string;
+};
+
+const SOURCE_ATTR = 'data-hc-source-text';
+const CASE_ATTR = 'data-hc-text-case';
+const PAINT_ATTR = 'data-hc-text-paint';
+
+function isTextLike(el: HTMLElement): boolean {
+  const t = el.tagName.toLowerCase();
+  if (TEXT_TYPE_OPTIONS.some((o) => o.tag === t)) return true;
+  if (el.matches(PROTECTED_TEXT_SLOTS)) return true;
+  if (
+    el.childElementCount === 0 &&
+    (el.textContent ?? '').trim().length > 0 &&
+    !['img', 'video', 'audio', 'svg', 'path', 'br', 'hr', 'input', 'button'].includes(t)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function readAlign(el: HTMLElement): string {
+  const cs = getComputedStyle(el);
+  const a = (el.style.textAlign || cs.textAlign || 'left').toLowerCase();
+  if (a === 'start') return 'left';
+  if (a === 'end') return 'right';
+  return a;
+}
+
+function detectCase(el: HTMLElement): TextCase {
+  const stored = (el.getAttribute(CASE_ATTR) || '').toLowerCase();
+  if (
+    stored === 'uppercase' ||
+    stored === 'lowercase' ||
+    stored === 'capitalize' ||
+    stored === 'camelcase'
+  ) {
+    return stored === 'camelcase' ? 'camelCase' : (stored as TextCase);
+  }
+  const tf = (el.style.textTransform || '').toLowerCase();
+  if (tf === 'uppercase') return 'uppercase';
+  if (tf === 'lowercase') return 'lowercase';
+  if (tf === 'capitalize') return 'capitalize';
+  return 'regular';
+}
+
+function toCamelCase(text: string): string {
+  const parts = text
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .split(/[\s_\-]+/)
+    .filter(Boolean);
+  if (!parts.length) return text;
+  return parts
+    .map((p, i) =>
+      i === 0 ? p.toLowerCase() : p.charAt(0).toUpperCase() + p.slice(1).toLowerCase(),
+    )
+    .join('');
+}
+
+function applyCaseFilter(source: string, mode: TextCase): string {
+  switch (mode) {
+    case 'uppercase':
+      return source.toUpperCase();
+    case 'lowercase':
+      return source.toLowerCase();
+    case 'capitalize':
+      return source.replace(/\b\w/g, (c) => c.toUpperCase());
+    case 'camelCase':
+      return toCamelCase(source);
+    default:
+      return source;
+  }
+}
+
+function rgbToHex(input: string): string | null {
+  const s = input.trim();
+  if (!s || s === 'transparent' || s === 'rgba(0, 0, 0, 0)') return null;
+  if (s.startsWith('#')) {
+    if (s.length === 4) return `#${s[1]}${s[1]}${s[2]}${s[2]}${s[3]}${s[3]}`;
+    return s.slice(0, 7).toLowerCase();
+  }
+  const m = s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+  if (!m) return null;
+  const h = (n: string) => Number(n).toString(16).padStart(2, '0');
+  return `#${h(m[1]!)}${h(m[2]!)}${h(m[3]!)}`;
+}
+
+function rgbaParts(input: string): { hex: string; alpha: number } | null {
+  const s = input.trim();
+  if (!s || s === 'transparent') return { hex: '#ffff00', alpha: 0 };
+  if (s.startsWith('#')) {
+    if (s.length === 9) {
+      const a = parseInt(s.slice(7, 9), 16);
+      return {
+        hex: s.slice(0, 7).toLowerCase(),
+        alpha: Number.isFinite(a) ? a / 255 : 1,
+      };
+    }
+    const hex = rgbToHex(s);
+    return hex ? { hex, alpha: 1 } : null;
+  }
+  const m = s.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([0-9.]+))?\s*\)/i);
+  if (!m) return null;
+  const h = (n: string) => Number(n).toString(16).padStart(2, '0');
+  return {
+    hex: `#${h(m[1]!)}${h(m[2]!)}${h(m[3]!)}`,
+    alpha: m[4] != null ? Math.max(0, Math.min(1, Number(m[4]))) : 1,
+  };
+}
+
+function familyFromFontFilename(name: string): string {
+  return name
+    .replace(/\.(woff2?|ttf|otf)$/i, '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
+const EMPH_TAGS = new Set(['STRONG', 'B', 'EM', 'I', 'U', 'S', 'STRIKE']);
+
+function hasWrap(el: HTMLElement, tags: string[]): boolean {
+  const set = new Set(tags.map((t) => t.toUpperCase()));
+  if (set.has(el.tagName)) return true;
+  let node: Element | null = el;
+  while (node && node.childElementCount === 1) {
+    const child: Element = node.firstElementChild!;
+    if (set.has(child.tagName)) return true;
+    if (!EMPH_TAGS.has(child.tagName)) break;
+    node = child;
+  }
+  return false;
+}
+
+/** Serialize element text with <br> → newlines (and block breaks). */
+function elementToSourceText(el: HTMLElement): string {
+  const clone = el.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
+  // Block children → newline separators for nested structure
+  return (clone.innerText || clone.textContent || '').replace(/\r\n?/g, '\n');
+}
+
+function getSourceText(el: HTMLElement): string {
+  const stored = el.getAttribute(SOURCE_ATTR);
+  if (stored != null) return stored;
+
+  // Multi-line list: sibling <li> lines in the editor
+  if (el.tagName === 'LI' && el.parentElement) {
+    const items = Array.from(el.parentElement.children).filter(
+      (c) => c.tagName === 'LI',
+    ) as HTMLElement[];
+    if (items.length > 1) {
+      return items.map((li) => elementToSourceText(li)).join('\n');
+    }
+  }
+  return elementToSourceText(el);
+}
+
+/** Write plain source into a node, converting \n → <br> when multiline. */
+function writeTextInto(target: HTMLElement, text: string, multiline: boolean) {
+  // Strip to a single text-bearing leaf if only emphasis wrappers exist
+  let leaf: HTMLElement = target;
+  while (
+    leaf.childElementCount === 1 &&
+    EMPH_TAGS.has(leaf.firstElementChild!.tagName) &&
+    !(leaf.firstElementChild as HTMLElement).querySelector('br')
+  ) {
+    leaf = leaf.firstElementChild as HTMLElement;
+  }
+
+  if (!multiline || !text.includes('\n')) {
+    // Keep existing emphasis if leaf is empty of other structure
+    if (leaf.childElementCount === 0 || (leaf.childElementCount === 1 && EMPH_TAGS.has(leaf.firstElementChild?.tagName ?? ''))) {
+      // Clear and set text on deepest emphasis or leaf
+      let dest = leaf;
+      while (dest.childElementCount === 1 && EMPH_TAGS.has(dest.firstElementChild!.tagName)) {
+        dest = dest.firstElementChild as HTMLElement;
+      }
+      if (dest.childElementCount === 0) {
+        dest.textContent = text;
+        return;
+      }
+    }
+    target.textContent = text;
+    return;
+  }
+
+  // Multiline: rebuild with <br> (preserve outer tag; drop nested emph for simplicity on rewrite)
+  target.replaceChildren();
+  const lines = text.split('\n');
+  lines.forEach((line, i) => {
+    target.appendChild(document.createTextNode(line));
+    if (i < lines.length - 1) target.appendChild(document.createElement('br'));
+  });
+}
+
+/**
+ * Apply source text to the live element.
+ * For <li>, each newline becomes a sibling list item.
+ * Returns the element that should stay selected (first li / same node).
+ */
+function setSourceText(el: HTMLElement, source: string, displayText: string): HTMLElement {
+  const multiline = MULTILINE_TEXT_TAGS.has(el.tagName.toLowerCase());
+  el.setAttribute(SOURCE_ATTR, source);
+
+  if (el.tagName === 'LI' && el.parentElement && source.includes('\n')) {
+    const parent = el.parentElement;
+    const lines = source.split('\n');
+    const displayLines =
+      displayText === source ? lines : displayText.split('\n');
+    while (displayLines.length < lines.length) displayLines.push('');
+    const keepAttrs = Array.from(el.attributes).filter(
+      (a) => a.name.startsWith('data-hc') || a.name === 'class' || a.name === 'style',
+    );
+    // Remove all current LIs
+    Array.from(parent.children)
+      .filter((c) => c.tagName === 'LI')
+      .forEach((c) => c.remove());
+    let first: HTMLElement | null = null;
+    lines.forEach((line, i) => {
+      const li = document.createElement('li');
+      for (const a of keepAttrs) {
+        if (a.name === SOURCE_ATTR || a.name === CASE_ATTR) continue;
+        li.setAttribute(a.name, a.value);
+      }
+      // Only the first keeps source/case attrs (editor treats the group)
+      if (i === 0) {
+        li.setAttribute(SOURCE_ATTR, source);
+        const c = el.getAttribute(CASE_ATTR);
+        if (c) li.setAttribute(CASE_ATTR, c);
+        li.style.cssText = el.style.cssText;
+      }
+      writeTextInto(li, displayLines[i] ?? line, true);
+      ensureObjectId(li);
+      parent.appendChild(li);
+      if (!first) first = li;
+    });
+    return first ?? el;
+  }
+
+  writeTextInto(el, displayText, multiline);
+  return el;
+}
+
+function toggleWrap(el: HTMLElement, tag: 'strong' | 'em' | 'u' | 's', on: boolean) {
+  const upper = tag.toUpperCase();
+  if (on) {
+    if (hasWrap(el, [tag, tag === 'strong' ? 'b' : tag === 'em' ? 'i' : tag])) return;
+    // Prefer wrapping when content is flat text / br only
+    const onlyTextOrBr = Array.from(el.childNodes).every(
+      (n) =>
+        n.nodeType === Node.TEXT_NODE ||
+        (n.nodeType === Node.ELEMENT_NODE && (n as Element).tagName === 'BR'),
+    );
+    if (onlyTextOrBr && el.childNodes.length) {
+      const wrap = document.createElement(tag);
+      while (el.firstChild) wrap.appendChild(el.firstChild);
+      el.appendChild(wrap);
+      return;
+    }
+    if (el.childElementCount === 0) {
+      const wrap = document.createElement(tag);
+      wrap.textContent = el.textContent;
+      el.textContent = '';
+      el.appendChild(wrap);
+      return;
+    }
+    if (tag === 'strong') el.style.fontWeight = '700';
+    else if (tag === 'em') el.style.fontStyle = 'italic';
+    else if (tag === 'u') {
+      const cur = el.style.textDecorationLine || '';
+      if (!cur.includes('underline')) {
+        el.style.textDecorationLine = [cur, 'underline'].filter(Boolean).join(' ');
+      }
+    } else if (tag === 's') {
+      const cur = el.style.textDecorationLine || '';
+      if (!cur.includes('line-through')) {
+        el.style.textDecorationLine = [cur, 'line-through'].filter(Boolean).join(' ');
+      }
+    }
+    return;
+  }
+
+  if (el.childElementCount === 1 && el.firstElementChild?.tagName === upper) {
+    const inner = el.firstElementChild;
+    el.replaceChildren(...Array.from(inner.childNodes));
+  } else if (el.childElementCount === 1 && EMPH_TAGS.has(el.firstElementChild!.tagName)) {
+    let node = el.firstElementChild as HTMLElement;
+    let parent: HTMLElement = el;
+    while (node.childElementCount === 1 && EMPH_TAGS.has(node.firstElementChild!.tagName)) {
+      parent = node;
+      node = node.firstElementChild as HTMLElement;
+    }
+    if (node.tagName === upper) {
+      parent.replaceChildren(...Array.from(node.childNodes));
+    }
+  }
+
+  if (tag === 'strong') {
+    if (el.style.fontWeight === '700' || el.style.fontWeight === 'bold') el.style.fontWeight = '';
+  } else if (tag === 'em') {
+    if (el.style.fontStyle === 'italic') el.style.fontStyle = '';
+  } else if (tag === 'u' || tag === 's') {
+    const want = tag === 'u' ? 'underline' : 'line-through';
+    const parts = (el.style.textDecorationLine || '')
+      .split(/\s+/)
+      .filter((p) => p && p !== want && p !== 'none');
+    el.style.textDecorationLine = parts.length ? parts.join(' ') : '';
+  }
+}
+
+function applyPaint(
+  el: HTMLElement,
+  color: string,
+  highlightEnabled: boolean,
+  highlight: string,
+  highlightAlpha: number,
+) {
+  el.style.setProperty('color', color);
+  if (!highlightEnabled || highlightAlpha <= 0) {
+    el.style.removeProperty('background-color');
+    el.removeAttribute(PAINT_ATTR);
+    return;
+  }
+  const bg = hexAlphaToCss(highlight || '#ffff00', highlightAlpha);
+  if (bg === 'transparent') {
+    el.style.removeProperty('background-color');
+    el.removeAttribute(PAINT_ATTR);
+  } else {
+    el.style.setProperty('background-color', bg);
+    el.setAttribute(PAINT_ATTR, '1');
+  }
+}
+
+function readPaint(el: HTMLElement): {
+  color: string;
+  highlightEnabled: boolean;
+  highlight: string;
+  highlightAlpha: number;
+} {
+  const cs = getComputedStyle(el);
+  const color = rgbToHex(el.style.color || cs.color) || '#1c1f26';
+  const raw = el.style.backgroundColor || (el.hasAttribute(PAINT_ATTR) ? cs.backgroundColor : '');
+  const parts = rgbaParts(raw);
+  const highlightEnabled = Boolean(parts && parts.alpha > 0 && el.style.backgroundColor);
+  return {
+    color,
+    highlightEnabled,
+    highlight: parts?.hex || '#ffff00',
+    highlightAlpha: highlightEnabled ? parts?.alpha ?? 1 : 1,
+  };
+}
+
+function readSnapshot(el: HTMLElement, uploaded: UploadedFontOption[]): Snapshot {
+  const cs = getComputedStyle(el);
+  const tag = el.tagName.toLowerCase();
+  const mapped = typeIdFromTag(tag);
+  const custom = hasInlineFontOverrides(el);
+  const typeId: TextTypeId = custom ? 'custom' : mapped || 'custom';
+  const canChangeTag = Boolean(mapped) && !el.matches(PROTECTED_TEXT_SLOTS);
+  const canLists = canChangeTag;
+
+  const text = getSourceText(el);
+  const weight = el.style.fontWeight || cs.fontWeight || '400';
+  const deco = `${el.style.textDecorationLine || ''} ${cs.textDecorationLine || ''}`;
+  const listParent = el.closest('ul, ol');
+  const listType =
+    el.tagName === 'LI' && listParent
+      ? listParent.tagName === 'OL'
+        ? 'ol'
+        : 'ul'
+      : 'none';
+  const listStyle =
+    listParent instanceof HTMLElement
+      ? listParent.style.listStyleType || getComputedStyle(listParent).listStyleType || 'disc'
+      : 'disc';
+
+  const pxSize = parseFloat(cs.fontSize) || 16;
+  const paint = readPaint(el);
+
+  return {
+    typeId,
+    tag,
+    canChangeTag,
+    canLists,
+    text,
+    bold: hasWrap(el, ['strong', 'b']) || Number(weight) >= 700,
+    italic: hasWrap(el, ['em', 'i']) || (el.style.fontStyle || cs.fontStyle) === 'italic',
+    underline: hasWrap(el, ['u']) || deco.includes('underline'),
+    strike: hasWrap(el, ['s', 'strike']) || deco.includes('line-through'),
+    fontId: matchFontFamilyId(el.style.fontFamily || cs.fontFamily, uploaded, 'body'),
+    fontSize: String(Math.round(pxSize * 10) / 10),
+    lineHeight:
+      el.style.lineHeight && el.style.lineHeight !== 'normal'
+        ? String(parseFloat(el.style.lineHeight) || 1.5)
+        : cs.lineHeight.includes('px')
+          ? (parseFloat(cs.lineHeight) / pxSize).toFixed(2)
+          : String(parseFloat(cs.lineHeight) || 1.5),
+    fontWeight: String(Number(weight) || (weight === 'bold' ? 700 : 400)),
+    letterSpacing: String(parseFloat(el.style.letterSpacing || cs.letterSpacing) || 0),
+    textCase: detectCase(el),
+    align: readAlign(el),
+    color: paint.color,
+    highlightEnabled: paint.highlightEnabled,
+    highlight: paint.highlight,
+    highlightAlpha: paint.highlightAlpha,
+    listType,
+    listStyle,
+  };
+}
+
+export function TextEditPanel({
+  courseId,
+  onHtmlPersist,
+  registerSave,
+  onDirtyChange,
+  onSavingChange,
+}: {
+  courseId?: string | null;
+  onHtmlPersist?: (html: string) => Promise<void>;
+  registerSave?: (fn: () => Promise<void>) => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  onSavingChange?: (saving: boolean) => void;
+}) {
+  const { tr } = usePrefs();
+  const objectMode = useLessonObjectModeOptional();
+  const selected = objectMode?.selected ?? null;
+  const el = selected?.element ?? null;
+  const canEdit = Boolean(el && el.isConnected && isTextLike(el));
+
+  const [uploaded, setUploaded] = useState<UploadedFontOption[]>([]);
+  const [fontLocalCss, setFontLocalCss] = useState('');
+  const [draft, setDraft] = useState<Snapshot | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<'content' | 'style'>('content');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const skipNextLoad = useRef(false);
+  const uploadedRef = useRef(uploaded);
+  uploadedRef.current = uploaded;
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+
+  const markDirty = useCallback(() => {
+    setDirty(true);
+    onDirtyChange?.(true);
+  }, [onDirtyChange]);
+
+  const loadFonts = useCallback(async () => {
+    if (!courseId) return;
+    const res = await apiFetch<{ files: { path: string; family: string }[]; localCss?: string }>({
+      method: 'GET',
+      path: `/api/courses/${courseId}/theme/fonts`,
+    });
+    if (!res.ok || !res.data) return;
+    setUploaded(
+      res.data.files.map((f) => ({
+        id: `upload:${f.path}`,
+        family: f.family,
+        path: f.path,
+      })),
+    );
+    if (res.data.localCss) setFontLocalCss(res.data.localCss);
+  }, [courseId]);
+
+  useEffect(() => {
+    void loadFonts();
+  }, [loadFonts]);
+
+  useEffect(() => {
+    if (!fontLocalCss) return;
+    let style = document.getElementById('hc-text-edit-fonts') as HTMLStyleElement | null;
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'hc-text-edit-fonts';
+      document.head.appendChild(style);
+    }
+    style.textContent = fontLocalCss;
+  }, [fontLocalCss]);
+
+  useEffect(() => {
+    if (skipNextLoad.current) {
+      skipNextLoad.current = false;
+      return;
+    }
+    setDirty(false);
+    onDirtyChange?.(false);
+    if (!el || !el.isConnected || !isTextLike(el)) {
+      setDraft(null);
+      return;
+    }
+    setDraft(readSnapshot(el, uploadedRef.current));
+  }, [el, selected?.objectId, onDirtyChange]);
+
+  const persist = useCallback(async () => {
+    const root = objectMode?.root;
+    if (!root || !onHtmlPersist) return;
+    const objectId = objectMode.selected?.objectId;
+    objectMode.stampIds();
+    onSavingChange?.(true);
+    try {
+      await onHtmlPersist(root.innerHTML);
+      setDirty(false);
+      onDirtyChange?.(false);
+      if (objectId) {
+        requestAnimationFrame(() => objectMode.selectByObjectId(objectId));
+      }
+    } finally {
+      onSavingChange?.(false);
+    }
+  }, [objectMode, onHtmlPersist, onDirtyChange, onSavingChange]);
+
+  useEffect(() => {
+    registerSave?.(persist);
+  }, [registerSave, persist]);
+
+  const applyLive = useCallback(
+    (next: Snapshot, target: HTMLElement) => {
+      let node = target;
+      const ups = uploadedRef.current;
+
+      if (next.typeId !== 'custom' && next.canChangeTag) {
+        const opt = TEXT_TYPE_OPTIONS.find((o) => o.id === next.typeId);
+        const wantTag = opt?.tag;
+        if (wantTag && node.tagName.toLowerCase() !== wantTag) {
+          const created = document.createElement(wantTag);
+          for (const attr of Array.from(node.attributes)) {
+            created.setAttribute(attr.name, attr.value);
+          }
+          created.innerHTML = node.innerHTML;
+          node.replaceWith(created);
+          node = created;
+          ensureObjectId(node);
+          skipNextLoad.current = true;
+          objectMode?.selectElement(node);
+        }
+        clearInlineFontOverrides(node);
+      }
+
+      // Case is a display filter — source stays in next.text / SOURCE_ATTR
+      const display =
+        next.textCase === 'camelCase'
+          ? applyCaseFilter(next.text, 'camelCase')
+          : next.text;
+      node.setAttribute(CASE_ATTR, next.textCase);
+      if (
+        next.textCase === 'uppercase' ||
+        next.textCase === 'lowercase' ||
+        next.textCase === 'capitalize'
+      ) {
+        node.style.textTransform = next.textCase;
+      } else {
+        node.style.textTransform = 'none';
+      }
+
+      const afterText = setSourceText(node, next.text, display);
+      if (afterText !== node) {
+        node = afterText;
+        skipNextLoad.current = true;
+        objectMode?.selectElement(node);
+      }
+
+      toggleWrap(node, 'strong', next.bold);
+      toggleWrap(node, 'em', next.italic);
+      toggleWrap(node, 'u', next.underline);
+      toggleWrap(node, 's', next.strike);
+
+      if (next.typeId === 'custom') {
+        const font = resolveFontById(next.fontId, ups);
+        if (font) node.style.fontFamily = font.stack;
+        node.style.fontSize = `${next.fontSize}px`;
+        node.style.lineHeight = String(next.lineHeight);
+        node.style.letterSpacing = `${next.letterSpacing}px`;
+        if (!next.bold) node.style.fontWeight = next.fontWeight || '400';
+        else node.style.fontWeight = next.fontWeight || '400';
+      }
+
+      node.style.textAlign = next.align;
+      applyPaint(
+        node,
+        next.color,
+        next.highlightEnabled,
+        next.highlight,
+        next.highlightAlpha,
+      );
+
+      if (next.canLists && next.listType !== 'none' && node.tagName !== 'LI') {
+        const list = document.createElement(next.listType);
+        list.style.listStyleType = next.listStyle;
+        const item = document.createElement('li');
+        item.innerHTML = node.innerHTML;
+        for (const attr of Array.from(node.attributes)) {
+          if (attr.name.startsWith('data-hc') || attr.name === 'style') {
+            item.setAttribute(attr.name, attr.value);
+          }
+        }
+        list.appendChild(item);
+        node.replaceWith(list);
+        node = item;
+        ensureObjectId(node);
+        skipNextLoad.current = true;
+        objectMode?.selectElement(node);
+        // Re-apply multiline list split if needed
+        const again = setSourceText(node, next.text, display);
+        if (again !== node) {
+          node = again;
+          objectMode?.selectElement(node);
+        }
+      } else if (next.canLists && next.listType !== 'none' && node.tagName === 'LI') {
+        const parent = node.parentElement;
+        if (parent && parent.tagName !== next.listType.toUpperCase()) {
+          const list = document.createElement(next.listType);
+          list.style.listStyleType = next.listStyle;
+          while (parent.firstChild) list.appendChild(parent.firstChild);
+          parent.replaceWith(list);
+        } else if (parent instanceof HTMLElement) {
+          parent.style.listStyleType = next.listStyle;
+        }
+      }
+
+      const snap = readSnapshot(node, ups);
+      // Keep editor source + chosen type/case from the draft we just applied
+      snap.text = next.text;
+      snap.textCase = next.textCase;
+      snap.color = next.color;
+      snap.highlightEnabled = next.highlightEnabled;
+      snap.highlight = next.highlight;
+      snap.highlightAlpha = next.highlightAlpha;
+      if (next.typeId !== 'custom' && !hasInlineFontOverrides(node)) {
+        snap.typeId = next.typeId;
+      } else if (next.typeId === 'custom') {
+        snap.typeId = 'custom';
+      }
+      setDraft(snap);
+      markDirty();
+    },
+    [objectMode, markDirty],
+  );
+
+  const patch = (partial: Partial<Snapshot>, opts?: { makeCustom?: boolean }) => {
+    if (!draft || !el || !el.isConnected) return;
+    let next = { ...draft, ...partial };
+    if (opts?.makeCustom) next = { ...next, typeId: 'custom' };
+    setDraft(next);
+    applyLive(next, el);
+  };
+
+  const onTypeChange = (typeId: TextTypeId) => {
+    if (!draft || !el || !el.isConnected) return;
+    if (typeId === 'custom') {
+      const cs = getComputedStyle(el);
+      patch({
+        typeId: 'custom',
+        fontSize: String(Math.round(parseFloat(cs.fontSize) * 10) / 10),
+        fontWeight: String(parseInt(cs.fontWeight, 10) || 400),
+        lineHeight: draft.lineHeight,
+      });
+      return;
+    }
+    const style = DEFAULT_TEXT_TYPE_STYLES[typeId];
+    const next: Snapshot = {
+      ...draft,
+      typeId,
+      tag: TEXT_TYPE_OPTIONS.find((o) => o.id === typeId)?.tag || draft.tag,
+      fontSize: style ? String(parseFloat(style.size) || draft.fontSize) : draft.fontSize,
+      fontWeight: style?.weight || draft.fontWeight,
+      lineHeight: style?.lineHeight || draft.lineHeight,
+    };
+    setDraft(next);
+    applyLive(next, el);
+  };
+
+  const flushContent = () => {
+    if (!draftRef.current || !el?.isConnected) return;
+    applyLive(draftRef.current, el);
+  };
+
+  const onUploadFonts = async (files: FileList | null) => {
+    if (!files?.length || !courseId) return;
+    const accepted = Array.from(files).filter((f) => /\.(woff2?|ttf|otf)$/i.test(f.name));
+    if (!accepted.length) {
+      setError('Upload a .woff2, .woff, .ttf, or .otf font file');
+      return;
+    }
+    setError(null);
+    try {
+      for (const file of accepted) {
+        const dataBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = String(reader.result || '');
+            const b64 = result.includes(',') ? result.split(',')[1]! : result;
+            resolve(b64);
+          };
+          reader.onerror = () => reject(new Error('Failed to read font'));
+          reader.readAsDataURL(file);
+        });
+        const res = await apiFetch<{ path: string; family: string; localCss: string }>({
+          method: 'POST',
+          path: `/api/courses/${courseId}/theme/fonts`,
+          body: {
+            filename: file.name,
+            dataBase64,
+            family: familyFromFontFilename(file.name),
+          },
+        });
+        if (!res.ok || !res.data) throw new Error(res.error || 'Font upload failed');
+        setFontLocalCss(res.data.localCss);
+        const uploadId = `upload:${res.data.path}`;
+        setUploaded((prev) => [
+          ...prev.filter((f) => f.id !== uploadId),
+          { id: uploadId, family: res.data!.family, path: res.data!.path },
+        ]);
+        if (draft) patch({ fontId: uploadId }, { makeCustom: true });
+      }
+      await loadFonts();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Font upload failed');
+    }
+  };
+
+  const indent = (dir: 1 | -1) => {
+    if (!el || !el.isConnected) return;
+    const cur = parseFloat(el.style.marginLeft || '0') || 0;
+    el.style.marginLeft = `${Math.max(0, cur + dir * 16)}px`;
+    markDirty();
+  };
+
+  if (!selected) {
+    return (
+      <p className="px-1 text-[12px] text-[var(--ink-muted)]">{tr('textEditSelectHint')}</p>
+    );
+  }
+
+  if (!canEdit || !draft) {
+    return (
+      <p className="px-1 text-[12px] text-[var(--ink-muted)]">{tr('textEditNotText')}</p>
+    );
+  }
+
+  const isCustom = draft.typeId === 'custom';
+  const typeOptions = TEXT_TYPE_OPTIONS.filter((o) => {
+    if (o.id === 'custom') return true;
+    if (!draft.canChangeTag) return o.id === draft.typeId || o.tag === draft.tag;
+    return true;
+  });
+
+  return (
+    <InspectorContentStyleTabs
+      tab={tab}
+      onTabChange={setTab}
+      style={<ElementStylePanel onDirtyChange={onDirtyChange} />}
+      content={
+    <div className="space-y-4">
+      {error && (
+        <div className="rounded-md border border-rose-200 bg-rose-50 px-2 py-1.5 text-[11px] text-rose-700">
+          {error}
+        </div>
+      )}
+      {dirty && (
+        <div className="text-[10px] text-[var(--ink-muted)]">{tr('inspectorNotesUnsaved')}</div>
+      )}
+
+      <section className="space-y-2.5">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          {tr('inspectorTextSection')}
+        </div>
+        <div>
+          <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+            {tr('textEditType')}
+          </span>
+          <TextTypeSelect
+            value={draft.typeId}
+            options={typeOptions}
+            disabled={!draft.canChangeTag && draft.typeId !== 'custom'}
+            onChange={onTypeChange}
+          />
+        </div>
+        <label className="block">
+          <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+            {tr('textEditContent')}
+          </span>
+          <textarea
+            className={`${fieldClass} min-h-[88px] whitespace-pre-wrap`}
+            value={draft.text}
+            onChange={(e) => {
+              const text = e.target.value;
+              setDraft({ ...draft, text });
+              markDirty();
+            }}
+            onBlur={flushContent}
+            onKeyDown={(e) => {
+              // Keep Enter inside the textarea (don't bubble to app shortcuts)
+              e.stopPropagation();
+            }}
+          />
+          <span className="mt-1 block text-[10px] text-[var(--ink-muted)]">
+            {tr('textEditNewlineHint')}
+          </span>
+        </label>
+        <div className="flex flex-wrap gap-1">
+          <ToggleBtn active={draft.bold} title="Bold" onClick={() => patch({ bold: !draft.bold })}>
+            <Bold className="h-3.5 w-3.5" />
+          </ToggleBtn>
+          <ToggleBtn
+            active={draft.italic}
+            title="Italic"
+            onClick={() => patch({ italic: !draft.italic })}
+          >
+            <Italic className="h-3.5 w-3.5" />
+          </ToggleBtn>
+          <ToggleBtn
+            active={draft.underline}
+            title="Underline"
+            onClick={() => patch({ underline: !draft.underline })}
+          >
+            <Underline className="h-3.5 w-3.5" />
+          </ToggleBtn>
+          <ToggleBtn
+            active={draft.strike}
+            title="Strikethrough"
+            onClick={() => patch({ strike: !draft.strike })}
+          >
+            <Strikethrough className="h-3.5 w-3.5" />
+          </ToggleBtn>
+        </div>
+      </section>
+
+      <section className="space-y-2.5">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          {tr('inspectorFont')}
+        </div>
+        <div className="space-y-1">
+          <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+            {tr('inspectorFontFamily')}
+          </span>
+          <FontFamilySelect
+            role="body"
+            value={draft.fontId}
+            uploaded={uploaded}
+            onChange={(id) => patch({ fontId: id }, { makeCustom: true })}
+          />
+          {courseId && (
+            <div className="mt-1.5 flex items-center gap-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".woff,.woff2,.ttf,.otf"
+                className="hidden"
+                multiple
+                onChange={(e) => void onUploadFonts(e.target.files)}
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[var(--line)] px-2 py-1 text-[11px] font-semibold text-[var(--ink)] hover:bg-black/5"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                {tr('textEditUploadFont')}
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <NumField
+            label={tr('inspectorFontSize')}
+            value={draft.fontSize}
+            onChange={(v) => patch({ fontSize: v }, { makeCustom: true })}
+          />
+          <NumField
+            label={tr('inspectorLineHeight')}
+            value={draft.lineHeight}
+            step="0.05"
+            onChange={(v) => patch({ lineHeight: v }, { makeCustom: true })}
+          />
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+              {tr('inspectorFontWeight')}
+            </span>
+            <select
+              className={fieldClass}
+              value={draft.fontWeight}
+              onChange={(e) => patch({ fontWeight: e.target.value }, { makeCustom: true })}
+            >
+              <option value="300">Light</option>
+              <option value="400">Regular</option>
+              <option value="500">Medium</option>
+              <option value="600">Semibold</option>
+              <option value="700">Bold</option>
+              <option value="800">Extra bold</option>
+            </select>
+          </label>
+          <NumField
+            label={tr('textEditLetterSpacing')}
+            value={draft.letterSpacing}
+            step="0.1"
+            onChange={(v) => patch({ letterSpacing: v }, { makeCustom: true })}
+          />
+        </div>
+        {!isCustom && (
+          <p className="text-[10px] text-[var(--ink-muted)]">{tr('textEditTypeDrivenFont')}</p>
+        )}
+        <label className="block">
+          <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+            {tr('textEditCase')}
+          </span>
+          <select
+            className={fieldClass}
+            value={draft.textCase}
+            onChange={(e) => patch({ textCase: e.target.value as TextCase })}
+          >
+            <option value="regular">{tr('textEditCaseRegular')}</option>
+            <option value="uppercase">{tr('textEditCaseUpper')}</option>
+            <option value="lowercase">{tr('textEditCaseLower')}</option>
+            <option value="capitalize">{tr('textEditCaseCapitalize')}</option>
+            <option value="camelCase">{tr('textEditCaseCamel')}</option>
+          </select>
+          <span className="mt-1 block text-[10px] text-[var(--ink-muted)]">
+            {tr('textEditCaseHint')}
+          </span>
+        </label>
+      </section>
+
+      <section className="space-y-2.5">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          {tr('inspectorParagraph')}
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {(
+            [
+              ['left', AlignLeft],
+              ['center', AlignCenter],
+              ['right', AlignRight],
+              ['justify', AlignJustify],
+            ] as const
+          ).map(([align, Icon]) => (
+            <ToggleBtn
+              key={align}
+              active={draft.align === align}
+              title={align}
+              onClick={() => patch({ align })}
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </ToggleBtn>
+          ))}
+          <ToggleBtn active={false} title="Indent" onClick={() => indent(1)}>
+            <Indent className="h-3.5 w-3.5" />
+          </ToggleBtn>
+          <ToggleBtn active={false} title="Outdent" onClick={() => indent(-1)}>
+            <Outdent className="h-3.5 w-3.5" />
+          </ToggleBtn>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+              {tr('inspectorColor')}
+            </span>
+            <input
+              type="color"
+              className="h-8 w-full cursor-pointer rounded-md border border-[var(--line)] bg-[var(--panel)] p-1"
+              value={draft.color}
+              onChange={(e) => patch({ color: e.target.value })}
+            />
+          </label>
+          <div className="block">
+            <label className="mb-1 flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-[var(--ink)]">
+              <input
+                type="checkbox"
+                className="accent-[var(--accent)]"
+                checked={draft.highlightEnabled}
+                onChange={(e) =>
+                  patch({
+                    highlightEnabled: e.target.checked,
+                    highlightAlpha: e.target.checked
+                      ? draft.highlightAlpha > 0
+                        ? draft.highlightAlpha
+                        : 1
+                      : draft.highlightAlpha,
+                  })
+                }
+              />
+              {tr('textEditHighlight')}
+            </label>
+            {!draft.highlightEnabled && (
+              <p className="text-[10px] text-[var(--ink-muted)]">{tr('textEditHighlightOff')}</p>
+            )}
+          </div>
+        </div>
+        {draft.highlightEnabled && (
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+                {tr('textEditHighlightColor')}
+              </span>
+              <input
+                type="color"
+                className="h-8 w-full cursor-pointer rounded-md border border-[var(--line)] bg-[var(--panel)] p-1"
+                value={draft.highlight || '#ffff00'}
+                onChange={(e) => patch({ highlight: e.target.value })}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+                {tr('textEditHighlightOpacity')} ({Math.round(draft.highlightAlpha * 100)}%)
+              </span>
+              <input
+                type="range"
+                min={5}
+                max={100}
+                value={Math.round(Math.max(0.05, draft.highlightAlpha) * 100)}
+                onChange={(e) => patch({ highlightAlpha: Number(e.target.value) / 100 })}
+                className="mt-2 w-full cursor-pointer accent-[var(--accent)]"
+              />
+            </label>
+          </div>
+        )}
+        <div className="flex flex-wrap gap-1">
+          <ToggleBtn
+            active={draft.listType === 'ul'}
+            title="Bulleted list"
+            disabled={!draft.canLists}
+            onClick={() =>
+              patch({
+                listType: draft.listType === 'ul' ? 'none' : 'ul',
+                listStyle: 'disc',
+              })
+            }
+          >
+            <List className="h-3.5 w-3.5" />
+          </ToggleBtn>
+          <ToggleBtn
+            active={draft.listType === 'ol'}
+            title="Numbered list"
+            disabled={!draft.canLists}
+            onClick={() =>
+              patch({
+                listType: draft.listType === 'ol' ? 'none' : 'ol',
+                listStyle: 'decimal',
+              })
+            }
+          >
+            <ListOrdered className="h-3.5 w-3.5" />
+          </ToggleBtn>
+        </div>
+        {draft.canLists && draft.listType !== 'none' && (
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+              {tr('textEditListStyle')}
+            </span>
+            <select
+              className={fieldClass}
+              value={draft.listStyle}
+              onChange={(e) => patch({ listStyle: e.target.value })}
+            >
+              {draft.listType === 'ul' ? (
+                <>
+                  <option value="disc">Disc</option>
+                  <option value="circle">Circle</option>
+                  <option value="square">Square</option>
+                </>
+              ) : (
+                <>
+                  <option value="decimal">Decimal</option>
+                  <option value="lower-alpha">Lower alpha</option>
+                  <option value="upper-alpha">Upper alpha</option>
+                  <option value="lower-roman">Lower roman</option>
+                  <option value="upper-roman">Upper roman</option>
+                </>
+              )}
+            </select>
+          </label>
+        )}
+      </section>
+    </div>
+      }
+    />
+  );
+}
+
+const fieldClass =
+  'w-full rounded-md border border-[var(--line)] bg-[var(--panel)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)]';
+
+function TextTypeSelect({
+  value,
+  options,
+  onChange,
+  disabled,
+}: {
+  value: TextTypeId;
+  options: typeof TEXT_TYPE_OPTIONS;
+  onChange: (id: TextTypeId) => void;
+  disabled?: boolean;
+}) {
+  const listId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{
+    left: number;
+    width: number;
+    top?: number;
+    bottom?: number;
+    maxHeight: number;
+  } | null>(null);
+
+  const selected = options.find((o) => o.id === value) ?? options[0]!;
+
+  useLayoutEffect(() => {
+    if (!open || !rootRef.current) {
+      setCoords(null);
+      return;
+    }
+    const place = () => {
+      const r = rootRef.current!.getBoundingClientRect();
+      const maxHeight = Math.min(240, window.innerHeight - 24);
+      const spaceBelow = window.innerHeight - r.bottom - 8;
+      const spaceAbove = r.top - 8;
+      const openUp = spaceBelow < 160 && spaceAbove > spaceBelow;
+      if (openUp) {
+        setCoords({
+          left: r.left,
+          width: r.width,
+          bottom: window.innerHeight - r.top + 4,
+          maxHeight: Math.min(maxHeight, spaceAbove),
+        });
+      } else {
+        setCoords({
+          left: r.left,
+          width: r.width,
+          top: r.bottom + 4,
+          maxHeight: Math.min(maxHeight, Math.max(120, spaceBelow)),
+        });
+      }
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (rootRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const menu =
+    open && coords
+      ? createPortal(
+          <div
+            ref={menuRef}
+            id={listId}
+            role="listbox"
+            className="overflow-y-auto rounded-lg border border-[var(--line)] bg-[var(--stage)] py-1 shadow-[0_16px_40px_rgba(28,31,38,0.18)]"
+            style={{
+              position: 'fixed',
+              zIndex: 80,
+              left: coords.left,
+              width: coords.width,
+              top: coords.top,
+              bottom: coords.bottom,
+              maxHeight: coords.maxHeight,
+            }}
+          >
+            {options.map((opt) => {
+              const active = opt.id === value;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  disabled={disabled && opt.id !== 'custom' && opt.id !== value}
+                  className={`flex w-full cursor-pointer items-center gap-2 px-2.5 py-1.5 text-left hover:bg-[var(--accent-soft)] disabled:cursor-not-allowed disabled:opacity-40 ${
+                    active ? 'bg-[var(--accent-soft)]' : ''
+                  }`}
+                  onClick={() => {
+                    onChange(opt.id);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                    {active ? <Check className="h-3.5 w-3.5 text-[var(--accent)]" /> : null}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[var(--ink)]">
+                    {opt.name}
+                  </span>
+                  {opt.tagLabel ? (
+                    <span className="shrink-0 text-[11px] font-semibold tabular-nums text-[var(--ink-muted)]">
+                      ({opt.tagLabel})
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>,
+          document.body,
+        )
+      : null;
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => !disabled && setOpen((v) => !v)}
+        className={`${fieldClass} flex cursor-pointer items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50`}
+      >
+        <span className="min-w-0 flex-1 truncate text-left font-medium">{selected.name}</span>
+        {selected.tagLabel ? (
+          <span className="shrink-0 text-[11px] font-semibold text-[var(--ink-muted)]">
+            ({selected.tagLabel})
+          </span>
+        ) : null}
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--ink-muted)]" />
+      </button>
+      {menu}
+    </div>
+  );
+}
+
+function NumField({
+  label,
+  value,
+  onChange,
+  step,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  step?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">{label}</span>
+      <input
+        type="number"
+        step={step}
+        className={fieldClass}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </label>
+  );
+}
+
+function ToggleBtn({
+  active,
+  title,
+  onClick,
+  children,
+  disabled,
+}: {
+  active: boolean;
+  title: string;
+  onClick: () => void;
+  children: ReactNode;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      disabled={disabled}
+      onClick={onClick}
+      className={`inline-flex h-8 w-8 items-center justify-center rounded-md border ${
+        disabled
+          ? 'cursor-not-allowed border-[var(--line)] opacity-35'
+          : active
+            ? 'cursor-pointer border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+            : 'cursor-pointer border-[var(--line)] text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)]'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
