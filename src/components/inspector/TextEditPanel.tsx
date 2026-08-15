@@ -53,6 +53,7 @@ import {
   hexAlphaToCss,
 } from './ElementStylePanel';
 import { ElementEffectsPanel } from './ElementEffectsPanel';
+import { ElementMetaPanel } from './ElementMetaPanel';
 import type { ThemeSwatch } from './styleThemeColors';
 
 type TextCase = 'regular' | 'uppercase' | 'lowercase' | 'capitalize' | 'camelCase';
@@ -516,7 +517,7 @@ export function TextEditPanel({
   const [draft, setDraft] = useState<Snapshot | null>(null);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'content' | 'style' | 'effects'>('content');
+  const [tab, setTab] = useState<'content' | 'style' | 'effects' | 'element'>('content');
   const fileRef = useRef<HTMLInputElement>(null);
   const skipNextLoad = useRef(false);
   const uploadedRef = useRef(uploaded);
@@ -1177,6 +1178,7 @@ export function TextEditPanel({
       )}
     </div>
       }
+      element={<ElementMetaPanel onDirtyChange={onDirtyChange} />}
     />
   );
 }

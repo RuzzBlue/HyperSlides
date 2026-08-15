@@ -47,6 +47,7 @@ import {
   InspectorContentStyleTabs,
 } from './ElementStylePanel';
 import { ElementEffectsPanel } from './ElementEffectsPanel';
+import { ElementMetaPanel } from './ElementMetaPanel';
 import { swatchesFromCourseTheme } from './styleThemeColors';
 import { TemplatePickerButton } from './TemplatePicker';
 import { QuizEditPanel, type QuizEditContext } from './QuizEditPanel';
@@ -1211,7 +1212,7 @@ function StyledToolPanel({
   themeSwatches: import('./styleThemeColors').ThemeSwatch[];
   courseId?: string;
 }) {
-  const [tab, setTab] = useState<'content' | 'style' | 'effects'>('content');
+  const [tab, setTab] = useState<'content' | 'style' | 'effects' | 'element'>('content');
   const objectMode = useLessonObjectModeOptional();
 
   useEffect(() => {
@@ -1248,6 +1249,7 @@ function StyledToolPanel({
       effects={
         <ElementEffectsPanel themeSwatches={themeSwatches} onDirtyChange={onDirtyChange} />
       }
+      element={<ElementMetaPanel onDirtyChange={onDirtyChange} />}
     />
   );
 }

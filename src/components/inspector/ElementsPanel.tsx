@@ -32,6 +32,7 @@ import {
   InspectorContentStyleTabs,
 } from './ElementStylePanel';
 import { ElementEffectsPanel } from './ElementEffectsPanel';
+import { ElementMetaPanel } from './ElementMetaPanel';
 import type { ThemeSwatch } from './styleThemeColors';
 
 type Level = 'catalog' | 'props';
@@ -129,7 +130,7 @@ export function ElementsPanel({
   const { tr } = usePrefs();
   const objectMode = useLessonObjectModeOptional();
   const [level, setLevel] = useState<Level>('catalog');
-  const [editTab, setEditTab] = useState<'content' | 'style' | 'effects'>('content');
+  const [editTab, setEditTab] = useState<'content' | 'style' | 'effects' | 'element'>('content');
   const [openCats, setOpenCats] = useState<Record<ElementCatalogCategoryId, boolean>>({
     single: true,
     structure: true,
@@ -432,6 +433,7 @@ export function ElementsPanel({
           effects={
             <ElementEffectsPanel themeSwatches={themeSwatches} onDirtyChange={onDirtyChange} />
           }
+          element={<ElementMetaPanel onDirtyChange={onDirtyChange} />}
         />
       ) : (
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 py-2">

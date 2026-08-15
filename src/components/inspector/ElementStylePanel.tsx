@@ -457,19 +457,21 @@ function applySnapshot(el: HTMLElement, s: ElementStyleSnapshot, courseId?: stri
   else el.removeAttribute('id');
 }
 
-/** Shared Content | Style | Effects tab chrome for inspectors. */
+/** Shared Content | Style | Effects | Element tab chrome for inspectors. */
 export function InspectorContentStyleTabs({
   tab,
   onTabChange,
   content,
   style,
   effects,
+  element,
 }: {
-  tab: 'content' | 'style' | 'effects';
-  onTabChange: (tab: 'content' | 'style' | 'effects') => void;
+  tab: 'content' | 'style' | 'effects' | 'element';
+  onTabChange: (tab: 'content' | 'style' | 'effects' | 'element') => void;
   content: ReactNode;
   style: ReactNode;
   effects: ReactNode;
+  element: ReactNode;
 }) {
   const { tr } = usePrefs();
   return (
@@ -477,27 +479,42 @@ export function InspectorContentStyleTabs({
       <div className="flex shrink-0 gap-1 border-b border-[var(--line)] px-3 pt-2">
         {(
           [
-            ['content', tr('inspectorTabContent')],
-            ['style', tr('inspectorTabStyle')],
-            ['effects', tr('inspectorTabEffects')],
+            ['content', tr('inspectorTabContent'), 'default'],
+            ['style', tr('inspectorTabStyle'), 'default'],
+            ['effects', tr('inspectorTabEffects'), 'default'],
+            ['element', tr('inspectorTabElement'), 'accent'],
           ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onTabChange(id)}
-            className={`cursor-pointer rounded-t-md px-3 py-1.5 text-[11px] font-semibold ${
-              tab === id
-                ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
-                : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+        ).map(([id, label, tone]) => {
+          const active = tab === id;
+          const accentTab = tone === 'accent';
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onTabChange(id)}
+              className={`cursor-pointer rounded-t-md px-3 py-1.5 text-[11px] font-semibold transition ${
+                active && accentTab
+                  ? 'bg-[color-mix(in_srgb,var(--accent)_32%,transparent)] text-[var(--accent)] ring-1 ring-inset ring-[color-mix(in_srgb,var(--accent)_55%,transparent)]'
+                  : active
+                    ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+                    : accentTab
+                      ? 'text-[color-mix(in_srgb,var(--accent)_75%,var(--ink-muted))] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] hover:text-[var(--accent)]'
+                      : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-        {tab === 'content' ? content : tab === 'style' ? style : effects}
+        {tab === 'content'
+          ? content
+          : tab === 'style'
+            ? style
+            : tab === 'effects'
+              ? effects
+              : element}
       </div>
     </div>
   );
