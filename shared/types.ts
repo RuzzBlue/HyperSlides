@@ -778,7 +778,7 @@ export interface AppPrefs {
    */
   defaultShowSelected: boolean;
   /**
-   * When true, hovering the inspector settings cog reveals a quick “Show selection” checkbox.
+   * When true, the Edit-mode top-left element popover shows a “Show selected” checkbox.
    */
   showSelectedShortcut: boolean;
   /**

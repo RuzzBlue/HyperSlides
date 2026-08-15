@@ -76,20 +76,6 @@ const ACTIVITY_TOOLS: Array<{
   { id: 'activities', key: 'toolActivities', icon: <LibraryBig className="h-3.5 w-3.5" /> },
 ];
 
-function isInsertTool(tool: InspectorTool | null): boolean {
-  return (
-    tool === 'elements' ||
-    tool === 'text' ||
-    tool === 'links' ||
-    tool === 'shapesMedia' ||
-    tool === 'charts' ||
-    tool === 'shape' ||
-    tool === 'media' ||
-    tool === 'graphs' ||
-    tool === 'tables'
-  );
-}
-
 /** Which edit-toolbar button owns the current inspector (includes media/data sub-tools). */
 function insertToolActive(toolId: InsertToolId, inspectorTool: InspectorTool | null): boolean {
   if (!inspectorTool) return false;
@@ -246,10 +232,6 @@ export function Toolbar({
     setDraft(String(total ? index + 1 : 0));
   }, [index, total]);
 
-  useEffect(() => {
-    if (isInsertTool(inspectorTool)) onEditModeChange(true);
-  }, [inspectorTool, onEditModeChange]);
-
   const commitSlide = () => {
     const n = Number.parseInt(draft, 10);
     if (!Number.isFinite(n) || total < 1 || n < 1 || n > total) {
@@ -296,59 +278,56 @@ export function Toolbar({
             title={codeEnabled ? codeTitle : tr('inspectorCodeUnavailable')}
             disabled={!codeEnabled}
             onClick={() => onInspectorTool(inspectorTool === 'code' ? null : 'code')}
-            className={`inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
+            className={`inline-flex cursor-pointer items-center justify-center rounded-md p-1.5 transition disabled:cursor-not-allowed disabled:opacity-40 ${
               inspectorTool === 'code'
                 ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
                 : 'text-[var(--ink-muted)] enabled:hover:bg-black/5 enabled:hover:text-[var(--ink)]'
             }`}
           >
             <Code2 className="h-5 w-5" />
-            <span className="hidden min-[1370px]:inline">{codeTitle}</span>
           </button>
 
-          {/* IMPORTANT: do not remove — visual separator after Code / before center tools */}
+          {/* IMPORTANT: do not remove — visual separator after Code / before Edit toggle */}
           <div className="mx-1 h-5 w-px bg-[var(--line)]" />
+
+          <button
+            type="button"
+            role="switch"
+            aria-checked={editMode}
+            title={editMode ? tr('toolbarEditOn') : tr('toolbarEditOff')}
+            onClick={() => onEditModeChange(!editMode)}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-[11px] font-semibold text-[var(--ink)] hover:bg-black/5"
+          >
+            <span
+              className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                editMode ? 'bg-[var(--accent)]' : 'bg-[var(--line)]'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  editMode ? 'left-4' : 'left-0.5'
+                }`}
+              />
+            </span>
+            <span className="whitespace-nowrap tabular-nums">
+              {editMode ? tr('toolbarEditOn') : tr('toolbarEditOff')}
+            </span>
+          </button>
         </div>
 
         <div className="flex items-center justify-center gap-1.5 justify-self-center">
-          {editMode ? (
-            <div
-              className="inline-flex overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 shadow-sm backdrop-blur-sm"
-              title={insertEnabled ? undefined : tr('inspectorToolsDisabled')}
-            >
-              <button
-                type="button"
-                title={tr('toolbarEditCollapse')}
-                onClick={() => onEditModeChange(false)}
-                className="inline-flex w-6 shrink-0 cursor-pointer items-center justify-center self-stretch bg-[var(--accent)] text-white"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2.5} />
-              </button>
-              <div className="flex items-center gap-0.5 px-1 py-0.5">
-                <InsertToolButtons
-                  inspectorTool={inspectorTool}
-                  insertEnabled={insertEnabled}
-                  onInspectorTool={onInspectorTool}
-                  tr={tr}
-                  showLabels
-                />
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              title={tr('toolbarEditExpand')}
-              onClick={() => onEditModeChange(true)}
-              className="group inline-flex overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 shadow-sm backdrop-blur-sm"
-            >
-              <span className="inline-flex items-center px-2.5 py-1 text-[11px] font-semibold text-[var(--ink)] transition group-hover:bg-[var(--panel)]">
-                {tr('toolbarEdit')}
-              </span>
-              <span className="inline-flex w-5 shrink-0 items-center justify-center self-stretch bg-[var(--accent)] text-white">
-                <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-              </span>
-            </button>
-          )}
+          <div
+            className="flex items-center gap-0.5 rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 px-1 py-0.5 shadow-sm backdrop-blur-sm"
+            title={insertEnabled ? undefined : tr('inspectorToolsDisabled')}
+          >
+            <InsertToolButtons
+              inspectorTool={inspectorTool}
+              insertEnabled={insertEnabled}
+              onInspectorTool={onInspectorTool}
+              tr={tr}
+              showLabels
+            />
+          </div>
 
           <div className="flex items-center gap-0.5 rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 px-1 py-0.5 shadow-sm backdrop-blur-sm">
             <ActivityToolButtons

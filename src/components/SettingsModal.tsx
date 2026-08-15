@@ -918,19 +918,6 @@ function InspectorSettingsTab({
         </select>
       </Field>
 
-      <Field label={tr('showSelectedShortcut')} hint={tr('showSelectedShortcutHint')}>
-        <select
-          value={draft.showSelectedShortcut === false ? 'off' : 'on'}
-          onChange={(e) =>
-            setDraft({ ...draft, showSelectedShortcut: e.target.value === 'on' })
-          }
-          className={textInputClass()}
-        >
-          <option value="on">{tr('defaultShowSelectedOn')}</option>
-          <option value="off">{tr('defaultShowSelectedOff')}</option>
-        </select>
-      </Field>
-
       <Field label={tr('animAutoSelect')} hint={tr('animAutoSelectHint')}>
         <select
           value={draft.animationAutoSelect === false ? 'off' : 'on'}
@@ -1003,6 +990,19 @@ function PresenterSettingsTab({
               {opt.label}
             </option>
           ))}
+        </select>
+      </Field>
+
+      <Field label={tr('showSelectedShortcut')} hint={tr('showSelectedShortcutHint')}>
+        <select
+          value={draft.showSelectedShortcut === false ? 'off' : 'on'}
+          onChange={(e) =>
+            setDraft({ ...draft, showSelectedShortcut: e.target.value === 'on' })
+          }
+          className={textInputClass()}
+        >
+          <option value="on">{tr('defaultShowSelectedOn')}</option>
+          <option value="off">{tr('defaultShowSelectedOff')}</option>
         </select>
       </Field>
 

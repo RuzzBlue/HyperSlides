@@ -4105,7 +4105,8 @@ a.hc-index__row:hover {
 
 [data-hc-fx-border-anim='1'] {
   position: relative;
-  /* No isolation — host z-index can compete with neighboring HTML */
+  /* Keep glow stacking inside the host so pick/select is not broken by host z-index */
+  isolation: isolate;
   overflow: visible;
 }
 
@@ -4158,6 +4159,13 @@ a.hc-index__row:hover {
   opacity: var(--hc-fx-ba-glow-opacity, 0);
 }
 
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-glow-z='front']::before {
+  z-index: 3;
+}
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-glow-z='back']::before {
+  z-index: -1;
+}
+
 /* Masked glow: hide plain ::before; wrap owns blur, fill punches the center */
 [data-hc-fx-border-anim='1'][data-hc-fx-ba-glow-mask='1']::before {
   content: none !important;
@@ -4179,6 +4187,12 @@ a.hc-index__row:hover {
   overflow: visible;
   filter: blur(var(--hc-fx-ba-blur-out, 0px));
   opacity: var(--hc-fx-ba-glow-opacity, 0);
+}
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-glow-z='front'] > [data-hc-fx-ba-glow='wrap'] {
+  z-index: 3;
+}
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-glow-z='back'] > [data-hc-fx-ba-glow='wrap'] {
+  z-index: -1;
 }
 
 [data-hc-fx-ba-glow='fill'] {

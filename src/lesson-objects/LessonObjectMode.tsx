@@ -344,7 +344,7 @@ function hitFromPoint(
  */
 export function LessonPickOverlay() {
   const mode = useLessonObjectModeOptional();
-  const { tr, trf } = usePrefs();
+  const { tr, trf, settings } = usePrefs();
   const [hoverBox, setHoverBox] = useState<HighlightBox | null>(null);
   const [selectedBox, setSelectedBox] = useState<HighlightBox | null>(null);
   const [dropMark, setDropMark] = useState<{
@@ -653,7 +653,7 @@ export function LessonPickOverlay() {
   const selectionChrome = (sel: NonNullable<typeof mode.selected>) => (
     <div
       data-hc-pick-chrome
-      className="pointer-events-auto absolute left-3 top-3 z-[1] flex max-w-[min(420px,90%)] flex-wrap items-center gap-1.5"
+      className="pointer-events-auto absolute left-3 top-3 z-[1] flex max-w-[min(480px,94%)] flex-wrap items-center gap-1.5"
     >
       <div className="flex items-center gap-1 rounded-lg border border-[var(--accent)] bg-[var(--panel)]/95 px-2 py-1 text-[11px] shadow-md backdrop-blur">
         <button
@@ -675,6 +675,23 @@ export function LessonPickOverlay() {
         <span className="truncate font-medium text-[var(--ink)]" title={sel.objectId}>
           {sel.label}
         </span>
+        {isEdit && settings.showSelectedShortcut !== false && (
+          <>
+            <span className="text-[var(--ink-muted)]">|</span>
+            <label
+              className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]"
+              title={tr('inspectorShowSelected')}
+            >
+              <input
+                type="checkbox"
+                className="accent-[var(--accent)]"
+                checked={mode.showSelectionOutline}
+                onChange={(e) => mode.setShowSelectionOutline(e.target.checked)}
+              />
+              <span>{tr('inspectorShowSelected')}</span>
+            </label>
+          </>
+        )}
       </div>
     </div>
   );

@@ -305,6 +305,7 @@ export default function App() {
 
   const closeInspector = useCallback(() => {
     setInspectorTool(null);
+    setEditMode(false);
     setZoomBeforeInspector((prev) => {
       if (prev) setContentZoom(prev);
       return null;
@@ -319,6 +320,20 @@ export default function App() {
       }
       setLastInspectorTool(tool);
       setInspectorTool(tool);
+      // Opening an insert/style tool turns Edit on so the stage is selectable.
+      if (
+        tool === 'elements' ||
+        tool === 'text' ||
+        tool === 'links' ||
+        tool === 'shapesMedia' ||
+        tool === 'charts' ||
+        tool === 'shape' ||
+        tool === 'media' ||
+        tool === 'graphs' ||
+        tool === 'tables'
+      ) {
+        setEditMode(true);
+      }
       // Code opens floating by default (wider, resizable editor).
       if (tool === 'code') {
         setInspectorMode('floating');
@@ -1043,7 +1058,6 @@ export default function App() {
             onModeChange={handleInspectorMode}
             onClose={closeInspector}
             editMode={editMode}
-            onOpenInspectorSettings={() => openSettings('inspector')}
             courseTheme={course?.theme}
             coverAccent={course?.summary.coverAccent}
             notesContext={
@@ -1127,7 +1141,6 @@ export default function App() {
           onModeChange={handleInspectorMode}
           onClose={closeInspector}
           editMode={editMode}
-          onOpenInspectorSettings={() => openSettings('inspector')}
           courseTheme={course?.theme}
           coverAccent={course?.summary.coverAccent}
           floatResetToken={floatResetToken}

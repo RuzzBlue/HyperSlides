@@ -17,6 +17,7 @@ type CursorKind = 'regular' | 'icon' | 'emoji';
 type BaStyle = 'trail' | 'rotate' | 'pulse' | 'dash';
 type BaDir = 'cw' | 'ccw';
 type BaLayers = 'both' | 'border' | 'glow';
+type BaGlowZ = 'back' | 'front';
 
 type EffectsDraft = {
   hoverLift: boolean;
@@ -44,8 +45,8 @@ type EffectsDraft = {
   baStyle: BaStyle;
   baDir: BaDir;
   baLayers: BaLayers;
-  /** Host + glow layer z-index among page neighbors. */
-  baGlowZIndex: number;
+  /** Glow behind host fill (backlight) or above the crisp border. */
+  baGlowZ: BaGlowZ;
   baOverrideBorder: boolean;
   baRadius: string;
   cursorEnabled: boolean;
@@ -203,25 +204,6 @@ function readOptionalPx(el: HTMLElement, prop: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function readGlowZIndex(el: HTMLElement): number {
-  const fromVar = readOptionalPx(el, '--hc-fx-ba-glow-z-index');
-  if (fromVar != null) return fromVar;
-  const attr = el.getAttribute('data-hc-fx-ba-glow-z-index');
-  if (attr != null && attr !== '') {
-    const n = Number(attr);
-    if (Number.isFinite(n)) return n;
-  }
-  const legacy = el.getAttribute('data-hc-fx-ba-glow-z');
-  if (legacy === 'front') return 3;
-  if (legacy === 'back') return -1;
-  const inline = el.style.zIndex;
-  if (inline && inline !== 'auto') {
-    const n = Number(inline);
-    if (Number.isFinite(n)) return n;
-  }
-  return -1;
-}
-
 function readEffects(el: HTMLElement): EffectsDraft {
   const offset =
     readOptionalPx(el, '--hc-fx-ba-offset') ??
@@ -241,6 +223,14 @@ function readEffects(el: HTMLElement): EffectsDraft {
     featherOut > 0 ||
     el.getAttribute('data-hc-fx-ba-glow-mask') === '1';
 
+  // Migrate old numeric z-index / host z-index back to back|front
+  const legacyZ = el.getAttribute('data-hc-fx-ba-glow-z');
+  const legacyZNum = Number(el.getAttribute('data-hc-fx-ba-glow-z-index'));
+  const baGlowZ: BaGlowZ =
+    legacyZ === 'front' || (Number.isFinite(legacyZNum) && legacyZNum > 0)
+      ? 'front'
+      : 'back';
+
   return {
     hoverLift: el.getAttribute('data-hc-fx-hover-lift') === '1',
     hoverLiftAmount: Number(el.style.getPropertyValue('--hc-fx-lift').replace('px', '')) || 6,
@@ -257,7 +247,6 @@ function readEffects(el: HTMLElement): EffectsDraft {
     baBlurIn: featherIn,
     baBlurOut: featherOut > 0 ? featherOut : glowOn ? 4 : 0,
     baGlow: glowOn,
-    // Cut defaults on when glow is present; attr '0' means explicitly off
     baGlowMask: el.getAttribute('data-hc-fx-ba-glow-mask') !== '0',
     baMaskOffset: readOptionalPx(el, '--hc-fx-ba-mask-offset') ?? 0,
     baStops: parseBaStops(el),
@@ -267,7 +256,7 @@ function readEffects(el: HTMLElement): EffectsDraft {
       const v = el.getAttribute('data-hc-fx-ba-layers');
       return v === 'border' || v === 'glow' ? v : 'both';
     })(),
-    baGlowZIndex: readGlowZIndex(el),
+    baGlowZ,
     baOverrideBorder: el.getAttribute('data-hc-fx-ba-override') === '1',
     baRadius:
       el.getAttribute('data-hc-fx-ba-radius') ||
@@ -360,8 +349,9 @@ function applyEffects(el: HTMLElement, d: EffectsDraft) {
     el.setAttribute('data-hc-fx-ba-style', d.baStyle);
     el.setAttribute('data-hc-fx-ba-dir', d.baDir);
     el.setAttribute('data-hc-fx-ba-layers', d.baLayers);
+    el.setAttribute('data-hc-fx-ba-glow-z', d.baGlowZ);
     el.setAttribute('data-hc-fx-ba-stops', JSON.stringify(d.baStops));
-    el.removeAttribute('data-hc-fx-ba-glow-z');
+    el.removeAttribute('data-hc-fx-ba-glow-z-index');
 
     const glowOn = d.baGlow;
     if (glowOn) el.setAttribute('data-hc-fx-ba-glow', '1');
@@ -374,7 +364,7 @@ function applyEffects(el: HTMLElement, d: EffectsDraft) {
       glowOn && (d.baLayers === 'glow' || d.baLayers === 'both') && d.baBlurIn > 0;
     const useGlowMask = showOuterGlow && d.baGlowMask;
     el.setAttribute('data-hc-fx-ba-has-glow', showOuterGlow ? '1' : '0');
-    // '1' = cut on, '0' = cut off (checkbox checked)
+    // '1' = cut on, '0' = cut off
     if (showOuterGlow) {
       el.setAttribute('data-hc-fx-ba-glow-mask', d.baGlowMask ? '1' : '0');
     } else {
@@ -387,14 +377,10 @@ function applyEffects(el: HTMLElement, d: EffectsDraft) {
     el.style.setProperty('--hc-fx-ba-blur-in', `${d.baBlurIn}px`);
     el.style.setProperty('--hc-fx-ba-blur-out', `${d.baBlurOut}px`);
     el.style.setProperty('--hc-fx-ba-mask-offset', `${d.baMaskOffset}px`);
-    el.setAttribute('data-hc-fx-ba-glow-z-index', String(d.baGlowZIndex));
+    el.style.removeProperty('--hc-fx-ba-glow-z-index');
 
-    // Host z-index stacks this element (and its overflowing glow) among neighbors.
-    // Glow layer itself stays at z-index: -1 so it remains a backlight under the fill.
-    if (glowOn) {
-      el.style.zIndex = String(d.baGlowZIndex);
-      el.setAttribute('data-hc-fx-ba-z-managed', '1');
-    } else if (el.getAttribute('data-hc-fx-ba-z-managed') === '1') {
+    // Never set host z-index — that sinks the whole element and breaks pick/select.
+    if (el.getAttribute('data-hc-fx-ba-z-managed') === '1') {
       el.style.removeProperty('z-index');
       el.removeAttribute('data-hc-fx-ba-z-managed');
     }
@@ -955,7 +941,7 @@ export function ElementEffectsPanel({
               baGlow: draft.baGlow ?? false,
               baGlowMask: draft.baGlowMask ?? true,
               baMaskOffset: draft.baMaskOffset ?? 0,
-              baGlowZIndex: draft.baGlowZIndex ?? -1,
+              baGlowZ: draft.baGlowZ || 'back',
               baBlurOut: draft.baBlurOut > 0 ? draft.baBlurOut : 4,
             })
           }
@@ -1087,21 +1073,15 @@ export function ElementEffectsPanel({
                   </p>
                 </label>
                 <label className="block">
-                  <span className="mb-1 flex justify-between text-[11px]">
-                    <span>{tr('fxBorderAnimGlowZ')}</span>
-                    <span className="tabular-nums text-[var(--ink-muted)]">
-                      z-index {draft.baGlowZIndex}
-                    </span>
-                  </span>
-                  <input
-                    type="number"
-                    className="w-full rounded-md border border-[var(--line)] bg-[var(--panel)] px-2 py-1.5 text-[12px] tabular-nums"
-                    value={draft.baGlowZIndex}
-                    step={1}
-                    onChange={(e) =>
-                      patch({ baGlowZIndex: Number(e.target.value) || 0 })
-                    }
-                  />
+                  <span className="mb-1 block text-[11px] font-medium">{tr('fxBorderAnimGlowZ')}</span>
+                  <select
+                    className="w-full rounded-md border border-[var(--line)] bg-[var(--panel)] px-2 py-1.5 text-[12px]"
+                    value={draft.baGlowZ}
+                    onChange={(e) => patch({ baGlowZ: e.target.value as BaGlowZ })}
+                  >
+                    <option value="back">{tr('fxBorderAnimGlowZBack')}</option>
+                    <option value="front">{tr('fxBorderAnimGlowZFront')}</option>
+                  </select>
                   <p className="mt-1 text-[10px] leading-snug text-[var(--ink-muted)]">
                     {tr('fxBorderAnimGlowZHint')}
                   </p>
