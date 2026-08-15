@@ -56,7 +56,7 @@ import type { AnimationRunner } from './lesson-objects/AnimationRunner';
 import { APP_MIN_WIDTH_PX } from './layoutConstants';
 
 type ViewMode = 'home' | 'present';
-type SettingsTab = 'profile' | 'appearance' | 'settings' | 'presenter';
+type SettingsTab = 'profile' | 'appearance' | 'settings' | 'inspector' | 'presenter';
 
 export default function App() {
   const { settings, tr, applyCourseSettings, clearCourseSettings, save, profile } = usePrefs();
@@ -1043,6 +1043,7 @@ export default function App() {
             onModeChange={handleInspectorMode}
             onClose={closeInspector}
             editMode={editMode}
+            onOpenInspectorSettings={() => openSettings('inspector')}
             courseTheme={course?.theme}
             coverAccent={course?.summary.coverAccent}
             notesContext={
@@ -1126,6 +1127,7 @@ export default function App() {
           onModeChange={handleInspectorMode}
           onClose={closeInspector}
           editMode={editMode}
+          onOpenInspectorSettings={() => openSettings('inspector')}
           courseTheme={course?.theme}
           coverAccent={course?.summary.coverAccent}
           floatResetToken={floatResetToken}

@@ -4101,26 +4101,103 @@ a.hc-index__row:hover {
     );
 }
 
+/* ── Element effects: animated border ───────────────────────────────────── */
+
 [data-hc-fx-border-anim='1'] {
   position: relative;
-  isolation: isolate;
+  /* No isolation — host z-index can compete with neighboring HTML */
   overflow: visible;
 }
 
 @property --hc-fx-ba-angle {
   syntax: '<angle>';
-  inherits: false;
+  inherits: true;
   initial-value: 0deg;
 }
 
-[data-hc-fx-border-anim='1']::before,
-[data-hc-fx-border-anim='1']::after {
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='trail'][data-hc-fx-ba-dir='cw'] {
+  animation: hc-fx-ba-trail-cw var(--hc-fx-ba-speed, 3s) linear infinite;
+}
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='trail'][data-hc-fx-ba-dir='ccw'],
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='trail']:not([data-hc-fx-ba-dir]) {
+  animation: hc-fx-ba-trail-ccw var(--hc-fx-ba-speed, 3s) linear infinite;
+}
+
+/*
+ * OUTER BACKLIGHT (::before)
+ * Full gradient fill BEHIND the host, then filter:blur — soft feather to transparent.
+ * Host background covers the center, so you see a real glow halo (not a second ring).
+ */
+[data-hc-fx-border-anim='1']::before {
   content: '';
   position: absolute;
-  border-radius: inherit;
+  inset: calc(
+    (
+        var(--hc-fx-ba-offset, 0px) + var(--hc-fx-ba-thickness, 2px) +
+          var(--hc-fx-ba-blur-out, 0px)
+      ) *
+      -1
+  );
+  border-radius: var(--hc-fx-ba-radius, inherit);
   box-sizing: border-box;
   pointer-events: none;
-  z-index: 1;
+  z-index: -1;
+  background: conic-gradient(
+    from var(--hc-fx-ba-angle, 0deg),
+    var(
+      --hc-fx-ba-stops,
+      #22d3ee 0%,
+      transparent 14%,
+      transparent 38%,
+      #a78bfa 52%,
+      transparent 66%,
+      transparent 100%
+    )
+  );
+  filter: blur(var(--hc-fx-ba-blur-out, 0px));
+  opacity: var(--hc-fx-ba-glow-opacity, 0);
+}
+
+/* Masked glow: hide plain ::before; wrap owns blur, fill punches the center */
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-glow-mask='1']::before {
+  content: none !important;
+}
+
+[data-hc-fx-ba-glow='wrap'] {
+  position: absolute;
+  inset: calc(
+    (
+        var(--hc-fx-ba-offset, 0px) + var(--hc-fx-ba-thickness, 2px) +
+          var(--hc-fx-ba-blur-out, 0px)
+      ) *
+      -1
+  );
+  border-radius: var(--hc-fx-ba-radius, inherit);
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: -1;
+  overflow: visible;
+  filter: blur(var(--hc-fx-ba-blur-out, 0px));
+  opacity: var(--hc-fx-ba-glow-opacity, 0);
+}
+
+[data-hc-fx-ba-glow='fill'] {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-sizing: border-box;
+  /*
+   * Padding = glow expand − mask offset → hole ≈ host ± mask size.
+   * +mask (extend) = larger hole; −mask (inset) = smaller hole.
+   * max() keeps padding non-negative so the mask stays valid.
+   */
+  padding: max(
+    0px,
+    calc(
+      var(--hc-fx-ba-offset, 0px) + var(--hc-fx-ba-thickness, 2px) +
+        var(--hc-fx-ba-blur-out, 0px) - var(--hc-fx-ba-mask-offset, 0px)
+    )
+  );
   background: conic-gradient(
     from var(--hc-fx-ba-angle, 0deg),
     var(
@@ -4143,70 +4220,161 @@ a.hc-index__row:hover {
   mask-composite: exclude;
 }
 
-/* Crisp ring + optional inward soft bleed (thickness grows outward from the element) */
+/*
+ * CRISP border trail (::after)
+ */
 [data-hc-fx-border-anim='1']::after {
-  /* Outer edge sits (extend + thickness) outside the element; padding draws the ring outward-only. */
-  inset: calc((var(--hc-fx-ba-extend, 0px) + var(--hc-fx-ba-thickness, 2px)) * -1);
-  /* Extra padding when blur-in > 0 lets soft color bleed inward into the element. */
-  padding: calc(var(--hc-fx-ba-thickness, 2px) + var(--hc-fx-ba-blur-in, 0px));
-  filter: blur(var(--hc-fx-ba-blur-in, 0px));
-  opacity: var(--hc-fx-ba-inner-opacity, 1);
+  content: '';
+  position: absolute;
+  inset: calc((var(--hc-fx-ba-offset, 0px) + var(--hc-fx-ba-thickness, 2px)) * -1);
+  padding: var(--hc-fx-ba-thickness, 2px);
+  border-radius: var(--hc-fx-ba-radius, inherit);
+  box-sizing: border-box;
+  pointer-events: none;
   z-index: 2;
-}
-
-/* Outer glow — further outside the crisp ring (hidden when blur-out is 0 via opacity) */
-[data-hc-fx-border-anim='1']::before {
-  inset: calc(
-    (var(--hc-fx-ba-extend, 0px) + var(--hc-fx-ba-thickness, 2px) + var(--hc-fx-ba-blur-out, 0px)) *
-      -1
+  background: conic-gradient(
+    from var(--hc-fx-ba-angle, 0deg),
+    var(
+      --hc-fx-ba-stops,
+      #22d3ee 0%,
+      transparent 14%,
+      transparent 38%,
+      #a78bfa 52%,
+      transparent 66%,
+      transparent 100%
+    )
   );
-  padding: calc(var(--hc-fx-ba-thickness, 2px) + var(--hc-fx-ba-blur-out, 0px));
-  filter: blur(max(0.01px, var(--hc-fx-ba-blur-out, 0px)));
-  opacity: var(--hc-fx-ba-outer-opacity, 0);
-  z-index: 1;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
 }
 
-/* Trail: colors travel along the border (animate conic angle — no box rotate) */
-[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='trail']::before,
-[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='trail']::after {
-  animation: hc-fx-ba-trail var(--hc-fx-ba-speed, 3s) linear infinite;
+/*
+ * INNER backlight (injected [data-hc-fx-ba-glow=in])
+ * Soft fill inside the border edge; center punched so only inward feather remains.
+ */
+[data-hc-fx-ba-glow='in'] {
+  position: absolute;
+  inset: calc(var(--hc-fx-ba-offset, 0px) * -1);
+  border-radius: var(--hc-fx-ba-radius, inherit);
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 0;
+  padding: calc(var(--hc-fx-ba-thickness, 2px) + var(--hc-fx-ba-blur-in, 0px));
+  background: conic-gradient(
+    from var(--hc-fx-ba-angle, 0deg),
+    var(
+      --hc-fx-ba-stops,
+      #22d3ee 0%,
+      transparent 14%,
+      transparent 38%,
+      #a78bfa 52%,
+      transparent 66%,
+      transparent 100%
+    )
+  );
+  filter: blur(var(--hc-fx-ba-blur-in, 0px));
+  opacity: var(--hc-fx-ba-glow-in-opacity, 0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
 }
 
-/* Legacy spin attr still maps in JS to rotate; keep CSS alias */
-[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='spin']::before,
-[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='spin']::after,
-[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='rotate']::before,
-[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='rotate']::after {
+/* ── Layers (Show) ─────────────────────────────────────────────────────────── */
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-layers='border']::before,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-layers='border'] > [data-hc-fx-ba-glow='wrap'],
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-layers='border'] > [data-hc-fx-ba-glow='in'] {
+  display: none !important;
+  content: none !important;
+  opacity: 0 !important;
+}
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-layers='glow']::after {
+  content: none !important;
+  display: none !important;
+}
+/* both + no outward blur → hide outer backlight */
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-layers='both'][data-hc-fx-ba-has-glow='0']::before,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-layers='both'][data-hc-fx-ba-has-glow='0']
+  > [data-hc-fx-ba-glow='wrap'] {
+  content: none !important;
+  display: none !important;
+  opacity: 0 !important;
+}
+
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='spin'][data-hc-fx-ba-dir='cw']::after,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='rotate'][data-hc-fx-ba-dir='cw']::after,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='spin'][data-hc-fx-ba-dir='cw']::before,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='rotate'][data-hc-fx-ba-dir='cw']::before,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='spin'][data-hc-fx-ba-dir='cw']
+  > [data-hc-fx-ba-glow='wrap'],
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='rotate'][data-hc-fx-ba-dir='cw']
+  > [data-hc-fx-ba-glow='wrap'] {
   transform-origin: center;
-  animation: hc-fx-ba-rotate var(--hc-fx-ba-speed, 3s) linear infinite;
+  animation: hc-fx-ba-rotate-cw var(--hc-fx-ba-speed, 3s) linear infinite;
+}
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='spin']:not([data-hc-fx-ba-dir='cw'])::after,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='rotate']:not([data-hc-fx-ba-dir='cw'])::after,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='spin']:not([data-hc-fx-ba-dir='cw'])::before,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='rotate']:not([data-hc-fx-ba-dir='cw'])::before,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='spin']:not([data-hc-fx-ba-dir='cw'])
+  > [data-hc-fx-ba-glow='wrap'],
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='rotate']:not([data-hc-fx-ba-dir='cw'])
+  > [data-hc-fx-ba-glow='wrap'] {
+  transform-origin: center;
+  animation: hc-fx-ba-rotate-ccw var(--hc-fx-ba-speed, 3s) linear infinite;
 }
 
 [data-hc-fx-border-anim='1'][data-hc-fx-ba-style='pulse']::after {
   animation: hc-fx-ba-pulse var(--hc-fx-ba-speed, 3s) ease-in-out infinite;
 }
-[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='pulse']::before {
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='pulse']::before,
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='pulse'] > [data-hc-fx-ba-glow='wrap'] {
   animation: none;
 }
 
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='dash']::after,
 [data-hc-fx-border-anim='1'][data-hc-fx-ba-style='dash']::before,
-[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='dash']::after {
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='dash'] [data-hc-fx-ba-glow='fill'],
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='dash'] [data-hc-fx-ba-glow='in'] {
   background: repeating-linear-gradient(
     90deg,
     var(--hc-fx-ba-a, #0d9488) 0 8px,
     var(--hc-fx-ba-b, #6366f1) 8px 16px
   );
   background-size: 32px 100%;
+}
+[data-hc-fx-border-anim='1'][data-hc-fx-ba-style='dash']::after {
   animation: hc-fx-ba-dash var(--hc-fx-ba-speed, 3s) linear infinite;
 }
 
-@keyframes hc-fx-ba-trail {
+@keyframes hc-fx-ba-trail-cw {
   to {
     --hc-fx-ba-angle: 360deg;
   }
 }
-@keyframes hc-fx-ba-rotate {
+@keyframes hc-fx-ba-trail-ccw {
+  to {
+    --hc-fx-ba-angle: -360deg;
+  }
+}
+@keyframes hc-fx-ba-rotate-cw {
   to {
     transform: rotate(360deg);
+  }
+}
+@keyframes hc-fx-ba-rotate-ccw {
+  to {
+    transform: rotate(-360deg);
   }
 }
 @keyframes hc-fx-ba-pulse {
@@ -4226,4 +4394,46 @@ a.hc-index__row:hover {
   }
 }
 
+/* Bipolar range (0 at center): custom track painted behind native thumb */
+.hc-bipolar-range {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 1.25rem;
+  width: 100%;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+}
+.hc-bipolar-range::-webkit-slider-runnable-track {
+  height: 6px;
+  background: transparent;
+  border: none;
+}
+.hc-bipolar-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -4px;
+  border-radius: 999px;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink-muted) 35%, transparent);
+  cursor: pointer;
+}
+.hc-bipolar-range::-moz-range-track {
+  height: 6px;
+  background: transparent;
+  border: none;
+}
+.hc-bipolar-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink-muted) 35%, transparent);
+  cursor: pointer;
+}
 

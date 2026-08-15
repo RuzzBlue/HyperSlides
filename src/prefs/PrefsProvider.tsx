@@ -117,6 +117,7 @@ const fallbackSettings: AppPrefs = {
   contentZoom: '100',
   presenterMenu: 'fixed-footer',
   defaultShowSelected: true,
+  showSelectedShortcut: true,
   animationAdvanceKeys: [...DEFAULT_ANIMATION_ADVANCE_KEYS],
   animationAutoSelect: true,
   navigatorSidebarWidth: 260,

@@ -15,6 +15,8 @@ import type { ThemeSwatch } from './styleThemeColors';
 
 type CursorKind = 'regular' | 'icon' | 'emoji';
 type BaStyle = 'trail' | 'rotate' | 'pulse' | 'dash';
+type BaDir = 'cw' | 'ccw';
+type BaLayers = 'both' | 'border' | 'glow';
 
 type EffectsDraft = {
   hoverLift: boolean;
@@ -28,11 +30,24 @@ type EffectsDraft = {
   borderAnim: boolean;
   baSpeed: number;
   baThickness: number;
-  baExtend: number;
+  /** Signed: +extend outside, −inset inside. */
+  baOffset: number;
   baBlurIn: number;
   baBlurOut: number;
+  /** Master toggle for glow options (UI: “Glow mask”). */
+  baGlow: boolean;
+  /** Center cut in the glow; checkbox beside slider turns this off when checked. */
+  baGlowMask: boolean;
+  /** Signed: + larger hole (extend cut), − smaller hole (inset cut). */
+  baMaskOffset: number;
   baStops: GradientStop[];
   baStyle: BaStyle;
+  baDir: BaDir;
+  baLayers: BaLayers;
+  /** Host + glow layer z-index among page neighbors. */
+  baGlowZIndex: number;
+  baOverrideBorder: boolean;
+  baRadius: string;
   cursorEnabled: boolean;
   cursorKind: CursorKind;
   cursorValue: string;
@@ -169,7 +184,63 @@ function readCursorEnabled(el: HTMLElement): boolean {
   return Boolean(cur && cur !== 'auto' && cur !== 'default');
 }
 
+function growRadius(radius: string, grow: number): string {
+  if (!grow) return radius.trim() || '0px';
+  const parts = (radius.trim() || '0px').split(/\s+/);
+  return parts
+    .map((p) => {
+      const m = p.match(/^(-?[\d.]+)([a-z%]*)$/i);
+      if (!m) return p;
+      return `${Number(m[1]) + grow}${m[2] || 'px'}`;
+    })
+    .join(' ');
+}
+
+function readOptionalPx(el: HTMLElement, prop: string): number | null {
+  const raw = el.style.getPropertyValue(prop).trim();
+  if (!raw) return null;
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function readGlowZIndex(el: HTMLElement): number {
+  const fromVar = readOptionalPx(el, '--hc-fx-ba-glow-z-index');
+  if (fromVar != null) return fromVar;
+  const attr = el.getAttribute('data-hc-fx-ba-glow-z-index');
+  if (attr != null && attr !== '') {
+    const n = Number(attr);
+    if (Number.isFinite(n)) return n;
+  }
+  const legacy = el.getAttribute('data-hc-fx-ba-glow-z');
+  if (legacy === 'front') return 3;
+  if (legacy === 'back') return -1;
+  const inline = el.style.zIndex;
+  if (inline && inline !== 'auto') {
+    const n = Number(inline);
+    if (Number.isFinite(n)) return n;
+  }
+  return -1;
+}
+
 function readEffects(el: HTMLElement): EffectsDraft {
+  const offset =
+    readOptionalPx(el, '--hc-fx-ba-offset') ??
+    readOptionalPx(el, '--hc-fx-ba-extend') ??
+    0;
+  const featherIn =
+    readOptionalPx(el, '--hc-fx-ba-blur-in') ??
+    readOptionalPx(el, '--hc-fx-ba-feather-in') ??
+    0;
+  const featherOut =
+    readOptionalPx(el, '--hc-fx-ba-blur-out') ??
+    readOptionalPx(el, '--hc-fx-ba-feather-out') ??
+    0;
+  const glowOn =
+    el.getAttribute('data-hc-fx-ba-glow') === '1' ||
+    el.getAttribute('data-hc-fx-ba-has-glow') === '1' ||
+    featherOut > 0 ||
+    el.getAttribute('data-hc-fx-ba-glow-mask') === '1';
+
   return {
     hoverLift: el.getAttribute('data-hc-fx-hover-lift') === '1',
     hoverLiftAmount: Number(el.style.getPropertyValue('--hc-fx-lift').replace('px', '')) || 6,
@@ -182,11 +253,26 @@ function readEffects(el: HTMLElement): EffectsDraft {
     borderAnim: el.getAttribute('data-hc-fx-border-anim') === '1',
     baSpeed: Number(el.style.getPropertyValue('--hc-fx-ba-speed').replace('s', '')) || 3,
     baThickness: Number(el.style.getPropertyValue('--hc-fx-ba-thickness').replace('px', '')) || 2,
-    baExtend: Number(el.style.getPropertyValue('--hc-fx-ba-extend').replace('px', '')) || 0,
-    baBlurIn: Number(el.style.getPropertyValue('--hc-fx-ba-blur-in').replace('px', '')) || 0,
-    baBlurOut: Number(el.style.getPropertyValue('--hc-fx-ba-blur-out').replace('px', '')) || 0,
+    baOffset: offset,
+    baBlurIn: featherIn,
+    baBlurOut: featherOut > 0 ? featherOut : glowOn ? 4 : 0,
+    baGlow: glowOn,
+    // Cut defaults on when glow is present; attr '0' means explicitly off
+    baGlowMask: el.getAttribute('data-hc-fx-ba-glow-mask') !== '0',
+    baMaskOffset: readOptionalPx(el, '--hc-fx-ba-mask-offset') ?? 0,
     baStops: parseBaStops(el),
     baStyle: normalizeBaStyle(el.getAttribute('data-hc-fx-ba-style')),
+    baDir: el.getAttribute('data-hc-fx-ba-dir') === 'cw' ? 'cw' : 'ccw',
+    baLayers: (() => {
+      const v = el.getAttribute('data-hc-fx-ba-layers');
+      return v === 'border' || v === 'glow' ? v : 'both';
+    })(),
+    baGlowZIndex: readGlowZIndex(el),
+    baOverrideBorder: el.getAttribute('data-hc-fx-ba-override') === '1',
+    baRadius:
+      el.getAttribute('data-hc-fx-ba-radius') ||
+      el.style.getPropertyValue('--hc-fx-ba-radius-user').trim() ||
+      '',
     cursorEnabled: readCursorEnabled(el),
     cursorKind: (el.getAttribute('data-hc-fx-cursor-kind') as CursorKind) || 'regular',
     cursorValue:
@@ -197,6 +283,49 @@ function readEffects(el: HTMLElement): EffectsDraft {
         ? el.style.cursor
         : 'default'),
   };
+}
+
+/** Masked outer glow: blur on wrap, center cut on fill (keeps feather soft). */
+function ensureOuterGlow(el: HTMLElement): HTMLElement {
+  el.querySelectorAll(':scope > [data-hc-fx-ba-glow="ring"]').forEach((n) => n.remove());
+  let wrap = el.querySelector(':scope > [data-hc-fx-ba-glow="wrap"]') as HTMLElement | null;
+  if (!wrap) {
+    wrap = document.createElement('span');
+    wrap.setAttribute('data-hc-fx-ba-glow', 'wrap');
+    wrap.setAttribute('aria-hidden', 'true');
+    const fill = document.createElement('span');
+    fill.setAttribute('data-hc-fx-ba-glow', 'fill');
+    wrap.appendChild(fill);
+    el.insertBefore(wrap, el.firstChild);
+  } else if (!wrap.querySelector(':scope > [data-hc-fx-ba-glow="fill"]')) {
+    const fill = document.createElement('span');
+    fill.setAttribute('data-hc-fx-ba-glow', 'fill');
+    wrap.appendChild(fill);
+  }
+  return wrap;
+}
+
+function removeOuterGlow(el: HTMLElement) {
+  el.querySelectorAll(':scope > [data-hc-fx-ba-glow="wrap"]').forEach((n) => n.remove());
+}
+
+function ensureInnerGlow(el: HTMLElement): HTMLElement {
+  let glow = el.querySelector(':scope > [data-hc-fx-ba-glow="in"]') as HTMLElement | null;
+  if (!glow) {
+    glow = document.createElement('span');
+    glow.setAttribute('data-hc-fx-ba-glow', 'in');
+    glow.setAttribute('aria-hidden', 'true');
+    el.insertBefore(glow, el.firstChild);
+  }
+  return glow;
+}
+
+function removeInnerGlow(el: HTMLElement) {
+  el.querySelectorAll(':scope > [data-hc-fx-ba-glow="in"]').forEach((n) => n.remove());
+}
+
+function removeGlowNodes(el: HTMLElement) {
+  el.querySelectorAll(':scope > [data-hc-fx-ba-glow]').forEach((n) => n.remove());
 }
 
 function applyEffects(el: HTMLElement, d: EffectsDraft) {
@@ -229,35 +358,124 @@ function applyEffects(el: HTMLElement, d: EffectsDraft) {
   if (d.borderAnim) {
     el.setAttribute('data-hc-fx-border-anim', '1');
     el.setAttribute('data-hc-fx-ba-style', d.baStyle);
+    el.setAttribute('data-hc-fx-ba-dir', d.baDir);
+    el.setAttribute('data-hc-fx-ba-layers', d.baLayers);
     el.setAttribute('data-hc-fx-ba-stops', JSON.stringify(d.baStops));
+    el.removeAttribute('data-hc-fx-ba-glow-z');
+
+    const glowOn = d.baGlow;
+    if (glowOn) el.setAttribute('data-hc-fx-ba-glow', '1');
+    else el.removeAttribute('data-hc-fx-ba-glow');
+
+    const showOuterGlow =
+      glowOn &&
+      (d.baLayers === 'glow' || (d.baLayers === 'both' && d.baBlurOut > 0));
+    const showInnerGlow =
+      glowOn && (d.baLayers === 'glow' || d.baLayers === 'both') && d.baBlurIn > 0;
+    const useGlowMask = showOuterGlow && d.baGlowMask;
+    el.setAttribute('data-hc-fx-ba-has-glow', showOuterGlow ? '1' : '0');
+    // '1' = cut on, '0' = cut off (checkbox checked)
+    if (showOuterGlow) {
+      el.setAttribute('data-hc-fx-ba-glow-mask', d.baGlowMask ? '1' : '0');
+    } else {
+      el.removeAttribute('data-hc-fx-ba-glow-mask');
+    }
+
     el.style.setProperty('--hc-fx-ba-speed', `${d.baSpeed}s`);
     el.style.setProperty('--hc-fx-ba-thickness', `${d.baThickness}px`);
-    el.style.setProperty('--hc-fx-ba-extend', `${d.baExtend}px`);
+    el.style.setProperty('--hc-fx-ba-offset', `${d.baOffset}px`);
     el.style.setProperty('--hc-fx-ba-blur-in', `${d.baBlurIn}px`);
     el.style.setProperty('--hc-fx-ba-blur-out', `${d.baBlurOut}px`);
-    el.style.setProperty('--hc-fx-ba-outer-opacity', d.baBlurOut > 0 ? '0.85' : '0');
-    el.style.setProperty('--hc-fx-ba-inner-opacity', d.baBlurIn > 0 ? '0.9' : '1');
+    el.style.setProperty('--hc-fx-ba-mask-offset', `${d.baMaskOffset}px`);
+    el.setAttribute('data-hc-fx-ba-glow-z-index', String(d.baGlowZIndex));
+
+    // Host z-index stacks this element (and its overflowing glow) among neighbors.
+    // Glow layer itself stays at z-index: -1 so it remains a backlight under the fill.
+    if (glowOn) {
+      el.style.zIndex = String(d.baGlowZIndex);
+      el.setAttribute('data-hc-fx-ba-z-managed', '1');
+    } else if (el.getAttribute('data-hc-fx-ba-z-managed') === '1') {
+      el.style.removeProperty('z-index');
+      el.removeAttribute('data-hc-fx-ba-z-managed');
+    }
+
+    el.style.setProperty(
+      '--hc-fx-ba-glow-opacity',
+      !showOuterGlow ? '0' : d.baLayers === 'glow' ? '0.95' : '0.75',
+    );
+    el.style.setProperty(
+      '--hc-fx-ba-glow-in-opacity',
+      showInnerGlow ? (d.baLayers === 'glow' ? '0.7' : '0.55') : '0',
+    );
     el.style.setProperty('--hc-fx-ba-stops', stopsToConicList(d.baStops));
     const first = d.baStops[0];
     const mid = d.baStops[Math.floor(d.baStops.length / 2)];
     if (first) el.style.setProperty('--hc-fx-ba-a', first.hex);
     if (mid) el.style.setProperty('--hc-fx-ba-b', mid.hex);
+
+    el.style.removeProperty('--hc-fx-ba-glow-filter');
+    el.style.removeProperty('--hc-fx-ba-extend');
+    el.style.removeProperty('--hc-fx-ba-glow-out-opacity');
+    el.removeAttribute('data-hc-fx-ba-glow-out');
+
+    const outerGrow = d.baOffset + d.baThickness;
+    const hostRadius = getComputedStyle(el).borderRadius || '0px';
+    if (d.baOverrideBorder) {
+      el.setAttribute('data-hc-fx-ba-override', '1');
+      el.setAttribute('data-hc-fx-ba-radius', d.baRadius || '0px');
+      el.style.setProperty('--hc-fx-ba-radius-user', d.baRadius || '0px');
+      el.style.setProperty('--hc-fx-ba-radius', d.baRadius || '0px');
+    } else {
+      el.removeAttribute('data-hc-fx-ba-override');
+      el.removeAttribute('data-hc-fx-ba-radius');
+      el.style.removeProperty('--hc-fx-ba-radius-user');
+      el.style.setProperty(
+        '--hc-fx-ba-radius',
+        growRadius(hostRadius, Math.max(0, outerGrow)),
+      );
+    }
+
+    if (useGlowMask) ensureOuterGlow(el);
+    else removeOuterGlow(el);
+    if (showInnerGlow) ensureInnerGlow(el);
+    else removeInnerGlow(el);
   } else {
+    removeGlowNodes(el);
+    if (el.getAttribute('data-hc-fx-ba-z-managed') === '1') {
+      el.style.removeProperty('z-index');
+      el.removeAttribute('data-hc-fx-ba-z-managed');
+    }
     el.removeAttribute('data-hc-fx-border-anim');
     el.removeAttribute('data-hc-fx-ba-style');
+    el.removeAttribute('data-hc-fx-ba-dir');
+    el.removeAttribute('data-hc-fx-ba-layers');
+    el.removeAttribute('data-hc-fx-ba-glow-z');
+    el.removeAttribute('data-hc-fx-ba-glow-z-index');
+    el.removeAttribute('data-hc-fx-ba-glow');
+    el.removeAttribute('data-hc-fx-ba-has-glow');
+    el.removeAttribute('data-hc-fx-ba-glow-mask');
     el.removeAttribute('data-hc-fx-ba-stops');
+    el.removeAttribute('data-hc-fx-ba-override');
+    el.removeAttribute('data-hc-fx-ba-radius');
+    el.removeAttribute('data-hc-fx-ba-glow-out');
     [
       '--hc-fx-ba-speed',
       '--hc-fx-ba-thickness',
+      '--hc-fx-ba-offset',
       '--hc-fx-ba-extend',
       '--hc-fx-ba-blur-in',
       '--hc-fx-ba-blur-out',
-      '--hc-fx-ba-outer-opacity',
-      '--hc-fx-ba-inner-opacity',
+      '--hc-fx-ba-mask-offset',
+      '--hc-fx-ba-glow-z-index',
+      '--hc-fx-ba-glow-filter',
+      '--hc-fx-ba-glow-opacity',
+      '--hc-fx-ba-glow-in-opacity',
       '--hc-fx-ba-stops',
       '--hc-fx-ba-a',
       '--hc-fx-ba-b',
       '--hc-fx-ba-angle',
+      '--hc-fx-ba-radius',
+      '--hc-fx-ba-radius-user',
     ].forEach((p) => el.style.removeProperty(p));
   }
 
@@ -298,6 +516,57 @@ function FxTitleRow({
       />
       <span className={checked ? 'text-[var(--ink)]' : undefined}>{title}</span>
     </label>
+  );
+}
+
+/** Range with 0 in the middle — accent fill grows from center toward the thumb. */
+function BipolarRange({
+  value,
+  min,
+  max,
+  onChange,
+  ariaLabel,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  onChange: (n: number) => void;
+  ariaLabel: string;
+}) {
+  const span = max - min || 1;
+  const midPct = ((0 - min) / span) * 100;
+  const valPct = ((value - min) / span) * 100;
+  const track =
+    'color-mix(in srgb, var(--ink-muted) 28%, transparent)';
+  const fill = 'var(--accent)';
+  const background =
+    value === 0
+      ? track
+      : value > 0
+        ? `linear-gradient(to right, ${track} 0%, ${track} ${midPct}%, ${fill} ${midPct}%, ${fill} ${valPct}%, ${track} ${valPct}%, ${track} 100%)`
+        : `linear-gradient(to right, ${track} 0%, ${track} ${valPct}%, ${fill} ${valPct}%, ${fill} ${midPct}%, ${track} ${midPct}%, ${track} 100%)`;
+
+  return (
+    <div className="relative">
+      <div
+        className="pointer-events-none absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full"
+        style={{ background }}
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 z-[1] h-3 w-px -translate-x-1/2 -translate-y-1/2 bg-[var(--ink-muted)]/80"
+        aria-hidden
+      />
+      <input
+        type="range"
+        className="hc-bipolar-range"
+        min={min}
+        max={max}
+        value={value}
+        aria-label={ariaLabel}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+    </div>
   );
 }
 
@@ -460,7 +729,10 @@ export function ElementEffectsPanel({
       setDraft(null);
       return;
     }
-    setDraft(readEffects(el));
+    const next = readEffects(el);
+    // Re-apply so glow wrap/ring nodes exist for older markup / layer toggles
+    if (next.borderAnim) applyEffects(el, next);
+    setDraft(next);
   }, [el, selected?.objectId]);
 
   const apply = useCallback(
@@ -678,20 +950,32 @@ export function ElementEffectsPanel({
               borderAnim,
               baStops: draft.baStops.length >= 2 ? draft.baStops : DEFAULT_TRAIL_STOPS,
               baStyle: draft.baStyle || 'trail',
+              baDir: draft.baDir || 'ccw',
+              baLayers: draft.baLayers || 'both',
+              baGlow: draft.baGlow ?? false,
+              baGlowMask: draft.baGlowMask ?? true,
+              baMaskOffset: draft.baMaskOffset ?? 0,
+              baGlowZIndex: draft.baGlowZIndex ?? -1,
+              baBlurOut: draft.baBlurOut > 0 ? draft.baBlurOut : 4,
             })
           }
         />
         {draft.borderAnim && (
           <div className="space-y-2 rounded-lg border border-[var(--line)] bg-[var(--panel)]/40 p-2">
             <p className="text-[10px] leading-snug text-[var(--ink-muted)]">{tr('fxBorderAnimHint')}</p>
+
+            <TrailGradientEditor
+              stops={draft.baStops}
+              swatches={themeSwatches}
+              onChange={(baStops) => patch({ baStops })}
+            />
+
             <label className="block">
               <span className="mb-1 block text-[11px] font-medium">{tr('fxBorderAnimStyle')}</span>
               <select
                 className="w-full rounded-md border border-[var(--line)] bg-[var(--panel)] px-2 py-1.5 text-[12px]"
                 value={draft.baStyle}
-                onChange={(e) =>
-                  patch({ baStyle: e.target.value as BaStyle })
-                }
+                onChange={(e) => patch({ baStyle: e.target.value as BaStyle })}
               >
                 <option value="trail">{tr('fxBorderAnimTrail')}</option>
                 <option value="rotate">{tr('fxBorderAnimRotate')}</option>
@@ -699,41 +983,231 @@ export function ElementEffectsPanel({
                 <option value="dash">{tr('fxBorderAnimDash')}</option>
               </select>
             </label>
-            <TrailGradientEditor
-              stops={draft.baStops}
-              swatches={themeSwatches}
-              onChange={(baStops) => patch({ baStops })}
-            />
-            {(
-              [
-                ['baSpeed', tr('fxBorderAnimSpeed'), 1, 12, draft.baSpeed, 's'],
-                ['baThickness', tr('fxBorderAnimThickness'), 1, 12, draft.baThickness, 'px'],
-                ['baExtend', tr('fxBorderAnimExtend'), 0, 24, draft.baExtend, 'px'],
-                ['baBlurIn', tr('fxBorderAnimBlurIn'), 0, 24, draft.baBlurIn, 'px'],
-                ['baBlurOut', tr('fxBorderAnimBlurOut'), 0, 24, draft.baBlurOut, 'px'],
-              ] as const
-            ).map(([key, label, min, max, val, unit]) => (
-              <label key={key} className="block">
-                <span className="mb-1 flex justify-between text-[11px]">
-                  <span>{label}</span>
-                  <span className="tabular-nums text-[var(--ink-muted)]">
-                    {val}
-                    {unit}
-                  </span>
-                </span>
-                <input
-                  type="range"
-                  min={min}
-                  max={max}
-                  step={key === 'baSpeed' ? 0.5 : 1}
-                  value={val}
-                  onChange={(e) =>
-                    patch({ [key]: Number(e.target.value) } as Partial<EffectsDraft>)
-                  }
-                  className="w-full cursor-pointer accent-[var(--accent)]"
-                />
+
+            <div className="border-t border-[var(--line)] pt-2" />
+
+            {(draft.baStyle === 'trail' || draft.baStyle === 'rotate') && (
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-medium">{tr('fxBorderAnimDir')}</span>
+                <select
+                  className="w-full rounded-md border border-[var(--line)] bg-[var(--panel)] px-2 py-1.5 text-[12px]"
+                  value={draft.baDir}
+                  onChange={(e) => patch({ baDir: e.target.value as BaDir })}
+                >
+                  <option value="ccw">{tr('fxBorderAnimDirCcw')}</option>
+                  <option value="cw">{tr('fxBorderAnimDirCw')}</option>
+                </select>
               </label>
-            ))}
+            )}
+            <label className="block">
+              <span className="mb-1 flex justify-between text-[11px]">
+                <span>{tr('fxBorderAnimSpeed')}</span>
+                <span className="tabular-nums text-[var(--ink-muted)]">{draft.baSpeed}s</span>
+              </span>
+              <input
+                type="range"
+                min={1}
+                max={12}
+                step={0.5}
+                value={draft.baSpeed}
+                onChange={(e) => patch({ baSpeed: Number(e.target.value) })}
+                className="w-full cursor-pointer accent-[var(--accent)]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 flex justify-between text-[11px]">
+                <span>{tr('fxBorderAnimThickness')}</span>
+                <span className="tabular-nums text-[var(--ink-muted)]">{draft.baThickness}px</span>
+              </span>
+              <input
+                type="range"
+                min={1}
+                max={12}
+                value={draft.baThickness}
+                onChange={(e) => patch({ baThickness: Number(e.target.value) })}
+                className="w-full cursor-pointer accent-[var(--accent)]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 flex justify-between text-[11px]">
+                <span>{tr('fxBorderAnimOffset')}</span>
+                <span className="tabular-nums text-[var(--ink-muted)]">
+                  {draft.baOffset > 0 ? `+${draft.baOffset}` : draft.baOffset}px
+                </span>
+              </span>
+              <BipolarRange
+                min={-24}
+                max={24}
+                value={draft.baOffset}
+                onChange={(baOffset) => patch({ baOffset })}
+                ariaLabel={tr('fxBorderAnimOffset')}
+              />
+              <div className="mt-0.5 flex justify-between text-[9px] text-[var(--ink-muted)]">
+                <span>{tr('fxBorderAnimInset')}</span>
+                <span>{tr('fxBorderAnimExtend')}</span>
+              </div>
+            </label>
+
+            <div className="border-t border-[var(--line)] pt-2" />
+
+            <label className="flex cursor-pointer items-center gap-2 text-[11px] font-medium text-[var(--ink)]">
+              <input
+                type="checkbox"
+                className="accent-[var(--accent)]"
+                checked={draft.baGlow}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  patch({
+                    baGlow: on,
+                    baBlurOut: on && draft.baBlurOut <= 0 ? 4 : draft.baBlurOut,
+                    // Always restore Border + glow when turning glow off so the border stays visible
+                    baLayers: on ? draft.baLayers || 'both' : 'both',
+                    baGlowMask: draft.baGlowMask ?? true,
+                  });
+                }}
+              />
+              {tr('fxBorderAnimGlowMask')}
+            </label>
+
+            {draft.baGlow && (
+              <div className="space-y-2 rounded-md border border-[var(--line)] bg-[var(--stage)]/60 p-2">
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-medium">{tr('fxBorderAnimLayers')}</span>
+                  <select
+                    className="w-full rounded-md border border-[var(--line)] bg-[var(--panel)] px-2 py-1.5 text-[12px]"
+                    value={draft.baLayers}
+                    onChange={(e) => patch({ baLayers: e.target.value as BaLayers })}
+                  >
+                    <option value="both">{tr('fxBorderAnimLayersBoth')}</option>
+                    <option value="border">{tr('fxBorderAnimLayersBorder')}</option>
+                    <option value="glow">{tr('fxBorderAnimLayersGlow')}</option>
+                  </select>
+                  <p className="mt-1 text-[10px] leading-snug text-[var(--ink-muted)]">
+                    {tr('fxBorderAnimLayersHint')}
+                  </p>
+                </label>
+                <label className="block">
+                  <span className="mb-1 flex justify-between text-[11px]">
+                    <span>{tr('fxBorderAnimGlowZ')}</span>
+                    <span className="tabular-nums text-[var(--ink-muted)]">
+                      z-index {draft.baGlowZIndex}
+                    </span>
+                  </span>
+                  <input
+                    type="number"
+                    className="w-full rounded-md border border-[var(--line)] bg-[var(--panel)] px-2 py-1.5 text-[12px] tabular-nums"
+                    value={draft.baGlowZIndex}
+                    step={1}
+                    onChange={(e) =>
+                      patch({ baGlowZIndex: Number(e.target.value) || 0 })
+                    }
+                  />
+                  <p className="mt-1 text-[10px] leading-snug text-[var(--ink-muted)]">
+                    {tr('fxBorderAnimGlowZHint')}
+                  </p>
+                </label>
+                <label className="block">
+                  <span className="mb-1 flex justify-between text-[11px]">
+                    <span>{tr('fxBorderAnimBlurOut')}</span>
+                    <span className="tabular-nums text-[var(--ink-muted)]">{draft.baBlurOut}px</span>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={24}
+                    value={draft.baBlurOut}
+                    onChange={(e) => patch({ baBlurOut: Number(e.target.value) })}
+                    className="w-full cursor-pointer accent-[var(--accent)]"
+                  />
+                  <p className="mt-0.5 text-[10px] text-[var(--ink-muted)]">{tr('fxBorderAnimBlurOutHint')}</p>
+                </label>
+                <label className="block">
+                  <span className="mb-1 flex justify-between text-[11px]">
+                    <span>{tr('fxBorderAnimBlurIn')}</span>
+                    <span className="tabular-nums text-[var(--ink-muted)]">{draft.baBlurIn}px</span>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={24}
+                    value={draft.baBlurIn}
+                    onChange={(e) => patch({ baBlurIn: Number(e.target.value) })}
+                    className="w-full cursor-pointer accent-[var(--accent)]"
+                  />
+                  <p className="mt-0.5 text-[10px] text-[var(--ink-muted)]">{tr('fxBorderAnimBlurInHint')}</p>
+                </label>
+                <div className="block">
+                  <span className="mb-1 flex items-center justify-between gap-2 text-[11px]">
+                    <label className="flex cursor-pointer items-center gap-2 font-medium text-[var(--ink)]">
+                      <input
+                        type="checkbox"
+                        className="accent-[var(--accent)]"
+                        checked={draft.baGlowMask}
+                        aria-label={tr('fxBorderAnimMaskOffset')}
+                        onChange={(e) => patch({ baGlowMask: e.target.checked })}
+                      />
+                      <span>{tr('fxBorderAnimMaskOffset')}</span>
+                    </label>
+                    <span className="tabular-nums text-[var(--ink-muted)]">
+                      {draft.baMaskOffset > 0
+                        ? `+${draft.baMaskOffset}`
+                        : draft.baMaskOffset}
+                      px
+                    </span>
+                  </span>
+                  <BipolarRange
+                    min={-24}
+                    max={24}
+                    value={draft.baMaskOffset}
+                    onChange={(baMaskOffset) => patch({ baMaskOffset })}
+                    ariaLabel={tr('fxBorderAnimMaskOffset')}
+                  />
+                  <div className="mt-0.5 flex justify-between text-[9px] text-[var(--ink-muted)]">
+                    <span>{tr('fxBorderAnimInset')}</span>
+                    <span>{tr('fxBorderAnimExtend')}</span>
+                  </div>
+                  <p className="mt-0.5 text-[10px] text-[var(--ink-muted)]">
+                    {tr('fxBorderAnimGlowMaskHint')}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <label className="flex cursor-pointer items-center gap-2 text-[11px] font-medium text-[var(--ink)]">
+              <input
+                type="checkbox"
+                className="accent-[var(--accent)]"
+                checked={draft.baOverrideBorder}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  patch({
+                    baOverrideBorder: on,
+                    baRadius:
+                      on && !draft.baRadius
+                        ? getComputedStyle(el).borderRadius || '0px'
+                        : draft.baRadius,
+                  });
+                }}
+              />
+              {tr('fxBorderAnimOverride')}
+            </label>
+            {draft.baOverrideBorder && (
+              <div className="space-y-2 rounded-md border border-[var(--line)] bg-[var(--stage)] p-2">
+                <p className="text-[10px] leading-snug text-[var(--ink-muted)]">
+                  {tr('fxBorderAnimOverrideHint')}
+                </p>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+                    {tr('styleBorderRadius')}
+                  </span>
+                  <LengthInput
+                    value={draft.baRadius}
+                    onChange={(baRadius) => patch({ baRadius })}
+                    ariaLabel={tr('styleBorderRadius')}
+                  />
+                </label>
+              </div>
+            )}
           </div>
         )}
       </section>

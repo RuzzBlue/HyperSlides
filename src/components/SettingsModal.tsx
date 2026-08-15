@@ -7,6 +7,7 @@ import {
   MonitorCog,
   Moon,
   Palette,
+  PanelRight,
   Presentation,
   RotateCcw,
   Settings as SettingsIcon,
@@ -28,9 +29,12 @@ import type {
   AnimationAdvanceKeys,
 } from '@shared/animations/types';
 import { usePrefs } from '../prefs/PrefsProvider';
+import { useLessonObjectModeOptional } from '../lesson-objects/LessonObjectMode';
 import type { StringKey } from '../i18n/strings';
 
-type TabId = 'profile' | 'appearance' | 'settings' | 'presenter';
+export type SettingsTabId = 'profile' | 'appearance' | 'settings' | 'inspector' | 'presenter';
+
+type TabId = SettingsTabId;
 
 const ACCENTS = ['#0e6e6a', '#2f5aa8', '#c45c26', '#6b4f9a', '#1f7a4c', '#b42318', '#0f766e', '#1d4ed8'];
 
@@ -221,6 +225,12 @@ export function SettingsModal({
                   onClick={() => selectTab('settings')}
                 />
                 <TabBtn
+                  active={tab === 'inspector'}
+                  icon={<PanelRight className="h-4 w-4" />}
+                  label={tr('inspectorSettings')}
+                  onClick={() => selectTab('inspector')}
+                />
+                <TabBtn
                   active={tab === 'presenter'}
                   icon={<Presentation className="h-4 w-4" />}
                   label={tr('presenterSettings')}
@@ -250,9 +260,11 @@ export function SettingsModal({
                     ? tr('profile')
                     : tab === 'appearance'
                       ? tr('appearance')
-                      : tab === 'presenter'
-                        ? tr('presenterSettings')
-                        : tr('appSettings')}
+                      : tab === 'inspector'
+                        ? tr('inspectorSettings')
+                        : tab === 'presenter'
+                          ? tr('presenterSettings')
+                          : tr('appSettings')}
                 </h2>
                 <button
                   type="button"
@@ -293,6 +305,9 @@ export function SettingsModal({
                     onError={setError}
                     onProgressReset={onProgressReset}
                   />
+                )}
+                {tab === 'inspector' && (
+                  <InspectorSettingsTab draft={draftSettings} setDraft={setDraftSettings} tr={tr} />
                 )}
                 {tab === 'presenter' && (
                   <PresenterSettingsTab draft={draftSettings} setDraft={setDraftSettings} tr={tr} />
@@ -850,6 +865,88 @@ function AppSettingsTab({
   );
 }
 
+function InspectorSettingsTab({
+  draft,
+  setDraft,
+  tr,
+}: {
+  draft: AppPrefs;
+  setDraft: (v: AppPrefs) => void;
+  tr: (k: StringKey) => string;
+}) {
+  const objectMode = useLessonObjectModeOptional();
+  const canToggleOutline = Boolean(objectMode?.active && objectMode.interaction === 'edit');
+
+  return (
+    <div className="space-y-4">
+      <Field label={tr('showPreviewBorder')} hint={tr('showPreviewBorderHint')}>
+        <select
+          value={
+            canToggleOutline
+              ? objectMode!.showSelectionOutline
+                ? 'on'
+                : 'off'
+              : draft.defaultShowSelected === false
+                ? 'off'
+                : 'on'
+          }
+          disabled={!canToggleOutline}
+          onChange={(e) => {
+            if (!canToggleOutline || !objectMode) return;
+            objectMode.setShowSelectionOutline(e.target.value === 'on');
+          }}
+          className={textInputClass()}
+        >
+          <option value="on">{tr('defaultShowSelectedOn')}</option>
+          <option value="off">{tr('defaultShowSelectedOff')}</option>
+        </select>
+        {!canToggleOutline && (
+          <p className="mt-1.5 text-[11px] text-[var(--ink-muted)]">{tr('showPreviewBorderEditHint')}</p>
+        )}
+      </Field>
+
+      <Field label={tr('defaultShowSelected')} hint={tr('defaultShowSelectedHint')}>
+        <select
+          value={draft.defaultShowSelected === false ? 'off' : 'on'}
+          onChange={(e) =>
+            setDraft({ ...draft, defaultShowSelected: e.target.value === 'on' })
+          }
+          className={textInputClass()}
+        >
+          <option value="on">{tr('defaultShowSelectedOn')}</option>
+          <option value="off">{tr('defaultShowSelectedOff')}</option>
+        </select>
+      </Field>
+
+      <Field label={tr('showSelectedShortcut')} hint={tr('showSelectedShortcutHint')}>
+        <select
+          value={draft.showSelectedShortcut === false ? 'off' : 'on'}
+          onChange={(e) =>
+            setDraft({ ...draft, showSelectedShortcut: e.target.value === 'on' })
+          }
+          className={textInputClass()}
+        >
+          <option value="on">{tr('defaultShowSelectedOn')}</option>
+          <option value="off">{tr('defaultShowSelectedOff')}</option>
+        </select>
+      </Field>
+
+      <Field label={tr('animAutoSelect')} hint={tr('animAutoSelectHint')}>
+        <select
+          value={draft.animationAutoSelect === false ? 'off' : 'on'}
+          onChange={(e) =>
+            setDraft({ ...draft, animationAutoSelect: e.target.value === 'on' })
+          }
+          className={textInputClass()}
+        >
+          <option value="on">{tr('animAutoSelectOn')}</option>
+          <option value="off">{tr('animAutoSelectOff')}</option>
+        </select>
+      </Field>
+    </div>
+  );
+}
+
 function PresenterSettingsTab({
   draft,
   setDraft,
@@ -909,19 +1006,6 @@ function PresenterSettingsTab({
         </select>
       </Field>
 
-      <Field label={tr('defaultShowSelected')} hint={tr('defaultShowSelectedHint')}>
-        <select
-          value={draft.defaultShowSelected === false ? 'off' : 'on'}
-          onChange={(e) =>
-            setDraft({ ...draft, defaultShowSelected: e.target.value === 'on' })
-          }
-          className={textInputClass()}
-        >
-          <option value="on">{tr('defaultShowSelectedOn')}</option>
-          <option value="off">{tr('defaultShowSelectedOff')}</option>
-        </select>
-      </Field>
-
       <Field label={tr('animAdvanceKeys')} hint={tr('animAdvanceKeysHint')}>
         <div className="space-y-2">
           {([0, 1, 2] as const).map((slot) => (
@@ -957,19 +1041,6 @@ function PresenterSettingsTab({
           {tr('animAdvanceLeftClickCaution')}
         </p>
       )}
-
-      <Field label={tr('animAutoSelect')} hint={tr('animAutoSelectHint')}>
-        <select
-          value={draft.animationAutoSelect === false ? 'off' : 'on'}
-          onChange={(e) =>
-            setDraft({ ...draft, animationAutoSelect: e.target.value === 'on' })
-          }
-          className={textInputClass()}
-        >
-          <option value="on">{tr('animAutoSelectOn')}</option>
-          <option value="off">{tr('animAutoSelectOff')}</option>
-        </select>
-      </Field>
     </div>
   );
 }

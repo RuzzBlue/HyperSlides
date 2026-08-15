@@ -36,6 +36,7 @@ const DEFAULT_SETTINGS: AppPrefs = {
   contentZoom: '100',
   presenterMenu: 'fixed-footer',
   defaultShowSelected: true,
+  showSelectedShortcut: true,
   animationAdvanceKeys: [...DEFAULT_ANIMATION_ADVANCE_KEYS] as AnimationAdvanceKeys,
   animationAutoSelect: true,
   navigatorSidebarWidth: 260,
@@ -113,6 +114,9 @@ function normalizeSettings(raw: Partial<AppPrefs> | undefined): AppPrefs {
   }
   if (typeof raw?.defaultShowSelected !== 'boolean') {
     merged.defaultShowSelected = DEFAULT_SETTINGS.defaultShowSelected;
+  }
+  if (typeof raw?.showSelectedShortcut !== 'boolean') {
+    merged.showSelectedShortcut = DEFAULT_SETTINGS.showSelectedShortcut;
   }
   return merged;
 }

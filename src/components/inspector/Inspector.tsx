@@ -25,6 +25,7 @@ import {
   Pin,
   Radio,
   Search,
+  Settings2,
   Shapes,
   Sparkles,
   SquareArrowOutUpRight,
@@ -181,6 +182,7 @@ export function Inspector({
   courseTheme,
   coverAccent,
   editMode = false,
+  onOpenInspectorSettings,
 }: {
   tool: InspectorTool;
   mode: InspectorMode;
@@ -207,8 +209,10 @@ export function Inspector({
   coverAccent?: string;
   /** When true, show the edit-mode “show selected outline” control on insert/style tools. */
   editMode?: boolean;
+  /** Opens Settings → Inspector (from the header cog). */
+  onOpenInspectorSettings?: () => void;
 }) {
-  const { tr } = usePrefs();
+  const { tr, settings } = usePrefs();
   const objectMode = useLessonObjectModeOptional();
   const themeSwatches = useMemo(
     () => swatchesFromCourseTheme(courseTheme, coverAccent),
@@ -229,8 +233,9 @@ export function Inspector({
     tool === 'media' ||
     tool === 'graphs' ||
     tool === 'tables';
-  const showSelectionOutlineToggle =
+  const showInspectorPrefsCog =
     editMode && (isElements || isText || isStyleTool) && Boolean(objectMode);
+  const showSelectedShortcut = settings.showSelectedShortcut !== false;
   const editKind: 'lesson' | 'quiz' | 'lab' | null = !isCode
     ? null
     : quizEditContext
@@ -363,19 +368,31 @@ export function Inspector({
             <Search className="h-4 w-4" />
           </button>
         )}
-        {showSelectionOutlineToggle && objectMode && (
-          <label
-            className="flex max-w-[9.5rem] cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-[10px] font-medium leading-tight text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)] dark:hover:bg-white/10"
-            title={tr('inspectorShowSelected')}
-          >
-            <input
-              type="checkbox"
-              className="accent-[var(--accent)]"
-              checked={objectMode.showSelectionOutline}
-              onChange={(e) => objectMode.setShowSelectionOutline(e.target.checked)}
-            />
-            <span className="truncate">{tr('inspectorShowSelected')}</span>
-          </label>
+        {showInspectorPrefsCog && objectMode && (
+          <div className="group flex shrink-0 items-center">
+            {showSelectedShortcut && (
+              <label
+                className="flex max-w-0 cursor-pointer items-center gap-1.5 overflow-hidden whitespace-nowrap text-[10px] font-medium text-[var(--ink-muted)] opacity-0 transition-all duration-150 group-hover:mr-1.5 group-hover:max-w-[10rem] group-hover:opacity-100 group-hover:text-[var(--ink)]"
+                title={tr('inspectorShowSelection')}
+              >
+                <input
+                  type="checkbox"
+                  className="accent-[var(--accent)]"
+                  checked={objectMode.showSelectionOutline}
+                  onChange={(e) => objectMode.setShowSelectionOutline(e.target.checked)}
+                />
+                <span>{tr('inspectorShowSelection')}</span>
+              </label>
+            )}
+            <button
+              type="button"
+              title={tr('inspectorSettings')}
+              onClick={() => onOpenInspectorSettings?.()}
+              className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)] dark:hover:bg-white/10"
+            >
+              <Settings2 className="h-4 w-4" />
+            </button>
+          </div>
         )}
         <button
           type="button"
