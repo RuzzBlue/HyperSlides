@@ -24,7 +24,7 @@ import {
   type SlideAnimationParams,
 } from '@shared/animations/types';
 import { useLessonObjectModeOptional } from '../../lesson-objects/LessonObjectMode';
-import { playSlideAnimation } from '../../lesson-objects/AnimationRunner';
+import { playSlideAnimation, readAuthorOpacity } from '../../lesson-objects/AnimationRunner';
 import {
   ensureObjectId,
   findByObjectId,
@@ -316,12 +316,16 @@ export function AnimationsPanel({
     if (objectMode?.root) {
       const el = findByObjectId(objectMode.root, objectId);
       if (el) {
+        const authorOpacity = el.style.opacity;
+        const authorVisibility = el.style.visibility;
+        const base = readAuthorOpacity(el);
         el.style.visibility = 'visible';
-        el.style.opacity = '1';
-        void playSlideAnimation(objectMode.root, draftAnim).finally(() => {
-          // Preview only — keep edit view fully visible afterward.
-          el.style.visibility = 'visible';
-          el.style.opacity = '1';
+        void playSlideAnimation(objectMode.root, draftAnim, base).finally(() => {
+          // Preview only — restore authored opacity / visibility afterward.
+          if (authorOpacity) el.style.opacity = authorOpacity;
+          else el.style.removeProperty('opacity');
+          if (authorVisibility) el.style.visibility = authorVisibility;
+          else el.style.removeProperty('visibility');
           el.style.transform = '';
           el.style.filter = '';
           el.style.pointerEvents = '';
