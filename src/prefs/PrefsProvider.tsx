@@ -120,6 +120,7 @@ const fallbackSettings: AppPrefs = {
   showSelectedShortcut: true,
   animationAdvanceKeys: [...DEFAULT_ANIMATION_ADVANCE_KEYS],
   animationAutoSelect: true,
+  inspectorElementTabMode: 'remember',
   navigatorSidebarWidth: 260,
   sidebarView: 'navigator',
   showDemoCourse: true,

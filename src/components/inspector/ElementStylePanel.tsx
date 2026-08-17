@@ -458,6 +458,37 @@ function applySnapshot(el: HTMLElement, s: ElementStyleSnapshot, courseId?: stri
 }
 
 /** Shared Content | Style | Effects | Element tab chrome for inspectors. */
+export type InspectorElementTab = 'content' | 'style' | 'effects' | 'element';
+
+/** Session memory for “Remember last tab” (shared across element inspectors). */
+let rememberedInspectorElementTab: InspectorElementTab = 'content';
+
+/** Hook: tab state that respects Settings → Inspector → element tab mode. */
+export function useInspectorElementTab(
+  selectedObjectId?: string | null,
+): [InspectorElementTab, (tab: InspectorElementTab) => void] {
+  const { settings } = usePrefs();
+  const mode = settings.inspectorElementTabMode === 'start-content' ? 'start-content' : 'remember';
+  const [tab, setTab] = useState<InspectorElementTab>(() =>
+    mode === 'remember' ? rememberedInspectorElementTab : 'content',
+  );
+
+  useEffect(() => {
+    if (mode === 'start-content') {
+      setTab('content');
+      return;
+    }
+    setTab(rememberedInspectorElementTab);
+  }, [selectedObjectId, mode]);
+
+  const onTabChange = useCallback((next: InspectorElementTab) => {
+    setTab(next);
+    rememberedInspectorElementTab = next;
+  }, []);
+
+  return [tab, onTabChange];
+}
+
 export function InspectorContentStyleTabs({
   tab,
   onTabChange,
@@ -466,8 +497,8 @@ export function InspectorContentStyleTabs({
   effects,
   element,
 }: {
-  tab: 'content' | 'style' | 'effects' | 'element';
-  onTabChange: (tab: 'content' | 'style' | 'effects' | 'element') => void;
+  tab: InspectorElementTab;
+  onTabChange: (tab: InspectorElementTab) => void;
   content: ReactNode;
   style: ReactNode;
   effects: ReactNode;
@@ -507,7 +538,7 @@ export function InspectorContentStyleTabs({
           );
         })}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-3">
         {tab === 'content'
           ? content
           : tab === 'style'

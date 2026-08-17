@@ -4070,6 +4070,12 @@ a.hc-index__row:hover {
   pointer-events: none;
 }
 
+/* Temporary entrance hide for present playback — never write author style.opacity */
+[data-hc-anim-hidden='1'] {
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
 /* ── Element effects (inspector) ─────────────────────────────────────────── */
 
 [data-hc-fx-hover-lift='1'] {

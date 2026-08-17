@@ -394,6 +394,21 @@ export default function App() {
     const tool = inspectorTool ?? lastInspectorTool;
     setInspectorTool(tool);
     setLastInspectorTool(tool);
+    // Reopening via View → Show should turn Edit on for insert/style tools
+    // (same as opening them from the toolbar).
+    if (
+      tool === 'elements' ||
+      tool === 'text' ||
+      tool === 'links' ||
+      tool === 'shapesMedia' ||
+      tool === 'charts' ||
+      tool === 'shape' ||
+      tool === 'media' ||
+      tool === 'graphs' ||
+      tool === 'tables'
+    ) {
+      setEditMode(true);
+    }
     if (inspectorMode === 'floating') {
       setFloatResetToken((n) => n + 1);
     } else {

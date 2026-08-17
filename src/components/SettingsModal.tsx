@@ -930,6 +930,23 @@ function InspectorSettingsTab({
           <option value="off">{tr('animAutoSelectOff')}</option>
         </select>
       </Field>
+
+      <Field label={tr('inspectorElementTabMode')} hint={tr('inspectorElementTabModeHint')}>
+        <select
+          value={draft.inspectorElementTabMode === 'start-content' ? 'start-content' : 'remember'}
+          onChange={(e) =>
+            setDraft({
+              ...draft,
+              inspectorElementTabMode:
+                e.target.value === 'start-content' ? 'start-content' : 'remember',
+            })
+          }
+          className={textInputClass()}
+        >
+          <option value="remember">{tr('inspectorElementTabRemember')}</option>
+          <option value="start-content">{tr('inspectorElementTabStartContent')}</option>
+        </select>
+      </Field>
     </div>
   );
 }

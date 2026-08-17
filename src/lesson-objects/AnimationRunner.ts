@@ -7,6 +7,55 @@ import type {
 } from '@shared/animations/types';
 import { findByObjectId, HC_OBJ_ATTR } from './selection';
 
+/** Temporary entrance hide — must not touch author `style.opacity` / `visibility`. */
+export const HC_ANIM_HIDDEN_ATTR = 'data-hc-anim-hidden';
+
+/** Captured design opacity used as “100% visible” during playback. */
+const HC_AUTHOR_OPACITY_ATTR = 'data-hc-author-opacity';
+
+export function clearAnimHide(el: HTMLElement) {
+  el.removeAttribute(HC_ANIM_HIDDEN_ATTR);
+}
+
+export function setAnimHide(el: HTMLElement) {
+  el.setAttribute(HC_ANIM_HIDDEN_ATTR, '1');
+}
+
+/** Clear anime.js leftovers without wiping authored opacity / visibility. */
+export function clearAnimRuntimeStyles(el: HTMLElement) {
+  anime.remove(el);
+  el.style.removeProperty('transform');
+  el.style.removeProperty('filter');
+  el.style.removeProperty('pointer-events');
+  clearAnimHide(el);
+}
+
+function clampOpacity(n: number): number {
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(1, Math.max(0, n));
+}
+
+/** Resolve design opacity: inline style, else captured attr, else computed (default 1). */
+export function readAuthorOpacity(el: HTMLElement): number {
+  const attr = el.getAttribute(HC_AUTHOR_OPACITY_ATTR);
+  if (attr != null && attr !== '') {
+    const n = Number.parseFloat(attr);
+    if (Number.isFinite(n)) return clampOpacity(n);
+  }
+  const inline = el.style.opacity.trim();
+  if (inline !== '') {
+    const n = Number.parseFloat(inline);
+    if (Number.isFinite(n)) return clampOpacity(n);
+  }
+  const computed = Number.parseFloat(getComputedStyle(el).opacity);
+  return clampOpacity(Number.isFinite(computed) ? computed : 1);
+}
+
+function applyAuthorOpacity(el: HTMLElement, base: number) {
+  if (base >= 0.999) el.style.removeProperty('opacity');
+  else el.style.opacity = String(base);
+}
+
 function dirOffset(direction: AnimDirection | undefined, axis: 'x' | 'y'): number {
   const d = direction ?? 'up';
   if (axis === 'x') {
@@ -26,7 +75,6 @@ function resolveTargets(
   const s = scope ?? 'block';
   if (s === 'block') return el;
   if (s === 'line') {
-    // Prefer list items, else direct block children, else whole
     const lis = Array.from(el.querySelectorAll<HTMLElement>(':scope > li'));
     if (lis.length) return lis;
     const kids = Array.from(el.children).filter(
@@ -56,25 +104,36 @@ function isExitPreset(preset: PresetId): boolean {
   );
 }
 
-/** One cycle of an effect (no anime.js loop — repeats are sequenced by the caller). */
+/**
+ * One cycle of an effect.
+ * `base` = authored element opacity treated as full visibility (1.0 in keyframes).
+ */
 function runPresetCycle(
   list: HTMLElement[],
   effectId: string,
   durationMs: number,
   direction: AnimDirection | undefined,
   hideWhenDone: boolean,
+  base: number,
 ): Promise<void> {
   const def = getEffectDef(effectId);
   const preset: PresetId = def?.preset ?? 'fadeIn';
   const duration = Math.max(40, durationMs);
+  const full = clampOpacity(base);
+  const dim = full * 0.2;
 
   return new Promise((resolve) => {
     const finish = () => resolve();
     const hideTargets = () => {
       list.forEach((t) => {
-        t.style.visibility = 'hidden';
-        t.style.opacity = '0';
+        setAnimHide(t);
+        // Don't leave anime's opacity:0 on the node (would overwrite author styles).
+        t.style.removeProperty('opacity');
+        t.style.removeProperty('visibility');
       });
+    };
+    const restoreVisible = () => {
+      list.forEach((t) => applyAuthorOpacity(t, full));
     };
     const common = {
       targets: list,
@@ -82,21 +141,22 @@ function runPresetCycle(
       easing: 'easeOutQuad' as const,
       complete: () => {
         if (hideWhenDone) hideTargets();
+        else restoreVisible();
         finish();
       },
     };
 
     switch (preset) {
       case 'fadeIn':
-        anime({ ...common, opacity: [0, 1] });
+        anime({ ...common, opacity: [0, full] });
         break;
       case 'fadeOut':
-        anime({ ...common, opacity: [1, 0] });
+        anime({ ...common, opacity: [full, 0] });
         break;
       case 'slideIn':
         anime({
           ...common,
-          opacity: [0, 1],
+          opacity: [0, full],
           translateX: [dirOffset(direction, 'x'), 0],
           translateY: [dirOffset(direction, 'y'), 0],
         });
@@ -105,7 +165,7 @@ function runPresetCycle(
       case 'wipeOut':
         anime({
           ...common,
-          opacity: [1, 0],
+          opacity: [full, 0],
           translateX: [0, dirOffset(direction, 'x') || (direction === 'right' ? 60 : -60)],
           translateY: [0, dirOffset(direction, 'y')],
         });
@@ -114,33 +174,33 @@ function runPresetCycle(
       case 'bounceIn':
         anime({
           ...common,
-          opacity: [0, 1],
+          opacity: [0, full],
           scale: [preset === 'bounceIn' ? 0.6 : 0.85, 1],
           easing: preset === 'bounceIn' ? 'easeOutElastic(1, .6)' : 'easeOutQuad',
         });
         break;
       case 'zoomOut':
       case 'shrinkOut':
-        anime({ ...common, opacity: [1, 0], scale: [1, 0.7] });
+        anime({ ...common, opacity: [full, 0], scale: [1, 0.7] });
         break;
       case 'blurIn':
         anime({
           ...common,
-          opacity: [0, 1],
+          opacity: [0, full],
           filter: ['blur(8px)', 'blur(0px)'],
         });
         break;
       case 'blurOut':
         anime({
           ...common,
-          opacity: [1, 0],
+          opacity: [full, 0],
           filter: ['blur(0px)', 'blur(8px)'],
         });
         break;
       case 'flipIn':
         anime({
           ...common,
-          opacity: [0, 1],
+          opacity: [0, full],
           rotateY: direction === 'right' || direction === 'left' ? [-75, 0] : 0,
           rotateX: direction === 'up' || direction === 'down' ? [75, 0] : 0,
         });
@@ -172,13 +232,13 @@ function runPresetCycle(
         anime({ ...common, rotate: [-4, 4, -3, 3, 0] });
         break;
       case 'flash':
-        anime({ ...common, opacity: [1, 0.2, 1, 0.2, 1] });
+        anime({ ...common, opacity: [full, dim, full, dim, full] });
         break;
       case 'spin':
         anime({ ...common, rotate: [0, 360] });
         break;
       default:
-        anime({ ...common, opacity: [0.5, 1] });
+        anime({ ...common, opacity: [full * 0.5, full] });
     }
   });
 }
@@ -192,8 +252,9 @@ async function runPreset(
   targets: HTMLElement | HTMLElement[],
   effectId: string,
   durationSec: number,
-  direction?: AnimDirection,
-  repeatCount = 1,
+  direction: AnimDirection | undefined,
+  repeatCount: number,
+  base: number,
 ): Promise<void> {
   const def = getEffectDef(effectId);
   const preset: PresetId = def?.preset ?? 'fadeIn';
@@ -210,20 +271,47 @@ async function runPreset(
 
   for (let i = 0; i < loops; i++) {
     const last = i === loops - 1;
-    await runPresetCycle(list, effectId, cycleMs, direction, last && isExitPreset(preset));
+    await runPresetCycle(
+      list,
+      effectId,
+      cycleMs,
+      direction,
+      last && isExitPreset(preset),
+      base,
+    );
   }
 }
 
 export async function playSlideAnimation(
   root: HTMLElement,
   anim: SlideAnimation,
+  baseOpacity?: number,
 ): Promise<void> {
   const el = findByObjectId(root, anim.objectId);
   if (!el) return;
+  clearAnimHide(el);
   const targets = resolveTargets(el, anim.params.childScope);
+  const list = Array.isArray(targets) ? targets : [targets];
+  list.forEach((t) => clearAnimHide(t));
+  const base = clampOpacity(baseOpacity ?? readAuthorOpacity(el));
+  // Entrance starts from transparent without flashing authored opacity first.
+  if (anim.kind === 'entrance') {
+    list.forEach((t) => {
+      t.style.opacity = '0';
+    });
+  } else {
+    list.forEach((t) => applyAuthorOpacity(t, base));
+  }
   const repeat =
     anim.kind === 'action' ? Math.max(1, Math.round(Number(anim.repeat) || 1)) : 1;
-  await runPreset(targets, anim.effectId, anim.durationSec, anim.params.direction, repeat);
+  await runPreset(
+    targets,
+    anim.effectId,
+    anim.durationSec,
+    anim.params.direction,
+    repeat,
+    base,
+  );
 }
 
 export type AnimationRunner = {
@@ -254,29 +342,60 @@ export function createAnimationRunner(
   let cursor = 0;
   let destroyed = false;
   let advancing = false;
+  /** Author opacity/visibility captured once so anime cleanup cannot wipe design styles. */
+  const authorPaint = new Map<
+    string,
+    { opacity: string; visibility: string; base: number }
+  >();
+
+  const captureAuthor = (el: HTMLElement, id: string) => {
+    if (authorPaint.has(id)) return;
+    const opacity = el.style.opacity;
+    const visibility = el.style.visibility;
+    const base = readAuthorOpacity(el);
+    authorPaint.set(id, { opacity, visibility, base });
+    el.setAttribute(HC_AUTHOR_OPACITY_ATTR, String(base));
+  };
+
+  const restoreAuthor = (el: HTMLElement, id: string) => {
+    const snap = authorPaint.get(id);
+    if (!snap) return;
+    if (snap.opacity) el.style.opacity = snap.opacity;
+    else el.style.removeProperty('opacity');
+    if (snap.visibility) el.style.visibility = snap.visibility;
+    else el.style.removeProperty('visibility');
+    el.removeAttribute(HC_AUTHOR_OPACITY_ATTR);
+  };
+
+  const baseFor = (objectId: string, el: HTMLElement | null): number => {
+    const snap = authorPaint.get(objectId);
+    if (snap) return snap.base;
+    return el ? readAuthorOpacity(el) : 1;
+  };
 
   const prepare = () => {
-    // Reset transforms on all animated nodes
     const ids = new Set(sorted.map((i) => i.objectId));
     ids.forEach((id) => {
       const el = findByObjectId(root, id);
       if (!el) return;
-      anime.remove(el);
-      el.style.transform = '';
-      el.style.filter = '';
-      el.style.opacity = '';
-      el.style.visibility = '';
+      captureAuthor(el, id);
+      clearAnimRuntimeStyles(el);
+      restoreAuthor(el, id);
+      // Re-stamp attr after restore (restore clears it).
+      const snap = authorPaint.get(id);
+      if (snap) el.setAttribute(HC_AUTHOR_OPACITY_ATTR, String(snap.base));
     });
-    // Hide elements that have an entrance until played
     sorted
       .filter((i) => i.kind === 'entrance')
       .forEach((i) => {
         const el = findByObjectId(root, i.objectId);
-        if (el) {
-          el.style.visibility = 'hidden';
-          el.style.opacity = '0';
-        }
+        if (el) setAnimHide(el);
       });
+  };
+
+  const playOne = (anim: SlideAnimation) => {
+    const el = findByObjectId(root, anim.objectId);
+    return playSlideAnimation(root, anim, baseFor(anim.objectId, el));
   };
 
   const playGroupFrom = async (startIndex: number): Promise<number> => {
@@ -288,10 +407,9 @@ export function createAnimationRunner(
       group.push(sorted[i]!);
       i += 1;
     }
-    await Promise.all(group.map((g) => playSlideAnimation(root, g)));
+    await Promise.all(group.map((g) => playOne(g)));
     let next = i;
     while (next < sorted.length && sorted[next]!.start === 'after-previous') {
-      // after-previous chain continues automatically
       const afterStart = next;
       const afterGroup: SlideAnimation[] = [sorted[afterStart]!];
       next = afterStart + 1;
@@ -299,18 +417,16 @@ export function createAnimationRunner(
         afterGroup.push(sorted[next]!);
         next += 1;
       }
-      await Promise.all(afterGroup.map((g) => playSlideAnimation(root, g)));
+      await Promise.all(afterGroup.map((g) => playOne(g)));
     }
     return next;
   };
 
   const playAutostart = async () => {
     if (destroyed) return;
-    // Play leading order-0 items and any with-previous attached, or first with-previous as 0
     if (!sorted.length) return;
     if (sorted[0]!.order === 0 || sorted[0]!.start === 'with-previous') {
       cursor = await playGroupFrom(0);
-      // Continue after-previous chain already handled in playGroupFrom
       return;
     }
     cursor = 0;
@@ -336,17 +452,20 @@ export function createAnimationRunner(
     destroy: () => {
       destroyed = true;
       anime.remove(root.querySelectorAll(`[${HC_OBJ_ATTR}]`));
-      // Leave DOM fully visible when leaving present mode / tearing down.
       const ids = new Set(sorted.map((i) => i.objectId));
       ids.forEach((id) => {
         const el = findByObjectId(root, id);
         if (!el) return;
-        el.style.transform = '';
-        el.style.filter = '';
-        el.style.opacity = '';
-        el.style.visibility = '';
-        el.style.pointerEvents = '';
+        clearAnimRuntimeStyles(el);
+        restoreAuthor(el, id);
       });
+      root.querySelectorAll(`[${HC_ANIM_HIDDEN_ATTR}]`).forEach((node) => {
+        clearAnimHide(node as HTMLElement);
+      });
+      root.querySelectorAll(`[${HC_AUTHOR_OPACITY_ATTR}]`).forEach((node) => {
+        (node as HTMLElement).removeAttribute(HC_AUTHOR_OPACITY_ATTR);
+      });
+      authorPaint.clear();
     },
   };
 }

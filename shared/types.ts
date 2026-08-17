@@ -791,6 +791,12 @@ export interface AppPrefs {
    * When false, only the panel opens — use Select element to pick.
    */
   animationAutoSelect: boolean;
+  /**
+   * How Content | Style | Effects | Element tabs behave when selecting another element.
+   * - `remember` — keep the last tab (default)
+   * - `start-content` — always open on Content
+   */
+  inspectorElementTabMode: 'remember' | 'start-content';
   /** Course navigator sidebar width in px (capped at default; drag to shrink). */
   navigatorSidebarWidth: number;
   /** Default left sidebar layout while presenting (navigator thumbnails vs overview outline). */

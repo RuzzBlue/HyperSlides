@@ -113,15 +113,19 @@ export function LessonView({
       return;
     }
 
-    // Edit / inspector view: always show every element (no entrance pre-hide).
+    // Edit / inspector view: clear temporary animation hide markers only.
+    // Never wipe author opacity / visibility (those are design styles).
     if (!presentPlayback) {
-      root.querySelectorAll('[data-hc-obj]').forEach((node) => {
-        const el = node as HTMLElement;
-        el.style.visibility = '';
-        el.style.opacity = '';
-        el.style.transform = '';
-        el.style.filter = '';
-        el.style.pointerEvents = '';
+      root.querySelectorAll('[data-hc-anim-hidden]').forEach((node) => {
+        (node as HTMLElement).removeAttribute('data-hc-anim-hidden');
+      });
+      const animIds = new Set((animationsDoc?.items ?? []).map((i) => i.objectId));
+      animIds.forEach((id) => {
+        const el = root.querySelector<HTMLElement>(`[data-hc-obj="${CSS.escape(id)}"]`);
+        if (!el) return;
+        el.style.removeProperty('transform');
+        el.style.removeProperty('filter');
+        el.style.removeProperty('pointer-events');
       });
       if (runnerRef) runnerRef.current = null;
       return;

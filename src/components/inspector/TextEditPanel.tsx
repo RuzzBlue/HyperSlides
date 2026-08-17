@@ -16,7 +16,6 @@ import {
   Bold,
   Check,
   ChevronDown,
-  Highlighter,
   Indent,
   Italic,
   List,
@@ -51,6 +50,7 @@ import {
   ElementStylePanel,
   InspectorContentStyleTabs,
   hexAlphaToCss,
+  useInspectorElementTab,
 } from './ElementStylePanel';
 import { ElementEffectsPanel } from './ElementEffectsPanel';
 import { ElementMetaPanel } from './ElementMetaPanel';
@@ -398,7 +398,8 @@ function applyPaint(
   highlight: string,
   highlightAlpha: number,
 ) {
-  el.style.setProperty('color', color);
+  if (!color.trim()) el.style.removeProperty('color');
+  else el.style.setProperty('color', color);
   if (!highlightEnabled || highlightAlpha <= 0) {
     el.style.removeProperty('background-color');
     el.removeAttribute(PAINT_ATTR);
@@ -421,7 +422,8 @@ function readPaint(el: HTMLElement): {
   highlightAlpha: number;
 } {
   const cs = getComputedStyle(el);
-  const color = rgbToHex(el.style.color || cs.color) || '#1c1f26';
+  const inlineColor = (el.style.color || '').trim();
+  const color = inlineColor ? rgbToHex(inlineColor) || '' : '';
   const raw = el.style.backgroundColor || (el.hasAttribute(PAINT_ATTR) ? cs.backgroundColor : '');
   const parts = rgbaParts(raw);
   const highlightEnabled = Boolean(parts && parts.alpha > 0 && el.style.backgroundColor);
@@ -517,7 +519,7 @@ export function TextEditPanel({
   const [draft, setDraft] = useState<Snapshot | null>(null);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'content' | 'style' | 'effects' | 'element'>('content');
+  const [tab, setTab] = useInspectorElementTab(selected?.objectId);
   const fileRef = useRef<HTMLInputElement>(null);
   const skipNextLoad = useRef(false);
   const uploadedRef = useRef(uploaded);
@@ -822,7 +824,6 @@ export function TextEditPanel({
     );
   }
 
-  const isCustom = draft.typeId === 'custom';
   const typeOptions = TEXT_TYPE_OPTIONS.filter((o) => {
     if (o.id === 'custom') return true;
     if (!draft.canChangeTag) return o.id === draft.typeId || o.tag === draft.tag;
@@ -851,11 +852,7 @@ export function TextEditPanel({
           {error}
         </div>
       )}
-      {dirty && (
-        <div className="-mt-2 text-[10px] text-[var(--ink-muted)]">{tr('inspectorNotesUnsaved')}</div>
-      )}
-
-      {/* 1. Type — what this text is */}
+      {/* 1. Type */}
       <section className="space-y-2">
         <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
           {tr('textEditSectionType')}
@@ -866,41 +863,13 @@ export function TextEditPanel({
           disabled={!draft.canChangeTag && draft.typeId !== 'custom'}
           onChange={onTypeChange}
         />
-        {!isCustom && (
-          <p className="text-[10px] leading-snug text-[var(--ink-muted)]">
-            {tr('textEditTypeDrivenFont')}
-          </p>
-        )}
       </section>
 
-      {/* 2. Content — the words */}
+      {/* 2. Content — character formatting above the words */}
       <section className="space-y-2">
         <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
           {tr('textEditSectionContent')}
         </div>
-        <textarea
-          className={`${fieldClass} min-h-[96px] whitespace-pre-wrap`}
-          value={draft.text}
-          onChange={(e) => {
-            const text = e.target.value;
-            setDraft({ ...draft, text });
-            markDirty();
-          }}
-          onBlur={flushContent}
-          onKeyDown={(e) => {
-            e.stopPropagation();
-          }}
-          aria-label={tr('textEditContent')}
-        />
-        <p className="text-[10px] text-[var(--ink-muted)]">{tr('textEditNewlineHint')}</p>
-      </section>
-
-      {/* 3. Typography — character formatting + typeface + metrics (PowerPoint Font group) */}
-      <section className="space-y-3">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-          {tr('textEditSectionTypography')}
-        </div>
-
         <div className="flex flex-wrap items-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--panel)]/60 p-1">
           <ToggleBtn active={draft.bold} title="Bold" onClick={() => patch({ bold: !draft.bold })}>
             <Bold className="h-3.5 w-3.5" />
@@ -940,7 +909,140 @@ export function TextEditPanel({
             <option value="camelCase">{tr('textEditCaseCamel')}</option>
           </select>
         </div>
+        <textarea
+          className={`${fieldClass} min-h-[96px] whitespace-pre-wrap`}
+          value={draft.text}
+          onChange={(e) => {
+            const text = e.target.value;
+            setDraft({ ...draft, text });
+            markDirty();
+          }}
+          onBlur={flushContent}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+          }}
+          aria-label={tr('textEditContent')}
+        />
+      </section>
 
+      {/* 3. Paragraph — align flyout + indent + lists */}
+      <section className="space-y-2">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          {tr('textEditSectionParagraph')}
+        </div>
+        <div className="flex flex-wrap items-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--panel)]/60 p-1">
+          <AlignFlyout value={draft.align} onChange={(align) => patch({ align })} />
+          <span className="mx-0.5 h-5 w-px bg-[var(--line)]" />
+          <ToggleBtn active={false} title="Indent" onClick={() => indent(1)}>
+            <Indent className="h-3.5 w-3.5" />
+          </ToggleBtn>
+          <ToggleBtn active={false} title="Outdent" onClick={() => indent(-1)}>
+            <Outdent className="h-3.5 w-3.5" />
+          </ToggleBtn>
+          {draft.canLists && (
+            <>
+              <span className="mx-0.5 h-5 w-px bg-[var(--line)]" />
+              <ToggleBtn
+                active={draft.listType === 'ul'}
+                title="Bulleted list"
+                onClick={() =>
+                  patch({
+                    listType: draft.listType === 'ul' ? 'none' : 'ul',
+                    listStyle: 'disc',
+                  })
+                }
+              >
+                <List className="h-3.5 w-3.5" />
+              </ToggleBtn>
+              <ToggleBtn
+                active={draft.listType === 'ol'}
+                title="Numbered list"
+                onClick={() =>
+                  patch({
+                    listType: draft.listType === 'ol' ? 'none' : 'ol',
+                    listStyle: 'decimal',
+                  })
+                }
+              >
+                <ListOrdered className="h-3.5 w-3.5" />
+              </ToggleBtn>
+            </>
+          )}
+        </div>
+        {draft.canLists && draft.listType !== 'none' && (
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+              {tr('textEditListStyle')}
+            </span>
+            <select
+              className={fieldClass}
+              value={draft.listStyle}
+              onChange={(e) => patch({ listStyle: e.target.value })}
+            >
+              {draft.listType === 'ul' ? (
+                <>
+                  <option value="disc">Disc</option>
+                  <option value="circle">Circle</option>
+                  <option value="square">Square</option>
+                </>
+              ) : (
+                <>
+                  <option value="decimal">Decimal</option>
+                  <option value="lower-alpha">Lower alpha</option>
+                  <option value="upper-alpha">Upper alpha</option>
+                  <option value="lower-roman">Lower roman</option>
+                  <option value="upper-roman">Upper roman</option>
+                </>
+              )}
+            </select>
+          </label>
+        )}
+      </section>
+
+      {/* 4. Appearance — color + highlight (same chrome; highlight alpha in picker) */}
+      <section className="space-y-2.5">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          {tr('textEditSectionAppearance')}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="block">
+            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+              {tr('inspectorColor')}
+            </span>
+            <PaintSwatch
+              hex={draft.color || '#1c1f26'}
+              cleared={!draft.color}
+              onChange={(hex) => patch({ color: hex })}
+              onClear={() => patch({ color: '' })}
+            />
+          </div>
+          <div className="block">
+            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+              {tr('textEditHighlight')}
+            </span>
+            <PaintSwatch
+              hex={draft.highlight || '#ffff00'}
+              alpha={draft.highlightEnabled ? draft.highlightAlpha : 1}
+              cleared={!draft.highlightEnabled}
+              showAlpha
+              onChange={(hex, alpha) =>
+                patch({
+                  highlight: hex,
+                  highlightEnabled: true,
+                  highlightAlpha: alpha ?? 1,
+                })
+              }
+              onClear={() => patch({ highlightEnabled: false, highlightAlpha: 0 })}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* 5. Typography — family + metrics */}
+      <section className="space-y-3">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          {tr('textEditSectionTypography')}
+        </div>
         <div className="space-y-1.5">
           <span className="block text-[11px] font-medium text-[var(--ink)]">
             {tr('inspectorFontFamily')}
@@ -1010,172 +1112,6 @@ export function TextEditPanel({
           />
         </div>
       </section>
-
-      {/* 4. Appearance — color + highlight (Canva-style) */}
-      <section className="space-y-2.5">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-          {tr('textEditSectionAppearance')}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
-              {tr('inspectorColor')}
-            </span>
-            <input
-              type="color"
-              className="h-8 w-full cursor-pointer rounded-md border border-[var(--line)] bg-[var(--panel)] p-1"
-              value={draft.color}
-              onChange={(e) => patch({ color: e.target.value })}
-            />
-          </label>
-          <div className="block">
-            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
-              {tr('textEditHighlight')}
-            </span>
-            <div className="flex items-center gap-1">
-              <ToggleBtn
-                active={draft.highlightEnabled}
-                title={tr('textEditHighlight')}
-                onClick={() =>
-                  patch({
-                    highlightEnabled: !draft.highlightEnabled,
-                    highlightAlpha: 1,
-                    highlight: draft.highlight || '#ffff00',
-                  })
-                }
-              >
-                <Highlighter className="h-3.5 w-3.5" />
-              </ToggleBtn>
-              {draft.highlightEnabled ? (
-                <>
-                  <input
-                    type="color"
-                    className="h-7 min-w-0 flex-1 cursor-pointer rounded-md border border-[var(--line)] bg-[var(--panel)] p-0.5"
-                    value={draft.highlight || '#ffff00'}
-                    onChange={(e) =>
-                      patch({
-                        highlight: e.target.value,
-                        highlightEnabled: true,
-                        highlightAlpha: 1,
-                      })
-                    }
-                  />
-                  <button
-                    type="button"
-                    title={tr('styleClearValue')}
-                    onClick={() =>
-                      patch({ highlightEnabled: false, highlightAlpha: 0 })
-                    }
-                    className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-[var(--line)] text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)]"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </>
-              ) : (
-                <span className="text-[10px] text-[var(--ink-muted)]">
-                  {tr('textEditHighlightOff')}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 5. Paragraph — alignment + indent (PowerPoint Paragraph group) */}
-      <section className="space-y-2">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-          {tr('textEditSectionParagraph')}
-        </div>
-        <div className="flex flex-wrap gap-1 rounded-lg border border-[var(--line)] bg-[var(--panel)]/60 p-1">
-          {(
-            [
-              ['left', AlignLeft],
-              ['center', AlignCenter],
-              ['right', AlignRight],
-              ['justify', AlignJustify],
-            ] as const
-          ).map(([align, Icon]) => (
-            <ToggleBtn
-              key={align}
-              active={draft.align === align}
-              title={align}
-              onClick={() => patch({ align })}
-            >
-              <Icon className="h-3.5 w-3.5" />
-            </ToggleBtn>
-          ))}
-          <span className="mx-0.5 h-5 w-px bg-[var(--line)]" />
-          <ToggleBtn active={false} title="Indent" onClick={() => indent(1)}>
-            <Indent className="h-3.5 w-3.5" />
-          </ToggleBtn>
-          <ToggleBtn active={false} title="Outdent" onClick={() => indent(-1)}>
-            <Outdent className="h-3.5 w-3.5" />
-          </ToggleBtn>
-        </div>
-      </section>
-
-      {/* 6. Lists — structure tools last */}
-      {draft.canLists && (
-        <section className="space-y-2">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-            {tr('textEditSectionLists')}
-          </div>
-          <div className="flex flex-wrap gap-1 rounded-lg border border-[var(--line)] bg-[var(--panel)]/60 p-1">
-            <ToggleBtn
-              active={draft.listType === 'ul'}
-              title="Bulleted list"
-              onClick={() =>
-                patch({
-                  listType: draft.listType === 'ul' ? 'none' : 'ul',
-                  listStyle: 'disc',
-                })
-              }
-            >
-              <List className="h-3.5 w-3.5" />
-            </ToggleBtn>
-            <ToggleBtn
-              active={draft.listType === 'ol'}
-              title="Numbered list"
-              onClick={() =>
-                patch({
-                  listType: draft.listType === 'ol' ? 'none' : 'ol',
-                  listStyle: 'decimal',
-                })
-              }
-            >
-              <ListOrdered className="h-3.5 w-3.5" />
-            </ToggleBtn>
-          </div>
-          {draft.listType !== 'none' && (
-            <label className="block">
-              <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
-                {tr('textEditListStyle')}
-              </span>
-              <select
-                className={fieldClass}
-                value={draft.listStyle}
-                onChange={(e) => patch({ listStyle: e.target.value })}
-              >
-                {draft.listType === 'ul' ? (
-                  <>
-                    <option value="disc">Disc</option>
-                    <option value="circle">Circle</option>
-                    <option value="square">Square</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="decimal">Decimal</option>
-                    <option value="lower-alpha">Lower alpha</option>
-                    <option value="upper-alpha">Upper alpha</option>
-                    <option value="lower-roman">Lower roman</option>
-                    <option value="upper-roman">Upper roman</option>
-                  </>
-                )}
-              </select>
-            </label>
-          )}
-        </section>
-      )}
     </div>
       }
       element={<ElementMetaPanel onDirtyChange={onDirtyChange} />}
@@ -1339,6 +1275,159 @@ function TextTypeSelect({
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--ink-muted)]" />
       </button>
       {menu}
+    </div>
+  );
+}
+
+function AlignFlyout({
+  value,
+  onChange,
+}: {
+  value: Snapshot['align'];
+  onChange: (align: Snapshot['align']) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ActiveIcon =
+    value === 'center'
+      ? AlignCenter
+      : value === 'right'
+        ? AlignRight
+        : value === 'justify'
+          ? AlignJustify
+          : AlignLeft;
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <ToggleBtn active title={value} onClick={() => setOpen((v) => !v)}>
+        <ActiveIcon className="h-3.5 w-3.5" />
+      </ToggleBtn>
+      {open && (
+        <div className="absolute left-0 top-full z-30 flex gap-0.5 rounded-md border border-[var(--line)] bg-[var(--stage)] p-1 shadow-lg">
+          {(
+            [
+              ['left', AlignLeft],
+              ['center', AlignCenter],
+              ['right', AlignRight],
+              ['justify', AlignJustify],
+            ] as const
+          ).map(([align, Icon]) => (
+            <ToggleBtn
+              key={align}
+              active={value === align}
+              title={align}
+              onClick={() => {
+                onChange(align);
+                setOpen(false);
+              }}
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </ToggleBtn>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Color + optional X clear; highlight can expose alpha inside a hover/focus popover. */
+function PaintSwatch({
+  hex,
+  alpha = 1,
+  cleared,
+  showAlpha,
+  onChange,
+  onClear,
+}: {
+  hex: string;
+  alpha?: number;
+  cleared?: boolean;
+  showAlpha?: boolean;
+  onChange: (hex: string, alpha?: number) => void;
+  onClear: () => void;
+}) {
+  const { tr } = usePrefs();
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const safeHex = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#ffff00';
+  const checker =
+    'bg-[repeating-conic-gradient(#ccc_0_25%,#fff_0_50%)] bg-[length:10px_10px]';
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  const clearBtn = (
+    <button
+      type="button"
+      title={tr('styleClearValue')}
+      onClick={onClear}
+      className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-[var(--line)] text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)]"
+    >
+      <X className="h-3.5 w-3.5" />
+    </button>
+  );
+
+  if (!showAlpha) {
+    return (
+      <div className="flex items-center gap-1">
+        <input
+          type="color"
+          className={`h-8 min-w-0 flex-1 cursor-pointer rounded-md border border-[var(--line)] p-0.5 ${
+            cleared ? checker : 'bg-[var(--panel)]'
+          }`}
+          value={safeHex}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        {clearBtn}
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative flex min-w-0 items-center gap-1" ref={wrapRef}>
+      <button
+        type="button"
+        title={tr('textEditHighlight')}
+        onClick={() => setOpen((v) => !v)}
+        className={`h-8 min-w-0 flex-1 cursor-pointer overflow-hidden rounded-md border border-[var(--line)] ${
+          cleared ? checker : ''
+        }`}
+        style={cleared ? undefined : { backgroundColor: hexAlphaToCss(safeHex, alpha) }}
+      />
+      {clearBtn}
+      {open && (
+        <div className="absolute right-0 top-[calc(100%+4px)] z-30 w-[11rem] max-w-[calc(100vw-2rem)] space-y-2 rounded-md border border-[var(--line)] bg-[var(--stage)] p-2 shadow-lg">
+          <input
+            type="color"
+            className="h-8 w-full cursor-pointer rounded-md border border-[var(--line)] bg-[var(--panel)] p-0.5"
+            value={safeHex}
+            onChange={(e) => onChange(e.target.value, alpha)}
+          />
+          <label className="block">
+            <span className="mb-1 flex justify-between text-[10px] font-medium text-[var(--ink-muted)]">
+              <span>{tr('textEditHighlightOpacity')}</span>
+              <span className="tabular-nums">{Math.round(alpha * 100)}%</span>
+            </span>
+            <input
+              type="range"
+              min={5}
+              max={100}
+              value={Math.round(alpha * 100)}
+              onChange={(e) => onChange(safeHex, Number(e.target.value) / 100)}
+              className="w-full cursor-pointer accent-[var(--accent)]"
+            />
+          </label>
+        </div>
+      )}
     </div>
   );
 }

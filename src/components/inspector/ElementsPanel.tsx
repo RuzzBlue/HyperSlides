@@ -30,6 +30,7 @@ import { TemplatePickerButton } from './TemplatePicker';
 import {
   ElementStylePanel,
   InspectorContentStyleTabs,
+  useInspectorElementTab,
 } from './ElementStylePanel';
 import { ElementEffectsPanel } from './ElementEffectsPanel';
 import { ElementMetaPanel } from './ElementMetaPanel';
@@ -129,8 +130,9 @@ export function ElementsPanel({
 }) {
   const { tr } = usePrefs();
   const objectMode = useLessonObjectModeOptional();
+  const selected = objectMode?.selected ?? null;
   const [level, setLevel] = useState<Level>('catalog');
-  const [editTab, setEditTab] = useState<'content' | 'style' | 'effects' | 'element'>('content');
+  const [editTab, setEditTab] = useInspectorElementTab(selected?.objectId);
   const [openCats, setOpenCats] = useState<Record<ElementCatalogCategoryId, boolean>>({
     single: true,
     structure: true,
@@ -144,7 +146,6 @@ export function ElementsPanel({
     current: (_html: string) => {},
   }))[0];
 
-  const selected = objectMode?.selected ?? null;
   const structureSelected = Boolean(selected && isStructureElement(selected.element));
 
   useEffect(() => {

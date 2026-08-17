@@ -39,6 +39,7 @@ const DEFAULT_SETTINGS: AppPrefs = {
   showSelectedShortcut: true,
   animationAdvanceKeys: [...DEFAULT_ANIMATION_ADVANCE_KEYS] as AnimationAdvanceKeys,
   animationAutoSelect: true,
+  inspectorElementTabMode: 'remember',
   navigatorSidebarWidth: 260,
   sidebarView: 'navigator',
   showDemoCourse: true,
@@ -117,6 +118,9 @@ function normalizeSettings(raw: Partial<AppPrefs> | undefined): AppPrefs {
   }
   if (typeof raw?.showSelectedShortcut !== 'boolean') {
     merged.showSelectedShortcut = DEFAULT_SETTINGS.showSelectedShortcut;
+  }
+  if (raw?.inspectorElementTabMode !== 'remember' && raw?.inspectorElementTabMode !== 'start-content') {
+    merged.inspectorElementTabMode = DEFAULT_SETTINGS.inspectorElementTabMode;
   }
   return merged;
 }

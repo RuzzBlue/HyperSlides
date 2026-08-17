@@ -45,6 +45,7 @@ import { TextEditPanel } from './TextEditPanel';
 import {
   ElementStylePanel,
   InspectorContentStyleTabs,
+  useInspectorElementTab,
 } from './ElementStylePanel';
 import { ElementEffectsPanel } from './ElementEffectsPanel';
 import { ElementMetaPanel } from './ElementMetaPanel';
@@ -1212,8 +1213,8 @@ function StyledToolPanel({
   themeSwatches: import('./styleThemeColors').ThemeSwatch[];
   courseId?: string;
 }) {
-  const [tab, setTab] = useState<'content' | 'style' | 'effects' | 'element'>('content');
   const objectMode = useLessonObjectModeOptional();
+  const [tab, setTab] = useInspectorElementTab(objectMode?.selected?.objectId);
 
   useEffect(() => {
     registerSave?.(async () => {
