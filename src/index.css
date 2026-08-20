@@ -884,20 +884,35 @@ html[data-theme='dark'] .lesson-stage .hc-btn--outline {
   color: #e2e8f0;
 }
 
-/* Author hover / active colors for text & links */
+/* Author hover / active colors for text & links (Content tab) */
 .lesson-stage [data-hc-color-hover] {
-  transition: color 0.15s ease;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 .lesson-stage [data-hc-color-hover]:hover {
-  color: var(--hc-color-hover) !important;
+  color: var(--hc-text-color-hover, var(--hc-color-hover)) !important;
 }
 .lesson-stage [data-hc-color-active]:active,
 .lesson-stage [data-hc-color-active].hc-is-selected,
 .lesson-stage [data-hc-color-active]:focus-visible {
-  color: var(--hc-color-active) !important;
+  color: var(--hc-text-color-active, var(--hc-color-active)) !important;
+}
+.lesson-stage [data-hc-bg-hover]:hover {
+  background-color: var(--hc-text-bg-hover) !important;
+}
+.lesson-stage [data-hc-bg-active]:active,
+.lesson-stage [data-hc-bg-active]:focus-visible {
+  background-color: var(--hc-text-bg-active) !important;
 }
 
-/* Box pseudo-states (Style tab Normal / Hover / Active) */
+/* Style tab wins over Content when both set the same property */
+.lesson-stage [data-hc-style-color] {
+  color: var(--hc-style-color) !important;
+}
+.lesson-stage [data-hc-style-bg] {
+  background-color: var(--hc-style-bg) !important;
+}
+
+/* Box pseudo-states (Style tab Color / Background / Border Hover & Active) */
 .lesson-stage [data-hc-fx-hover-color]:hover {
   color: var(--hc-color-hover) !important;
 }

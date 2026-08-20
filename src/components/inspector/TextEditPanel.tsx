@@ -63,6 +63,8 @@ import { StyleStateSwitch, type StyleInteractionState } from './StyleStateSwitch
 import {
   applyTextPseudoStates,
   parseStroke,
+  readTextHighlightFor,
+  readTextPseudoColor,
   readTextShadowFor,
   type TextShadowSlice,
   type TextStrokeSlice,
@@ -71,6 +73,9 @@ import {
 type TextCase = 'regular' | 'uppercase' | 'lowercase' | 'capitalize' | 'camelCase';
 
 type TextFxSlice = {
+  highlightEnabled: boolean;
+  highlight: string;
+  highlightAlpha: number;
   textShadowEnabled: boolean;
   textShadowX: number;
   textShadowY: number;
@@ -81,8 +86,14 @@ type TextFxSlice = {
   textStrokeColor: string;
 };
 
-function fxFromShadowStroke(shadow: TextShadowSlice, stroke: TextStrokeSlice): TextFxSlice {
+function fxFromDom(el: HTMLElement, prefix: 'hover' | 'active'): TextFxSlice {
+  const shadow = readTextShadowFor(el, prefix);
+  const stroke = parseStroke(el, prefix);
+  const hl = readTextHighlightFor(el, prefix);
   return {
+    highlightEnabled: hl.enabled,
+    highlight: hl.color,
+    highlightAlpha: hl.alpha,
     textShadowEnabled: shadow.enabled,
     textShadowX: shadow.x,
     textShadowY: shadow.y,
@@ -468,20 +479,32 @@ function applyPaint(
   highlight: string,
   highlightAlpha: number,
 ) {
-  if (!color.trim()) el.style.removeProperty('color');
-  else el.style.setProperty('color', color);
+  const styleOwnsColor = el.getAttribute('data-hc-style-color') === '1';
+  const styleOwnsBg = el.getAttribute('data-hc-style-owns-bg') === '1';
+  if (color.trim()) {
+    el.setAttribute('data-hc-text-color', '1');
+    el.style.setProperty('--hc-text-color', color);
+    if (!styleOwnsColor) el.style.setProperty('color', color);
+  } else {
+    el.removeAttribute('data-hc-text-color');
+    el.style.removeProperty('--hc-text-color');
+    if (!styleOwnsColor) el.style.removeProperty('color');
+  }
   if (!highlightEnabled || highlightAlpha <= 0) {
-    el.style.removeProperty('background-color');
+    el.style.removeProperty('--hc-text-bg');
     el.removeAttribute(PAINT_ATTR);
+    if (!styleOwnsBg) el.style.removeProperty('background-color');
     return;
   }
   const bg = hexAlphaToCss(highlight || '#ffff00', highlightAlpha);
   if (bg === 'transparent') {
-    el.style.removeProperty('background-color');
+    el.style.removeProperty('--hc-text-bg');
     el.removeAttribute(PAINT_ATTR);
+    if (!styleOwnsBg) el.style.removeProperty('background-color');
   } else {
-    el.style.setProperty('background-color', bg);
     el.setAttribute(PAINT_ATTR, '1');
+    el.style.setProperty('--hc-text-bg', bg);
+    if (!styleOwnsBg) el.style.setProperty('background-color', bg);
   }
 }
 
@@ -526,11 +549,17 @@ function readPaint(el: HTMLElement): {
   highlightAlpha: number;
 } {
   const cs = getComputedStyle(el);
-  const inlineColor = (el.style.color || '').trim();
-  const color = inlineColor ? rgbToHex(inlineColor) || '' : '';
-  const raw = el.style.backgroundColor || (el.hasAttribute(PAINT_ATTR) ? cs.backgroundColor : '');
+  const inlineColor =
+    (el.style.getPropertyValue('--hc-text-color') || el.style.color || '').trim();
+  const color = inlineColor ? rgbToHex(inlineColor) || inlineColor : '';
+  const raw =
+    el.style.getPropertyValue('--hc-text-bg') ||
+    el.style.backgroundColor ||
+    (el.hasAttribute(PAINT_ATTR) ? cs.backgroundColor : '');
   const parts = rgbaParts(raw);
-  const highlightEnabled = Boolean(parts && parts.alpha > 0 && el.style.backgroundColor);
+  const highlightEnabled = Boolean(
+    parts && parts.alpha > 0 && (el.style.getPropertyValue('--hc-text-bg') || el.style.backgroundColor),
+  );
   return {
     color,
     highlightEnabled,
@@ -595,8 +624,8 @@ function readSnapshot(el: HTMLElement, uploaded: UploadedFontOption[]): Snapshot
     textCase: detectCase(el),
     align: readAlign(el),
     color: paint.color,
-    colorHover: el.style.getPropertyValue('--hc-color-hover').trim() || '',
-    colorActive: el.style.getPropertyValue('--hc-color-active').trim() || '',
+    colorHover: readTextPseudoColor(el, 'hover'),
+    colorActive: readTextPseudoColor(el, 'active'),
     highlightEnabled: paint.highlightEnabled,
     highlight: paint.highlight,
     highlightAlpha: paint.highlightAlpha,
@@ -610,14 +639,8 @@ function readSnapshot(el: HTMLElement, uploaded: UploadedFontOption[]): Snapshot
       Number.parseFloat(el.style.getPropertyValue('--hc-text-stroke-width')) || 1,
     textStrokeColor:
       el.style.getPropertyValue('--hc-text-stroke-color').trim() || '#0f172a',
-    hoverFx: fxFromShadowStroke(
-      readTextShadowFor(el, 'hover'),
-      parseStroke(el, 'hover'),
-    ),
-    activeFx: fxFromShadowStroke(
-      readTextShadowFor(el, 'active'),
-      parseStroke(el, 'active'),
-    ),
+    hoverFx: fxFromDom(el, 'hover'),
+    activeFx: fxFromDom(el, 'active'),
     listType,
     listStyle,
   };
@@ -807,11 +830,17 @@ export function TextEditPanel({
         node,
         {
           color: next.colorHover,
+          highlightEnabled: next.hoverFx.highlightEnabled,
+          highlight: next.hoverFx.highlight,
+          highlightAlpha: next.hoverFx.highlightAlpha,
           textShadow: fxToShadowSlice(next.hoverFx),
           textStroke: fxToStrokeSlice(next.hoverFx),
         },
         {
           color: next.colorActive,
+          highlightEnabled: next.activeFx.highlightEnabled,
+          highlight: next.activeFx.highlight,
+          highlightAlpha: next.activeFx.highlightAlpha,
           textShadow: fxToShadowSlice(next.activeFx),
           textStroke: fxToStrokeSlice(next.activeFx),
         },
@@ -870,9 +899,13 @@ export function TextEditPanel({
       snap.text = next.text;
       snap.textCase = next.textCase;
       snap.color = next.color;
+      snap.colorHover = next.colorHover;
+      snap.colorActive = next.colorActive;
       snap.highlightEnabled = next.highlightEnabled;
       snap.highlight = next.highlight;
       snap.highlightAlpha = next.highlightAlpha;
+      snap.hoverFx = next.hoverFx;
+      snap.activeFx = next.activeFx;
       if (next.typeId !== 'custom' && !hasInlineFontOverrides(node)) {
         snap.typeId = next.typeId;
       } else if (next.typeId === 'custom') {
@@ -1173,7 +1206,7 @@ export function TextEditPanel({
         {appearanceState !== 'normal' && (
           <p className="text-[10px] leading-snug text-[var(--ink-muted)]">{tr('styleStatePseudoHint')}</p>
         )}
-        <div className={`grid grid-cols-2 gap-2 ${appearanceState === 'normal' ? '' : 'grid-cols-1'}`}>
+        <div className="grid grid-cols-2 gap-2">
           <div className="block">
             <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
               {tr('inspectorColor')}
@@ -1205,27 +1238,60 @@ export function TextEditPanel({
               }}
             />
           </div>
-          {appearanceState === 'normal' && (
-            <div className="block">
-              <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
-                {tr('textEditHighlight')}
-              </span>
-              <PaintSwatch
-                hex={draft.highlight || '#ffff00'}
-                alpha={draft.highlightEnabled ? draft.highlightAlpha : 1}
-                cleared={!draft.highlightEnabled}
-                showAlpha
-                onChange={(hex, alpha) =>
-                  patch({
-                    highlight: hex,
-                    highlightEnabled: true,
-                    highlightAlpha: alpha ?? 1,
-                  })
+          <div className="block">
+            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+              {tr('textEditHighlight')}
+            </span>
+            {(() => {
+              const hl =
+                appearanceState === 'hover'
+                  ? {
+                      enabled: draft.hoverFx.highlightEnabled,
+                      hex: draft.hoverFx.highlight,
+                      alpha: draft.hoverFx.highlightAlpha,
+                    }
+                  : appearanceState === 'active'
+                    ? {
+                        enabled: draft.activeFx.highlightEnabled,
+                        hex: draft.activeFx.highlight,
+                        alpha: draft.activeFx.highlightAlpha,
+                      }
+                    : {
+                        enabled: draft.highlightEnabled,
+                        hex: draft.highlight,
+                        alpha: draft.highlightAlpha,
+                      };
+              const patchHl = (partial: {
+                highlightEnabled?: boolean;
+                highlight?: string;
+                highlightAlpha?: number;
+              }) => {
+                if (appearanceState === 'hover') {
+                  patch({ hoverFx: { ...draft.hoverFx, ...partial } });
+                } else if (appearanceState === 'active') {
+                  patch({ activeFx: { ...draft.activeFx, ...partial } });
+                } else {
+                  patch(partial);
                 }
-                onClear={() => patch({ highlightEnabled: false, highlightAlpha: 0 })}
-              />
-            </div>
-          )}
+              };
+              return (
+                <PaintSwatch
+                  hex={hl.hex || '#ffff00'}
+                  alpha={hl.enabled ? hl.alpha : 1}
+                  cleared={!hl.enabled}
+                  showAlpha
+                  onChange={(hex, alpha) =>
+                    patchHl({
+                      highlight: hex,
+                      highlightEnabled: true,
+                      highlightAlpha: alpha ?? 1,
+                    })
+                  }
+                  onClear={() => patchHl({ highlightEnabled: false, highlightAlpha: 0 })}
+                />
+              );
+            })()}
+          </div>
         </div>
 
         {(() => {

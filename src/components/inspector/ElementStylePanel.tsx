@@ -444,6 +444,15 @@ function applySnapshot(el: HTMLElement, s: ElementStyleSnapshot, courseId?: stri
   applySide(el, 'flex-wrap', s.flexWrap);
 
   applyColorProp(el, 'color', s.color);
+  if (s.color.enabled && s.color.alpha > 0) {
+    el.setAttribute('data-hc-style-color', '1');
+    el.style.setProperty('--hc-style-color', hexAlphaToCss(s.color.hex, s.color.alpha));
+  } else {
+    el.removeAttribute('data-hc-style-color');
+    el.style.removeProperty('--hc-style-color');
+    const textColor = el.style.getPropertyValue('--hc-text-color').trim();
+    if (textColor) el.style.setProperty('color', textColor);
+  }
 
   const clearBgExtras = () => {
     el.style.removeProperty('background-size');
@@ -453,14 +462,33 @@ function applySnapshot(el: HTMLElement, s: ElementStyleSnapshot, courseId?: stri
   };
 
   if (s.bgMode === 'none') {
-    el.style.removeProperty('background-color');
+    el.removeAttribute('data-hc-style-owns-bg');
+    el.removeAttribute('data-hc-style-bg');
+    el.style.removeProperty('--hc-style-bg');
     el.style.removeProperty('background-image');
     clearBgExtras();
+    const textBg = el.style.getPropertyValue('--hc-text-bg').trim();
+    if (el.getAttribute('data-hc-text-paint') === '1' && textBg) {
+      el.style.setProperty('background-color', textBg);
+    } else {
+      el.style.removeProperty('background-color');
+    }
   } else if (s.bgMode === 'solid') {
+    el.setAttribute('data-hc-style-owns-bg', '1');
+    el.setAttribute('data-hc-style-bg', '1');
     el.style.removeProperty('background-image');
     clearBgExtras();
     applyColorProp(el, 'background-color', s.background);
+    if (s.background.enabled) {
+      el.style.setProperty(
+        '--hc-style-bg',
+        hexAlphaToCss(s.background.hex, s.background.alpha),
+      );
+    }
   } else if (s.bgMode === 'gradient') {
+    el.setAttribute('data-hc-style-owns-bg', '1');
+    el.removeAttribute('data-hc-style-bg');
+    el.style.removeProperty('--hc-style-bg');
     el.style.removeProperty('background-color');
     clearBgExtras();
     const stops =
@@ -470,6 +498,9 @@ function applySnapshot(el: HTMLElement, s: ElementStyleSnapshot, courseId?: stri
       gradientToCss(s.gradientType, s.gradientAngle, stops),
     );
   } else {
+    el.setAttribute('data-hc-style-owns-bg', '1');
+    el.removeAttribute('data-hc-style-bg');
+    el.style.removeProperty('--hc-style-bg');
     el.style.removeProperty('background-color');
     const href = bgImageCssUrl(courseId, s.bgImage);
     if (href) el.style.setProperty('background-image', `url("${href}")`);
@@ -653,7 +684,9 @@ export function ElementStylePanel({
   const [draft, setDraft] = useState<ElementStyleSnapshot | null>(null);
   const [customInject, setCustomInject] = useState('');
   const [uploadingBg, setUploadingBg] = useState(false);
-  const [styleState, setStyleState] = useState<StyleInteractionState>('normal');
+  const [colorState, setColorState] = useState<StyleInteractionState>('normal');
+  const [bgState, setBgState] = useState<StyleInteractionState>('normal');
+  const [borderState, setBorderState] = useState<StyleInteractionState>('normal');
   const swatches = themeSwatches;
   const glassActive = el?.getAttribute('data-hc-fx-glass') === '1';
   const styleLocked =
@@ -669,7 +702,9 @@ export function ElementStylePanel({
       return;
     }
     setDraft(readSnapshot(el, courseId));
-    setStyleState('normal');
+    setColorState('normal');
+    setBgState('normal');
+    setBorderState('normal');
   }, [el, selected?.objectId, courseId]);
 
   useEffect(() => {
@@ -774,33 +809,22 @@ export function ElementStylePanel({
   if (!draft) return null;
 
   const isFlex = draft.display === 'flex' || draft.display === 'inline-flex';
-  const isPseudo = styleState !== 'normal';
-  const pseudoKey = styleState === 'hover' ? 'hoverPseudo' : 'activePseudo';
-  const pseudoSlice = isPseudo ? draft[pseudoKey] : null;
-
-  const patchPseudo = (partial: Partial<BoxPseudoSlice>) => {
-    if (!draft || !isPseudo) return;
+  const emptyColor = (): ColorValue => ({ enabled: false, hex: '#1c1f26', alpha: 1 });
+  const patchPseudo = (which: 'hover' | 'active', partial: Partial<BoxPseudoSlice>) => {
+    if (!draft) return;
+    const key = which === 'hover' ? 'hoverPseudo' : 'activePseudo';
     apply({
       ...draft,
-      [pseudoKey]: { ...draft[pseudoKey], ...partial },
+      [key]: { ...draft[key], ...partial },
     });
   };
-
-  const emptyColor = (): ColorValue => ({ enabled: false, hex: '#1c1f26', alpha: 1 });
+  const sliceFor = (state: StyleInteractionState): BoxPseudoSlice | null =>
+    state === 'hover' ? draft.hoverPseudo : state === 'active' ? draft.activePseudo : null;
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--line)] bg-[var(--panel)]/50 px-2.5 py-2">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-          {tr('styleStateLabel')}
-        </span>
-        <StyleStateSwitch value={styleState} onChange={setStyleState} />
-      </div>
-      {isPseudo && (
-        <p className="text-[10px] leading-snug text-[var(--ink-muted)]">{tr('styleStatePseudoHint')}</p>
-      )}
       {/* Spacing */}
-      <section className={`space-y-2 ${styleLocked || isPseudo ? 'pointer-events-none opacity-45' : ''}`}>
+      <section className={`space-y-2 ${styleLocked ? 'pointer-events-none opacity-45' : ''}`}>
         <SectionTitle>{tr('styleSpacing')}</SectionTitle>
         {styleLocked && (
           <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] leading-snug text-amber-800">
@@ -822,7 +846,7 @@ export function ElementStylePanel({
       </section>
 
       {/* Size */}
-      <section className={`space-y-2 ${isPseudo ? 'pointer-events-none opacity-45' : ''}`}>
+      <section className="space-y-2">
         <SectionTitle>{tr('styleSize')}</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
           <Field label={tr('styleWidth')}>
@@ -871,7 +895,7 @@ export function ElementStylePanel({
       </section>
 
       {/* Layout */}
-      <section className={`space-y-2 ${isPseudo ? 'pointer-events-none opacity-45' : ''}`}>
+      <section className="space-y-2">
         <SectionTitle>{tr('styleLayout')}</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
           <Field label={tr('styleDisplay')}>
@@ -1004,24 +1028,31 @@ export function ElementStylePanel({
         )}
       </section>
 
-      {/* Text color */}
+      {/* Color */}
       <section className={`space-y-2 ${styleLocked ? 'pointer-events-none opacity-45' : ''}`}>
-        <SectionTitle>{tr('styleTextColor')}</SectionTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <SectionTitle>{tr('styleTextColor')}</SectionTitle>
+          <StyleStateSwitch value={colorState} onChange={setColorState} compact />
+        </div>
         <p className="text-[10px] leading-snug text-[var(--ink-muted)]">{tr('styleTextColorHint')}</p>
         {styleLocked && (
           <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] leading-snug text-amber-800">
             {tr('styleButtonPresetLocked')}
           </p>
         )}
+        {colorState !== 'normal' && (
+          <p className="text-[10px] leading-snug text-[var(--ink-muted)]">{tr('styleStatePseudoHint')}</p>
+        )}
         <ColorControl
-          value={isPseudo ? pseudoSlice?.color ?? emptyColor() : draft.color}
+          value={
+            colorState === 'normal'
+              ? draft.color
+              : sliceFor(colorState)?.color ?? emptyColor()
+          }
           swatches={swatches}
           onChange={(color) => {
-            if (isPseudo) {
-              patchPseudo({ color: color.enabled ? color : null });
-            } else {
-              patch({ color });
-            }
+            if (colorState === 'normal') patch({ color });
+            else patchPseudo(colorState, { color: color.enabled ? color : null });
           }}
           showOpacity
         />
@@ -1029,7 +1060,10 @@ export function ElementStylePanel({
 
       {/* Background — separate from border */}
       <section className="space-y-2">
-        <SectionTitle>{tr('styleBackground')}</SectionTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <SectionTitle>{tr('styleBackground')}</SectionTitle>
+          <StyleStateSwitch value={bgState} onChange={setBgState} compact />
+        </div>
         <p className="text-[10px] leading-snug text-[var(--ink-muted)]">{tr('styleBackgroundHint')}</p>
         {glassActive && (
           <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] leading-snug text-amber-800">
@@ -1041,9 +1075,12 @@ export function ElementStylePanel({
             {tr('styleButtonPresetLocked')}
           </p>
         )}
+        {bgState !== 'normal' && (
+          <p className="text-[10px] leading-snug text-[var(--ink-muted)]">{tr('styleStatePseudoHint')}</p>
+        )}
         <div
           className={`flex flex-wrap gap-1 rounded-lg border border-[var(--line)] bg-[var(--panel)]/60 p-1 ${
-            appearanceLocked || isPseudo ? 'pointer-events-none opacity-45' : ''
+            appearanceLocked || bgState !== 'normal' ? 'pointer-events-none opacity-45' : ''
           }`}
         >
           {(
@@ -1069,17 +1106,17 @@ export function ElementStylePanel({
             </button>
           ))}
         </div>
-        {!appearanceLocked && isPseudo && (
+        {!appearanceLocked && bgState !== 'normal' && (
           <ColorControl
-            value={pseudoSlice?.background ?? emptyColor()}
+            value={sliceFor(bgState)?.background ?? emptyColor()}
             swatches={swatches}
             onChange={(background) =>
-              patchPseudo({ background: background.enabled ? background : null })
+              patchPseudo(bgState, { background: background.enabled ? background : null })
             }
             showOpacity
           />
         )}
-        {!appearanceLocked && !isPseudo && draft.bgMode === 'solid' && (
+        {!appearanceLocked && bgState === 'normal' && draft.bgMode === 'solid' && (
           <ColorControl
             value={draft.background}
             swatches={swatches}
@@ -1088,7 +1125,7 @@ export function ElementStylePanel({
             disableClear
           />
         )}
-        {!appearanceLocked && !isPseudo && draft.bgMode === 'gradient' && (
+        {!appearanceLocked && bgState === 'normal' && draft.bgMode === 'gradient' && (
           <GradientEditor
             type={draft.gradientType}
             angle={draft.gradientAngle}
@@ -1097,7 +1134,7 @@ export function ElementStylePanel({
             onChange={(partial) => patch(partial)}
           />
         )}
-        {!appearanceLocked && !isPseudo && draft.bgMode === 'image' && (
+        {!appearanceLocked && bgState === 'normal' && draft.bgMode === 'image' && (
           <div className="space-y-2 rounded-lg border border-[var(--line)] bg-[var(--panel)]/40 p-2">
             {draft.bgImage && courseId ? (
               <div
@@ -1186,33 +1223,44 @@ export function ElementStylePanel({
 
       {/* Border — outline of the box, not fill */}
       <section className={`space-y-2 ${styleLocked ? 'pointer-events-none opacity-45' : ''}`}>
-        <SectionTitle>{tr('styleBorder')}</SectionTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <SectionTitle>{tr('styleBorder')}</SectionTitle>
+          <StyleStateSwitch value={borderState} onChange={setBorderState} compact />
+        </div>
         <p className="text-[10px] leading-snug text-[var(--ink-muted)]">{tr('styleBorderHint')}</p>
         {styleLocked && (
           <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] leading-snug text-amber-800">
             {tr('styleButtonPresetLocked')}
           </p>
         )}
-        <div className={`grid grid-cols-2 gap-2 ${isPseudo ? '' : ''}`}>
+        {borderState !== 'normal' && (
+          <p className="text-[10px] leading-snug text-[var(--ink-muted)]">{tr('styleStatePseudoHint')}</p>
+        )}
+        <div className="grid grid-cols-2 gap-2">
           <Field label={tr('styleBorderWidth')}>
             <LengthInput
-              value={isPseudo ? pseudoSlice?.borderWidth ?? '' : draft.borderWidth}
+              value={
+                borderState === 'normal'
+                  ? draft.borderWidth
+                  : sliceFor(borderState)?.borderWidth ?? ''
+              }
               onChange={(v) => {
-                if (isPseudo) {
-                  patchPseudo({
-                    borderWidth: v,
-                    borderStyle:
-                      v && (!pseudoSlice?.borderStyle || pseudoSlice.borderStyle === 'none')
-                        ? 'solid'
-                        : pseudoSlice?.borderStyle ?? '',
-                  });
-                } else {
+                if (borderState === 'normal') {
                   patch({
                     borderWidth: v,
                     borderStyle:
                       v && (!draft.borderStyle || draft.borderStyle === 'none')
                         ? 'solid'
                         : draft.borderStyle,
+                  });
+                } else {
+                  const cur = sliceFor(borderState);
+                  patchPseudo(borderState, {
+                    borderWidth: v,
+                    borderStyle:
+                      v && (!cur?.borderStyle || cur.borderStyle === 'none')
+                        ? 'solid'
+                        : cur?.borderStyle ?? '',
                   });
                 }
               }}
@@ -1223,12 +1271,14 @@ export function ElementStylePanel({
             <select
               className={fieldClass}
               value={
-                (isPseudo ? pseudoSlice?.borderStyle : draft.borderStyle) || 'none'
+                (borderState === 'normal'
+                  ? draft.borderStyle
+                  : sliceFor(borderState)?.borderStyle) || 'none'
               }
               onChange={(e) => {
                 const borderStyle = e.target.value;
-                if (isPseudo) patchPseudo({ borderStyle });
-                else patch({ borderStyle });
+                if (borderState === 'normal') patch({ borderStyle });
+                else patchPseudo(borderState, { borderStyle });
               }}
             >
               <option value="none">none</option>
@@ -1238,7 +1288,7 @@ export function ElementStylePanel({
               <option value="double">double</option>
             </select>
           </Field>
-          {!isPseudo && (
+          {borderState === 'normal' && (
             <Field label={tr('styleBorderRadius')}>
               <LengthInput
                 value={draft.borderRadius}
@@ -1251,17 +1301,14 @@ export function ElementStylePanel({
         <Field label={tr('styleBorderColor')}>
           <ColorControl
             value={
-              isPseudo
-                ? pseudoSlice?.borderColor ?? emptyColor()
-                : draft.borderColor
+              borderState === 'normal'
+                ? draft.borderColor
+                : sliceFor(borderState)?.borderColor ?? emptyColor()
             }
             swatches={swatches}
             onChange={(borderColor) => {
-              if (isPseudo) {
-                patchPseudo({ borderColor: borderColor.enabled ? borderColor : null });
-              } else {
-                patch({ borderColor });
-              }
+              if (borderState === 'normal') patch({ borderColor });
+              else patchPseudo(borderState, { borderColor: borderColor.enabled ? borderColor : null });
             }}
             showOpacity
           />
