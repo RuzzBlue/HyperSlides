@@ -45,6 +45,8 @@ import { TextEditPanel } from './TextEditPanel';
 import {
   ElementStylePanel,
   InspectorContentStyleTabs,
+  ElementContentTitle,
+  InspectorSelectElementHint,
   useInspectorElementTab,
 } from './ElementStylePanel';
 import { ElementEffectsPanel } from './ElementEffectsPanel';
@@ -83,6 +85,22 @@ export function isCourseLevelInspectorTool(tool: InspectorTool): boolean {
     tool === 'activities' ||
     tool === 'connect' ||
     tool === 'progress'
+  );
+}
+
+/** Tools that edit the stage — require Edit mode (or a future course lock password). */
+export function inspectorRequiresEditMode(tool: InspectorTool): boolean {
+  return (
+    tool === 'elements' ||
+    tool === 'text' ||
+    tool === 'links' ||
+    tool === 'shapesMedia' ||
+    tool === 'charts' ||
+    tool === 'shape' ||
+    tool === 'media' ||
+    tool === 'graphs' ||
+    tool === 'tables' ||
+    tool === 'animations'
   );
 }
 
@@ -183,6 +201,7 @@ export function Inspector({
   courseTheme,
   coverAccent,
   editMode = false,
+  onEditModeChange,
 }: {
   tool: InspectorTool;
   mode: InspectorMode;
@@ -208,6 +227,7 @@ export function Inspector({
   courseTheme?: CourseTheme | null;
   coverAccent?: string;
   editMode?: boolean;
+  onEditModeChange?: (open: boolean) => void;
 }) {
   const { tr } = usePrefs();
   const objectMode = useLessonObjectModeOptional();
@@ -412,6 +432,14 @@ export function Inspector({
         </button>
       </header>
 
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div
+          className={`flex min-h-0 flex-1 flex-col overflow-hidden ${
+            inspectorRequiresEditMode(tool) && !editMode
+              ? 'pointer-events-none select-none blur-[2.5px]'
+              : ''
+          }`}
+        >
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {isNotes && notesContext ? (
           <NotesPanel
@@ -636,6 +664,25 @@ export function Inspector({
         )}
       </footer>
       )}
+        </div>
+        {inspectorRequiresEditMode(tool) && !editMode && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-[color-mix(in_srgb,var(--stage)_78%,transparent)] px-6 text-center backdrop-blur-[1px]">
+            <p className="max-w-[16rem] text-[13px] font-semibold leading-snug text-[var(--ink)]">
+              {tr('inspectorEditModeRequired')}
+            </p>
+            <p className="max-w-[16rem] text-[11px] leading-snug text-[var(--ink-muted)]">
+              {tr('inspectorEditModeRequiredHint')}
+            </p>
+            <button
+              type="button"
+              onClick={() => onEditModeChange?.(true)}
+              className="mt-1 cursor-pointer rounded-md bg-[var(--accent)] px-3.5 py-2 text-[12px] font-semibold text-white hover:brightness-110"
+            >
+              {tr('inspectorTurnOnEditMode')}
+            </button>
+          </div>
+        )}
+      </div>
     </>
   );
 
@@ -1231,12 +1278,20 @@ function StyledToolPanel({
     });
   }, [registerSave, objectMode, onHtmlPersist, onDirtyChange, onSavingChange]);
 
+  if (!objectMode?.selected) {
+    return <InspectorSelectElementHint />;
+  }
+
   return (
     <InspectorContentStyleTabs
       tab={tab}
       onTabChange={setTab}
       content={
         <div className="space-y-3">
+          <ElementContentTitle
+            label={objectMode.selected.label}
+            onEditIdentity={() => setTab('element')}
+          />
           <InspectorBody tool={tool} onOpenTool={onOpenTool} />
         </div>
       }

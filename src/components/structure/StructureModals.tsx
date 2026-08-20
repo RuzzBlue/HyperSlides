@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { StructureTarget } from '@shared/types';
 import { usePrefs } from '../../prefs/PrefsProvider';
@@ -223,12 +223,36 @@ export function StructureContextMenu({
     };
   }, [menu, onClose]);
 
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ left: 0, top: 0 });
+
+  useLayoutEffect(() => {
+    if (!menu) return;
+    const el = menuRef.current;
+    if (!el) {
+      setPos({ left: menu.x, top: menu.y });
+      return;
+    }
+    const pad = 8;
+    const rect = el.getBoundingClientRect();
+    let top = menu.y;
+    let left = menu.x;
+    if (top + rect.height + pad > window.innerHeight) {
+      top = Math.max(pad, menu.y - rect.height);
+    }
+    if (left + rect.width + pad > window.innerWidth) {
+      left = Math.max(pad, window.innerWidth - rect.width - pad);
+    }
+    setPos({ left, top });
+  }, [menu]);
+
   if (!menu) return null;
 
   return (
     <div
+      ref={menuRef}
       className="fixed z-[55] min-w-[10rem] overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--stage)] py-1 text-[var(--ink)] shadow-lg"
-      style={{ left: menu.x, top: menu.y }}
+      style={{ left: pos.left, top: pos.top }}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <button

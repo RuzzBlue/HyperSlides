@@ -48,13 +48,16 @@ import { useLessonObjectModeOptional } from '../../lesson-objects/LessonObjectMo
 import { ensureObjectId } from '../../lesson-objects/selection';
 import {
   ElementStylePanel,
+  ElementContentTitle,
   InspectorContentStyleTabs,
+  InspectorSelectElementHint,
   hexAlphaToCss,
   useInspectorElementTab,
 } from './ElementStylePanel';
 import { ElementEffectsPanel } from './ElementEffectsPanel';
 import { ElementMetaPanel } from './ElementMetaPanel';
 import type { ThemeSwatch } from './styleThemeColors';
+import { objectLabel } from '../../lesson-objects/selection';
 
 type TextCase = 'regular' | 'uppercase' | 'lowercase' | 'capitalize' | 'camelCase';
 
@@ -813,9 +816,7 @@ export function TextEditPanel({
   };
 
   if (!selected) {
-    return (
-      <p className="px-1 text-[12px] text-[var(--ink-muted)]">{tr('textEditSelectHint')}</p>
-    );
+    return <InspectorSelectElementHint />;
   }
 
   if (!canEdit || !draft) {
@@ -852,6 +853,10 @@ export function TextEditPanel({
           {error}
         </div>
       )}
+      <ElementContentTitle
+        label={objectLabel(el!)}
+        onEditIdentity={() => setTab('element')}
+      />
       {/* 1. Type */}
       <section className="space-y-2">
         <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">

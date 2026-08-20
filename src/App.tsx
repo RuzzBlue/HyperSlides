@@ -132,6 +132,13 @@ export default function App() {
     setSidebarOpen(true);
   }, []);
 
+  const enterPresent = useCallback(() => {
+    setSidebarOpen(false);
+    setFullscreenStage(true);
+    setEditMode(false);
+    if (inspectorTool && inspectorTool !== 'notes') closeInspector();
+  }, [closeInspector, inspectorTool]);
+
   const openSettings = (tab?: SettingsTab) => {
     if (tab) setSettingsTab(tab);
     setSettingsOpen(true);
@@ -305,7 +312,6 @@ export default function App() {
 
   const closeInspector = useCallback(() => {
     setInspectorTool(null);
-    setEditMode(false);
     setZoomBeforeInspector((prev) => {
       if (prev) setContentZoom(prev);
       return null;
@@ -320,20 +326,6 @@ export default function App() {
       }
       setLastInspectorTool(tool);
       setInspectorTool(tool);
-      // Opening an insert/style tool turns Edit on so the stage is selectable.
-      if (
-        tool === 'elements' ||
-        tool === 'text' ||
-        tool === 'links' ||
-        tool === 'shapesMedia' ||
-        tool === 'charts' ||
-        tool === 'shape' ||
-        tool === 'media' ||
-        tool === 'graphs' ||
-        tool === 'tables'
-      ) {
-        setEditMode(true);
-      }
       // Code opens floating by default (wider, resizable editor).
       if (tool === 'code') {
         setInspectorMode('floating');
@@ -394,21 +386,6 @@ export default function App() {
     const tool = inspectorTool ?? lastInspectorTool;
     setInspectorTool(tool);
     setLastInspectorTool(tool);
-    // Reopening via View → Show should turn Edit on for insert/style tools
-    // (same as opening them from the toolbar).
-    if (
-      tool === 'elements' ||
-      tool === 'text' ||
-      tool === 'links' ||
-      tool === 'shapesMedia' ||
-      tool === 'charts' ||
-      tool === 'shape' ||
-      tool === 'media' ||
-      tool === 'graphs' ||
-      tool === 'tables'
-    ) {
-      setEditMode(true);
-    }
     if (inspectorMode === 'floating') {
       setFloatResetToken((n) => n + 1);
     } else {
@@ -841,23 +818,13 @@ export default function App() {
           onPrev={() => goTo(index - 1)}
           onNext={() => void tryAdvancePresentation()}
           onGoTo={goTo}
-          onPresent={() => {
-            setSidebarOpen(false);
-            setFullscreenStage(true);
-            setEditMode(false);
-            if (inspectorTool && inspectorTool !== 'notes') closeInspector();
-          }}
+          onPresent={enterPresent}
           zoom={contentZoom}
           onZoomChange={setContentZoom}
           inspectorTool={inspectorTool}
           onInspectorTool={handleInspectorTool}
           editMode={editMode}
-          onEditModeChange={(open) => {
-            setEditMode(open);
-            if (!open && inspectorTool && ['elements', 'text', 'links', 'shapesMedia', 'charts', 'shape', 'media', 'graphs', 'tables'].includes(inspectorTool)) {
-              closeInspector();
-            }
-          }}
+          onEditModeChange={setEditMode}
           onInsert={(kind) => void handleInsert(kind)}
           onOpenCourseSettings={() => setCourseSettingsOpen(true)}
         />
@@ -954,6 +921,7 @@ export default function App() {
                         animationsDoc={lessonAnimations}
                         presentPlayback={fullscreenStage}
                         runnerRef={animRunnerRef}
+                        onPresent={enterPresent}
                       />
                     )}
                     {!loading &&
@@ -1073,6 +1041,7 @@ export default function App() {
             onModeChange={handleInspectorMode}
             onClose={closeInspector}
             editMode={editMode}
+            onEditModeChange={setEditMode}
             courseTheme={course?.theme}
             coverAccent={course?.summary.coverAccent}
             notesContext={
@@ -1156,6 +1125,7 @@ export default function App() {
           onModeChange={handleInspectorMode}
           onClose={closeInspector}
           editMode={editMode}
+          onEditModeChange={setEditMode}
           courseTheme={course?.theme}
           coverAccent={course?.summary.coverAccent}
           floatResetToken={floatResetToken}

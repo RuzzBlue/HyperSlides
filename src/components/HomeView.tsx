@@ -50,13 +50,20 @@ export function HomeView({
     void save({ appearance: { libraryView: next } });
   };
 
-  const visibleCourses = useMemo(
-    () =>
+  const visibleCourses = useMemo(() => {
+    const list =
       settings.showDemoCourse === false
         ? courses.filter((c) => !isDemoCourseId(c.id))
-        : courses,
-    [courses, settings.showDemoCourse],
-  );
+        : [...courses];
+    // Always pin the HyperClass demo course at the top of the library.
+    list.sort((a, b) => {
+      const aDemo = isDemoCourseId(a.id) ? 0 : 1;
+      const bDemo = isDemoCourseId(b.id) ? 0 : 1;
+      if (aDemo !== bDemo) return aDemo - bDemo;
+      return 0;
+    });
+    return list;
+  }, [courses, settings.showDemoCourse]);
   const [importOpen, setImportOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [newTemplateId, setNewTemplateId] = useState<string | undefined>();

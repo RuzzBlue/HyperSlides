@@ -34,6 +34,7 @@ export function LessonView({
   animationsDoc,
   presentPlayback,
   runnerRef,
+  onPresent,
 }: {
   html: string;
   title: string;
@@ -51,6 +52,8 @@ export function LessonView({
   presentPlayback?: boolean;
   /** Parent holds ref to call advance/autostart. */
   runnerRef?: React.MutableRefObject<AnimationRunner | null>;
+  /** Toolbar Present — triggered by `[data-hc-present]` buttons in lesson HTML. */
+  onPresent?: () => void;
 }) {
   const { appearance } = usePrefs();
   const mode = resolveAppearanceMode(appearance.theme);
@@ -141,6 +144,19 @@ export function LessonView({
       if (runnerRef) runnerRef.current = null;
     };
   }, [presentPlayback, animationsDoc, html, runnerRef]);
+
+  useEffect(() => {
+    const root = contentRef.current;
+    if (!root || !onPresent) return;
+    const onClick = (e: MouseEvent) => {
+      const btn = (e.target as HTMLElement | null)?.closest('[data-hc-present]');
+      if (!btn || !root.contains(btn)) return;
+      e.preventDefault();
+      onPresent();
+    };
+    root.addEventListener('click', onClick);
+    return () => root.removeEventListener('click', onClick);
+  }, [html, onPresent]);
 
   useEffect(() => {
     if (!theme?.fonts?.google) return;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link2, Link2Off, Move3d, Minus, Plus, Upload, X } from 'lucide-react';
+import { Link2, Link2Off, Move3d, Minus, Pencil, Plus, Upload, X } from 'lucide-react';
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
 import { useLessonObjectModeOptional } from '../../lesson-objects/LessonObjectMode';
@@ -487,6 +487,47 @@ export function useInspectorElementTab(
   }, []);
 
   return [tab, onTabChange];
+}
+
+/** Content-tab title with pencil → Element identity. */
+export function ElementContentTitle({
+  label,
+  onEditIdentity,
+}: {
+  label: string;
+  onEditIdentity: () => void;
+}) {
+  const { tr } = usePrefs();
+  return (
+    <div className="flex items-center gap-1.5">
+      <div
+        className="min-w-0 flex-1 truncate text-[12px] font-semibold text-[var(--ink)]"
+        title={label}
+      >
+        {label}
+      </div>
+      <button
+        type="button"
+        title={tr('elementMetaEditIdentity')}
+        onClick={onEditIdentity}
+        className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-[var(--line)] text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)]"
+      >
+        <Pencil className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+/** Centered empty state when Edit tools have no stage selection. */
+export function InspectorSelectElementHint() {
+  const { tr } = usePrefs();
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center px-6 py-10 text-center">
+      <p className="max-w-[16rem] text-[13px] font-semibold leading-snug text-[var(--ink)]">
+        {tr('inspectorSelectElementHint')}
+      </p>
+    </div>
+  );
 }
 
 export function InspectorContentStyleTabs({

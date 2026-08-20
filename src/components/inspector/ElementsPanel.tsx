@@ -29,6 +29,7 @@ import { ensureObjectId } from '../../lesson-objects/selection';
 import { TemplatePickerButton } from './TemplatePicker';
 import {
   ElementStylePanel,
+  ElementContentTitle,
   InspectorContentStyleTabs,
   useInspectorElementTab,
 } from './ElementStylePanel';
@@ -353,10 +354,10 @@ export function ElementsPanel({
           onTabChange={setEditTab}
           content={
             <div className="space-y-3">
-              <div className="text-[12px] font-semibold text-[var(--ink)]">
-                {structureSelected ? tr('elementsEditStructure') : tr('elementsEditElement')}:{' '}
-                {selected.label}
-              </div>
+              <ElementContentTitle
+                label={`${structureSelected ? tr('elementsEditStructure') : tr('elementsEditElement')}: ${selected.label}`}
+                onEditIdentity={() => setEditTab('element')}
+              />
               <p className="font-mono text-[10px] text-[var(--ink-muted)]">
                 {selected.element.tagName.toLowerCase()} · {selected.objectId}
               </p>

@@ -1,0 +1,160 @@
+<div class="space-y-10 text-left" data-hc-obj="hc_fx_root">
+  <div data-hc-obj="hc_fx_intro">
+    <span class="text-xs font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-400">Special · Effects</span>
+    <h2 class="mt-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Element effects showcase</h2>
+    <p class="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
+      Hover lift, shadow, glass, animated borders, and custom cursors — each applied from the inspector Effects panel.
+    </p>
+  </div>
+
+  <section data-hc-obj="hc_fx_lift_sec">
+    <span class="mb-3 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Hover lift</span>
+    <div
+      class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
+      data-hc-obj="hc_fx_lift_card"
+      data-hc-fx-hover-lift="1"
+      style="--hc-fx-lift: 8px;"
+    >
+      <h3 class="mb-2 font-bold text-slate-900 dark:text-white">Lift on hover</h3>
+      <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Hover this card to see it rise with a soft shadow.
+      </p>
+    </div>
+  </section>
+
+  <section data-hc-obj="hc_fx_shadow_sec">
+    <span class="mb-3 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Box shadow</span>
+    <div
+      class="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-6 dark:border-slate-800 dark:from-slate-900 dark:to-slate-950"
+      data-hc-obj="hc_fx_shadow_card"
+      style="box-shadow: 0 18px 40px -12px rgba(15, 23, 42, 0.35), 0 4px 12px rgba(15, 23, 42, 0.08);"
+    >
+      <h3 class="mb-2 font-bold text-slate-900 dark:text-white">Layered depth</h3>
+      <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+        Curabitur sodales ligula in libero. Sed dignissim lacinia nunc — the shadow is authored in the Effects panel, not a utility class.
+      </p>
+    </div>
+  </section>
+
+  <section
+    class="relative overflow-hidden rounded-2xl p-8"
+    data-hc-obj="hc_fx_glass_sec"
+    style="background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 45%, #a855f7 100%);"
+  >
+    <span class="mb-3 block text-[10px] font-black uppercase tracking-[0.18em] text-white/90">Glass effect</span>
+    <div
+      class="max-w-xl rounded-2xl p-6 text-slate-900"
+      data-hc-obj="hc_fx_glass_card"
+      data-hc-fx-glass="1"
+      style="--hc-fx-glass-blur: 14px; --hc-fx-glass-opacity: 0.32; --hc-fx-glass-tint: #ffffff; --hc-fx-glass-border: 0.45;"
+    >
+      <h3 class="mb-2 font-bold">Frosted panel</h3>
+      <p class="text-sm leading-relaxed text-slate-700">
+        Maecenas mattis. Sed convallis tristique sem. The blur and tint read against a colorful backdrop.
+      </p>
+    </div>
+  </section>
+
+  <section data-hc-obj="hc_fx_border_sec">
+    <span class="mb-3 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Animated border</span>
+    <div
+      class="rounded-2xl bg-slate-50 p-8 dark:bg-slate-900/60"
+      data-hc-obj="hc_fx_border_wrap"
+      data-hc-fx-border-anim="1"
+      data-hc-fx-ba-style="trail"
+      data-hc-fx-ba-dir="cw"
+      data-hc-fx-ba-layers="both"
+      data-hc-fx-ba-glow-z="back"
+      data-hc-fx-ba-has-glow="1"
+      data-hc-fx-ba-glow="1"
+      data-hc-fx-ba-glow-mask="1"
+      style="--hc-fx-ba-speed: 4s; --hc-fx-ba-thickness: 2px; --hc-fx-ba-offset: 2px; --hc-fx-ba-blur-out: 6px; --hc-fx-ba-radius: 1rem;"
+    >
+      <h3 class="mb-2 text-xl font-bold text-slate-900 dark:text-white">Trail border with glow</h3>
+      <p class="max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+        Proin ut ligula vel nunc egestas porttitor. This whole section carries the animated border — text and layout live inside the effect host.
+      </p>
+      <p class="mt-3 max-w-2xl text-sm leading-relaxed text-slate-500 dark:text-slate-500">
+        Morbi lectus risus, iaculis vel, suscipit quis, luctus non, massa. Fusce ac turpis quis ligula lacinia aliquet.
+      </p>
+    </div>
+  </section>
+
+  <section data-hc-obj="hc_fx_cursor_sec">
+    <span class="mb-3 block text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">Cursor styles</span>
+    <p class="mb-4 max-w-2xl text-sm text-slate-600 dark:text-slate-400">Move over each tile — regular, icon, and emoji cursors from the Effects panel.</p>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-hc-obj="hc_fx_cursor_grid">
+      <div
+        class="flex min-h-[5rem] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-xs font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+        data-hc-obj="hc_fx_cur_default"
+        data-hc-fx-cursor="1"
+        data-hc-fx-cursor-kind="regular"
+        data-hc-fx-cursor-value="default"
+      >default</div>
+      <div
+        class="flex min-h-[5rem] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-xs font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+        data-hc-obj="hc_fx_cur_pointer"
+        data-hc-fx-cursor="1"
+        data-hc-fx-cursor-kind="regular"
+        data-hc-fx-cursor-value="pointer"
+        style="cursor: pointer;"
+      >pointer</div>
+      <div
+        class="flex min-h-[5rem] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-xs font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+        data-hc-obj="hc_fx_cur_grab"
+        data-hc-fx-cursor="1"
+        data-hc-fx-cursor-kind="regular"
+        data-hc-fx-cursor-value="grab"
+        style="cursor: grab;"
+      >grab</div>
+      <div
+        class="flex min-h-[5rem] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-xs font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+        data-hc-obj="hc_fx_cur_wait"
+        data-hc-fx-cursor="1"
+        data-hc-fx-cursor-kind="regular"
+        data-hc-fx-cursor-value="wait"
+        style="cursor: wait;"
+      >wait</div>
+      <div
+        class="flex min-h-[5rem] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-xs font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+        data-hc-obj="hc_fx_cur_crosshair"
+        data-hc-fx-cursor="1"
+        data-hc-fx-cursor-kind="regular"
+        data-hc-fx-cursor-value="crosshair"
+        style="cursor: crosshair;"
+      >crosshair</div>
+      <div
+        class="flex min-h-[5rem] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-xs font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+        data-hc-obj="hc_fx_cur_forbidden"
+        data-hc-fx-cursor="1"
+        data-hc-fx-cursor-kind="regular"
+        data-hc-fx-cursor-value="not-allowed"
+        style="cursor: not-allowed;"
+      >not-allowed</div>
+      <div
+        class="flex min-h-[5rem] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-xs font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+        data-hc-obj="hc_fx_cur_zoom"
+        data-hc-fx-cursor="1"
+        data-hc-fx-cursor-kind="regular"
+        data-hc-fx-cursor-value="zoom-in"
+        style="cursor: zoom-in;"
+      >zoom-in</div>
+      <div
+        class="flex min-h-[5rem] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-xs font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+        data-hc-obj="hc_fx_cur_icon"
+        data-hc-fx-cursor="1"
+        data-hc-fx-cursor-kind="icon"
+        data-hc-fx-cursor-value="rocket"
+        style="cursor: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ctext x='2' y='24' font-size='22'%3E%F0%9F%9A%80%3C/text%3E%3C/svg%3E&quot;) 8 8, auto;"
+      >icon · rocket</div>
+      <div
+        class="flex min-h-[5rem] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-xs font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+        data-hc-obj="hc_fx_cur_emoji"
+        data-hc-fx-cursor="1"
+        data-hc-fx-cursor-kind="emoji"
+        data-hc-fx-cursor-value="✨"
+        style="cursor: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ctext x='2' y='24' font-size='22'%3E%E2%9C%A8%3C/text%3E%3C/svg%3E&quot;) 8 8, auto;"
+      >emoji · ✨</div>
+    </div>
+  </section>
+</div>

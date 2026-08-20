@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "anim_demo_entrance",
+      "objectId": "hc_anim_entrance",
+      "kind": "entrance",
+      "effectId": "fade-in",
+      "order": 1,
+      "start": "on-key",
+      "durationSec": 0.55,
+      "repeat": 1,
+      "params": { "childScope": "block" }
+    },
+    {
+      "id": "anim_demo_action",
+      "objectId": "hc_anim_action",
+      "kind": "action",
+      "effectId": "pulse",
+      "order": 2,
+      "start": "on-key",
+      "durationSec": 0.8,
+      "repeat": 2,
+      "params": { "childScope": "block" }
+    },
+    {
+      "id": "anim_demo_exit",
+      "objectId": "hc_anim_exit",
+      "kind": "exit",
+      "effectId": "slide-out",
+      "order": 3,
+      "start": "on-key",
+      "durationSec": 0.5,
+      "repeat": 1,
+      "params": { "direction": "down", "childScope": "block" }
+    },
+    {
+      "id": "anim_demo_ent_exit_in",
+      "objectId": "hc_anim_ent_exit",
+      "kind": "entrance",
+      "effectId": "zoom-in",
+      "order": 4,
+      "start": "on-key",
+      "durationSec": 0.5,
+      "repeat": 1,
+      "params": { "childScope": "block" }
+    },
+    {
+      "id": "anim_demo_ent_exit_out",
+      "objectId": "hc_anim_ent_exit",
+      "kind": "exit",
+      "effectId": "fade-out",
+      "order": 5,
+      "start": "on-key",
+      "durationSec": 0.45,
+      "repeat": 1,
+      "params": { "childScope": "block" }
+    },
+    {
+      "id": "anim_demo_ent_act_in",
+      "objectId": "hc_anim_ent_action",
+      "kind": "entrance",
+      "effectId": "slide-in",
+      "order": 6,
+      "start": "on-key",
+      "durationSec": 0.55,
+      "repeat": 1,
+      "params": { "direction": "left", "childScope": "block" }
+    },
+    {
+      "id": "anim_demo_ent_act_act",
+      "objectId": "hc_anim_ent_action",
+      "kind": "action",
+      "effectId": "shake",
+      "order": 7,
+      "start": "on-key",
+      "durationSec": 0.55,
+      "repeat": 1,
+      "params": { "direction": "left", "childScope": "block" }
+    },
+    {
+      "id": "anim_demo_act_exit_act",
+      "objectId": "hc_anim_action_exit",
+      "kind": "action",
+      "effectId": "bounce",
+      "order": 8,
+      "start": "on-key",
+      "durationSec": 0.65,
+      "repeat": 1,
+      "params": { "childScope": "block" }
+    },
+    {
+      "id": "anim_demo_act_exit_out",
+      "objectId": "hc_anim_action_exit",
+      "kind": "exit",
+      "effectId": "shrink-out",
+      "order": 9,
+      "start": "on-key",
+      "durationSec": 0.45,
+      "repeat": 1,
+      "params": { "childScope": "block" }
+    },
+    {
+      "id": "anim_demo_all_in",
+      "objectId": "hc_anim_all_three",
+      "kind": "entrance",
+      "effectId": "blur-in",
+      "order": 10,
+      "start": "on-key",
+      "durationSec": 0.6,
+      "repeat": 1,
+      "params": { "childScope": "block" }
+    },
+    {
+      "id": "anim_demo_all_act",
+      "objectId": "hc_anim_all_three",
+      "kind": "action",
+      "effectId": "heartbeat",
+      "order": 11,
+      "start": "on-key",
+      "durationSec": 1.2,
+      "repeat": 2,
+      "params": { "childScope": "block" }
+    },
+    {
+      "id": "anim_demo_all_out",
+      "objectId": "hc_anim_all_three",
+      "kind": "exit",
+      "effectId": "wipe-out",
+      "order": 12,
+      "start": "on-key",
+      "durationSec": 0.5,
+      "repeat": 1,
+      "params": { "direction": "right", "childScope": "block" }
+    },
+    {
+      "id": "anim_demo_card_a",
+      "objectId": "hc_anim_card_a",
+      "kind": "entrance",
+      "effectId": "bounce-in",
+      "order": 13,
+      "start": "on-key",
+      "durationSec": 0.7,
+      "repeat": 1,
+      "params": { "direction": "up", "childScope": "block" }
+    },
+    {
+      "id": "anim_demo_card_b",
+      "objectId": "hc_anim_card_b",
+      "kind": "action",
+      "effectId": "float",
+      "order": 14,
+      "start": "on-key",
+      "durationSec": 0.9,
+      "repeat": 1,
+      "params": { "childScope": "block" }
+    },
+    {
+      "id": "anim_demo_quote",
+      "objectId": "hc_anim_quote",
+      "kind": "entrance",
+      "effectId": "rise-in",
+      "order": 15,
+      "start": "on-key",
+      "durationSec": 0.65,
+      "repeat": 1,
+      "params": { "direction": "up", "childScope": "line" }
+    }
+  ]
+}

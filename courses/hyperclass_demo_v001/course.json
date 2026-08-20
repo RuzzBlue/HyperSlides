@@ -347,13 +347,6 @@
               "title": "Rich tooltips",
               "file": "lesson-02.html",
               "durationMinutes": 5
-            },
-            {
-              "type": "lesson",
-              "id": "lesson-03",
-              "title": "Cursor styles",
-              "file": "lesson-03.html",
-              "durationMinutes": 3
             }
           ]
         }
@@ -361,13 +354,13 @@
     },
     {
       "id": "module-03",
-      "title": "Assessment Demo",
-      "description": "One kitchen-sink quiz and one lab with placeholder data.",
+      "title": "Special elements",
+      "description": "Activities, visual effects, and slide animations.",
       "path": "modules/module-03",
       "units": [
         {
           "id": "unit-01",
-          "title": "Checks & practice",
+          "title": "Activities",
           "items": [
             {
               "type": "quiz",
@@ -380,6 +373,32 @@
               "id": "lab-01",
               "title": "Lab · Demo walkthrough",
               "notes": "m03_u01_lab01.md"
+            }
+          ]
+        },
+        {
+          "id": "unit-02",
+          "title": "Effects",
+          "items": [
+            {
+              "type": "lesson",
+              "id": "lesson-01",
+              "title": "Element effects showcase",
+              "file": "lesson-01.html",
+              "durationMinutes": 6
+            }
+          ]
+        },
+        {
+          "id": "unit-03",
+          "title": "Animations",
+          "items": [
+            {
+              "type": "lesson",
+              "id": "lesson-01",
+              "title": "Animation combinations",
+              "file": "lesson-01.html",
+              "durationMinutes": 8
             }
           ]
         }
