@@ -8,22 +8,22 @@ import { courseAssetUrl } from '../styleThemeColors';
 export type LibraryAsset = {
   path: string;
   name: string;
-  folder: 'images' | 'documents' | 'others';
+  folder: 'images' | 'videos' | 'documents' | 'others';
   kind: 'image' | 'video' | 'other';
   mtimeMs: number;
 };
 
-type FolderFilter = 'all' | 'images' | 'others';
+type FolderFilter = 'all' | 'images' | 'videos';
 type KindFilter = 'all' | 'image' | 'video';
 type SortMode = 'recent' | 'folder' | 'name';
 
 const FOLDER_TABS: { id: FolderFilter; labelKey: 'mediaLibraryTabAll' | 'mediaLibraryTabImages' | 'mediaLibraryTabVideos' }[] = [
   { id: 'all', labelKey: 'mediaLibraryTabAll' },
   { id: 'images', labelKey: 'mediaLibraryTabImages' },
-  { id: 'others', labelKey: 'mediaLibraryTabVideos' },
+  { id: 'videos', labelKey: 'mediaLibraryTabVideos' },
 ];
 
-/** Modal to browse uploaded course images + videos (assets/images + assets/others). */
+/** Modal to browse uploaded course images + videos (assets/images + assets/videos). */
 export function AssetLibraryModal({
   open,
   courseId,
@@ -96,7 +96,7 @@ export function AssetLibraryModal({
     const q = query.trim().toLowerCase();
     let list = files.filter((f) => {
       if (folder === 'images' && f.folder !== 'images') return false;
-      if (folder === 'others' && f.folder !== 'others') return false;
+      if (folder === 'videos' && f.folder !== 'videos' && f.folder !== 'others') return false;
       if (kindFilter === 'image' && f.kind !== 'image') return false;
       if (kindFilter === 'video' && f.kind !== 'video') return false;
       if (q && !f.name.toLowerCase().includes(q) && !f.path.toLowerCase().includes(q)) {

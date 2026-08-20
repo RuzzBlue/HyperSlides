@@ -180,6 +180,7 @@ export async function handleApiRequest(
           folderRaw === 'documents' ||
           folderRaw === 'others' ||
           folderRaw === 'images' ||
+          folderRaw === 'videos' ||
           folderRaw === 'media'
             ? folderRaw
             : 'media';
@@ -202,17 +203,24 @@ export async function handleApiRequest(
         const payload = (body ?? {}) as {
           filename?: string;
           dataBase64?: string;
-          folder?: 'images' | 'documents' | 'others';
+          folder?: 'images' | 'videos' | 'documents' | 'others';
         };
         if (!payload.filename || !payload.dataBase64) {
           return { ok: false, status: 400, error: 'filename and dataBase64 are required' };
         }
+        const folder =
+          payload.folder === 'videos' ||
+          payload.folder === 'documents' ||
+          payload.folder === 'others' ||
+          payload.folder === 'images'
+            ? payload.folder
+            : 'images';
         const saved = uploadCourseAsset(
           ctx.appRoot,
           segments[1],
           payload.filename,
           payload.dataBase64,
-          payload.folder ?? 'images',
+          folder,
         );
         return { ok: true, status: 201, data: saved };
       } catch (err) {

@@ -486,7 +486,7 @@ export function MediaPanel({
         reader.onerror = () => reject(new Error('Failed to read file'));
         reader.readAsDataURL(file);
       });
-      const folder = forKind === 'image' || forKind === 'poster' ? 'images' : 'others';
+      const folder = forKind === 'image' || forKind === 'poster' ? 'images' : 'videos';
       const res = await apiFetch<{ path: string }>({
         method: 'POST',
         path: `/api/courses/${courseId}/assets`,
@@ -872,7 +872,7 @@ export function MediaPanel({
             <input
               className={fieldClass}
               value={video.src}
-              placeholder="assets/others/… or https://"
+              placeholder="assets/videos/… or https://"
               onChange={(e) => applyVideo({ ...video, src: e.target.value })}
             />
           </label>

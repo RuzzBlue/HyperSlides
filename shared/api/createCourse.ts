@@ -126,6 +126,7 @@ export function ensureCoursePackageDirs(rootPath: string) {
     path.join(rootPath, 'assets'),
     path.join(rootPath, 'assets', 'documents'),
     path.join(rootPath, 'assets', 'images'),
+    path.join(rootPath, 'assets', 'videos'),
     path.join(rootPath, 'assets', 'others'),
     path.join(rootPath, 'theme'),
   ];
@@ -403,7 +404,7 @@ export function uploadCourseThemeAsset(
 }
 
 /**
- * Write a binary into courses/<id>/assets/images/ (or documents/others).
+ * Write a binary into courses/<id>/assets/images|videos|documents|others.
  * Returns path relative to the course root (e.g. "assets/images/hero.png").
  */
 export function uploadCourseAsset(
@@ -411,7 +412,7 @@ export function uploadCourseAsset(
   courseId: string,
   filename: string,
   dataBase64: string,
-  folder: 'images' | 'documents' | 'others' = 'images',
+  folder: CourseAssetFolder = 'images',
 ): { path: string } {
   const loaded = loadCourse(appRoot, courseId);
   if (!loaded) throw new Error('Course not found');
@@ -431,7 +432,7 @@ const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.a
 const VIDEO_EXT = new Set(['.mp4', '.webm', '.ogg', '.mov', '.m4v', '.mkv']);
 
 export type CourseAssetKind = 'image' | 'video' | 'other';
-export type CourseAssetFolder = 'images' | 'documents' | 'others';
+export type CourseAssetFolder = 'images' | 'videos' | 'documents' | 'others';
 
 export type CourseAssetFile = {
   path: string;
@@ -496,7 +497,11 @@ export function listCourseAssets(
     folder === 'media'
       ? [
           ...listFilesInAssetFolder(loaded.rootPath, 'images', { mediaOnly: true }),
-          ...listFilesInAssetFolder(loaded.rootPath, 'others', { mediaOnly: true }),
+          ...listFilesInAssetFolder(loaded.rootPath, 'videos', { mediaOnly: true }),
+          // Legacy: videos previously lived under assets/others
+          ...listFilesInAssetFolder(loaded.rootPath, 'others', { mediaOnly: true }).filter(
+            (f) => f.kind === 'video',
+          ),
         ]
       : listFilesInAssetFolder(loaded.rootPath, folder, {
           mediaOnly: false,
