@@ -1,21 +1,51 @@
 /** Minimal color for pseudo-state storage (matches ElementStylePanel ColorValue). */
 export type PseudoColor = { enabled: boolean; hex: string; alpha: number };
 
+export type PseudoBgMode = 'none' | 'solid' | 'gradient' | 'image';
+export type PseudoGradientType = 'linear' | 'radial';
+export type PseudoGradientStop = { hex: string; alpha: number; pos: number };
+
 /** Box appearance overrides for :hover / :active|:focus-visible */
 export type BoxPseudoSlice = {
   color: PseudoColor | null;
+  /** Empty string = no background override for this state. */
+  bgMode: '' | PseudoBgMode;
   background: PseudoColor | null;
+  gradientType: PseudoGradientType;
+  gradientAngle: number;
+  gradientStops: PseudoGradientStop[];
+  bgImage: string;
+  bgSize: string;
+  bgPosition: string;
+  bgRepeat: string;
+  bgAttachment: string;
   borderColor: PseudoColor | null;
   borderWidth: string;
   borderStyle: string;
+  borderRadius: string;
 };
+
+const DEFAULT_STOPS: PseudoGradientStop[] = [
+  { hex: '#1c1f26', alpha: 1, pos: 0 },
+  { hex: '#ffffff', alpha: 1, pos: 100 },
+];
 
 export const EMPTY_BOX_PSEUDO: BoxPseudoSlice = {
   color: null,
+  bgMode: '',
   background: null,
+  gradientType: 'linear',
+  gradientAngle: 180,
+  gradientStops: DEFAULT_STOPS.map((s) => ({ ...s })),
+  bgImage: '',
+  bgSize: '',
+  bgPosition: '',
+  bgRepeat: '',
+  bgAttachment: '',
   borderColor: null,
   borderWidth: '',
   borderStyle: '',
+  borderRadius: '',
 };
 
 function colorToCss(c: PseudoColor | null): string {
@@ -29,23 +59,96 @@ function colorToCss(c: PseudoColor | null): string {
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 
+function stopToCss(stop: PseudoGradientStop): string {
+  const a = stop.alpha ?? 1;
+  const color =
+    a >= 0.999
+      ? stop.hex
+      : `rgba(${parseInt(stop.hex.slice(1, 3), 16)}, ${parseInt(stop.hex.slice(3, 5), 16)}, ${parseInt(stop.hex.slice(5, 7), 16)}, ${a})`;
+  return `${color} ${stop.pos}%`;
+}
+
+function gradientToCss(
+  type: PseudoGradientType,
+  angle: number,
+  stops: PseudoGradientStop[],
+): string {
+  const stopCss = stops.map(stopToCss).join(', ');
+  if (type === 'radial') return `radial-gradient(circle, ${stopCss})`;
+  return `linear-gradient(${angle}deg, ${stopCss})`;
+}
+
+function parseGradient(bgImage: string): {
+  type: PseudoGradientType;
+  angle: number;
+  stops: PseudoGradientStop[];
+} | null {
+  const s = bgImage.trim();
+  if (!s || s === 'none') return null;
+  const linear = s.match(/linear-gradient\(\s*([^,]+)\s*,\s*(.+)\)/i);
+  const radial = s.match(/radial-gradient\(\s*(?:circle(?:\s+at\s+[^,]+)?\s*,\s*)?(.+)\)/i);
+  const body = linear?.[2] ?? radial?.[1];
+  if (!body) return null;
+  const angleMatch = linear?.[1]?.match(/(-?\d*\.?\d+)\s*deg/i);
+  const angle = angleMatch ? Number(angleMatch[1]) : 180;
+  const stops: PseudoGradientStop[] = [];
+  const parts = body.split(/,(?![^(]*\))/);
+  for (const part of parts) {
+    const m = part.trim().match(/^(#[0-9a-f]{3,8}|rgba?\([^)]+\))\s*(-?\d*\.?\d+)?%?/i);
+    if (!m) continue;
+    const parsed = parseCssColor(m[1]!);
+    if (!parsed) continue;
+    stops.push({
+      hex: parsed.hex,
+      alpha: parsed.alpha,
+      pos: m[2] != null ? Number(m[2]) : stops.length === 0 ? 0 : 100,
+    });
+  }
+  if (stops.length < 2) return null;
+  return { type: radial ? 'radial' : 'linear', angle, stops };
+}
+
 function readColorVar(el: HTMLElement, varName: string): PseudoColor | null {
   const raw = el.style.getPropertyValue(varName).trim();
   if (!raw) return null;
+  const parsed = parseCssColor(raw);
+  if (parsed) return { enabled: true, hex: parsed.hex, alpha: parsed.alpha };
   return { enabled: true, hex: raw.startsWith('#') ? raw : '#000000', alpha: 1 };
 }
 
-function readPseudoSlice(el: HTMLElement, prefix: 'hover' | 'active'): BoxPseudoSlice {
-  const p = prefix === 'hover' ? 'hover' : 'active';
-  const color = el.getAttribute(`data-hc-fx-${p}-color`) === '1'
-    ? readColorVar(el, `--hc-color-${p}`)
-    : null;
-  const background = el.getAttribute(`data-hc-fx-${p}-bg`) === '1'
-    ? readColorVar(el, `--hc-bg-${p}`)
-    : null;
-  const borderColor = el.getAttribute(`data-hc-fx-${p}-border`) === '1'
-    ? readColorVar(el, `--hc-border-color-${p}`)
-    : null;
+function extractUrlFromBgImage(css: string): string {
+  const m = css.match(/url\(\s*["']?([^"')]+)["']?\s*\)/i);
+  return m?.[1]?.trim() || '';
+}
+
+function readPseudoSlice(
+  el: HTMLElement,
+  prefix: 'hover' | 'active',
+  relPathFromUrl?: (url: string) => string,
+): BoxPseudoSlice {
+  const p = prefix;
+  const color =
+    el.getAttribute(`data-hc-fx-${p}-color`) === '1'
+      ? readColorVar(el, `--hc-color-${p}`)
+      : null;
+  const modeAttr = (el.getAttribute(`data-hc-fx-${p}-bg-mode`) || '') as '' | PseudoBgMode;
+  const bgImageCss = el.style.getPropertyValue(`--hc-bg-image-${p}`).trim();
+  const parsedGrad = parseGradient(bgImageCss);
+  const urlPath = extractUrlFromBgImage(bgImageCss);
+  let bgMode: '' | PseudoBgMode = modeAttr;
+  if (!bgMode && el.getAttribute(`data-hc-fx-${p}-bg`) === '1') bgMode = 'solid';
+
+  const background =
+    bgMode === 'solid'
+      ? readColorVar(el, `--hc-bg-${p}`)
+      : el.getAttribute(`data-hc-fx-${p}-bg`) === '1'
+        ? readColorVar(el, `--hc-bg-${p}`)
+        : null;
+
+  const borderColor =
+    el.getAttribute(`data-hc-fx-${p}-border`) === '1'
+      ? readColorVar(el, `--hc-border-color-${p}`)
+      : null;
   const borderWidth =
     el.getAttribute(`data-hc-fx-${p}-border-width`) === '1'
       ? el.style.getPropertyValue(`--hc-border-width-${p}`).trim()
@@ -54,16 +157,40 @@ function readPseudoSlice(el: HTMLElement, prefix: 'hover' | 'active'): BoxPseudo
     el.getAttribute(`data-hc-fx-${p}-border-style`) === '1'
       ? el.style.getPropertyValue(`--hc-border-style-${p}`).trim()
       : '';
-  return { color, background, borderColor, borderWidth, borderStyle };
+  const borderRadius =
+    el.getAttribute(`data-hc-fx-${p}-border-radius`) === '1'
+      ? el.style.getPropertyValue(`--hc-border-radius-${p}`).trim()
+      : '';
+
+  return {
+    color,
+    bgMode,
+    background,
+    gradientType: parsedGrad?.type ?? 'linear',
+    gradientAngle: parsedGrad?.angle ?? 180,
+    gradientStops: parsedGrad?.stops ?? DEFAULT_STOPS.map((s) => ({ ...s })),
+    bgImage: urlPath && relPathFromUrl ? relPathFromUrl(urlPath) : urlPath,
+    bgSize: el.style.getPropertyValue(`--hc-bg-size-${p}`).trim(),
+    bgPosition: el.style.getPropertyValue(`--hc-bg-position-${p}`).trim(),
+    bgRepeat: el.style.getPropertyValue(`--hc-bg-repeat-${p}`).trim(),
+    bgAttachment: el.style.getPropertyValue(`--hc-bg-attachment-${p}`).trim(),
+    borderColor,
+    borderWidth,
+    borderStyle,
+    borderRadius,
+  };
 }
 
-export function readBoxPseudoStates(el: HTMLElement): {
+export function readBoxPseudoStates(
+  el: HTMLElement,
+  relPathFromUrl?: (url: string) => string,
+): {
   hover: BoxPseudoSlice;
   active: BoxPseudoSlice;
 } {
   return {
-    hover: readPseudoSlice(el, 'hover'),
-    active: readPseudoSlice(el, 'active'),
+    hover: readPseudoSlice(el, 'hover', relPathFromUrl),
+    active: readPseudoSlice(el, 'active', relPathFromUrl),
   };
 }
 
@@ -73,7 +200,7 @@ function applyColorPseudo(
   flag: 'color' | 'bg' | 'border',
   value: PseudoColor | null,
 ) {
-  const p = prefix === 'hover' ? 'hover' : 'active';
+  const p = prefix;
   const attrMap = {
     color: `data-hc-fx-${p}-color`,
     bg: `data-hc-fx-${p}-bg`,
@@ -97,12 +224,22 @@ function applyColorPseudo(
 function applySidePseudo(
   el: HTMLElement,
   prefix: 'hover' | 'active',
-  kind: 'width' | 'style',
+  kind: 'width' | 'style' | 'radius',
   value: string,
 ) {
-  const p = prefix === 'hover' ? 'hover' : 'active';
-  const attr = kind === 'width' ? `data-hc-fx-${p}-border-width` : `data-hc-fx-${p}-border-style`;
-  const prop = kind === 'width' ? `--hc-border-width-${p}` : `--hc-border-style-${p}`;
+  const p = prefix;
+  const attr =
+    kind === 'width'
+      ? `data-hc-fx-${p}-border-width`
+      : kind === 'style'
+        ? `data-hc-fx-${p}-border-style`
+        : `data-hc-fx-${p}-border-radius`;
+  const prop =
+    kind === 'width'
+      ? `--hc-border-width-${p}`
+      : kind === 'style'
+        ? `--hc-border-style-${p}`
+        : `--hc-border-radius-${p}`;
   const v = value.trim();
   if (v) {
     el.setAttribute(attr, '1');
@@ -113,22 +250,103 @@ function applySidePseudo(
   }
 }
 
+function clearBgPseudo(el: HTMLElement, prefix: 'hover' | 'active') {
+  const p = prefix;
+  el.removeAttribute(`data-hc-fx-${p}-bg-mode`);
+  el.removeAttribute(`data-hc-fx-${p}-bg`);
+  el.style.removeProperty(`--hc-bg-${p}`);
+  el.style.removeProperty(`--hc-bg-image-${p}`);
+  el.style.removeProperty(`--hc-bg-size-${p}`);
+  el.style.removeProperty(`--hc-bg-position-${p}`);
+  el.style.removeProperty(`--hc-bg-repeat-${p}`);
+  el.style.removeProperty(`--hc-bg-attachment-${p}`);
+}
+
+function applyBgPseudo(
+  el: HTMLElement,
+  prefix: 'hover' | 'active',
+  slice: BoxPseudoSlice,
+  resolveBgImageUrl?: (path: string) => string,
+) {
+  const p = prefix;
+  if (!slice.bgMode) {
+    clearBgPseudo(el, prefix);
+    return;
+  }
+  el.setAttribute(`data-hc-fx-${p}-bg-mode`, slice.bgMode);
+
+  if (slice.bgMode === 'none') {
+    el.removeAttribute(`data-hc-fx-${p}-bg`);
+    el.style.removeProperty(`--hc-bg-${p}`);
+    el.style.removeProperty(`--hc-bg-image-${p}`);
+    el.style.removeProperty(`--hc-bg-size-${p}`);
+    el.style.removeProperty(`--hc-bg-position-${p}`);
+    el.style.removeProperty(`--hc-bg-repeat-${p}`);
+    el.style.removeProperty(`--hc-bg-attachment-${p}`);
+    return;
+  }
+
+  if (slice.bgMode === 'solid') {
+    applyColorPseudo(el, prefix, 'bg', slice.background);
+    el.style.removeProperty(`--hc-bg-image-${p}`);
+    el.style.removeProperty(`--hc-bg-size-${p}`);
+    el.style.removeProperty(`--hc-bg-position-${p}`);
+    el.style.removeProperty(`--hc-bg-repeat-${p}`);
+    el.style.removeProperty(`--hc-bg-attachment-${p}`);
+    return;
+  }
+
+  el.removeAttribute(`data-hc-fx-${p}-bg`);
+  el.style.removeProperty(`--hc-bg-${p}`);
+
+  if (slice.bgMode === 'gradient') {
+    const stops =
+      slice.gradientStops.length >= 2 ? slice.gradientStops : DEFAULT_STOPS;
+    el.style.setProperty(
+      `--hc-bg-image-${p}`,
+      gradientToCss(slice.gradientType, slice.gradientAngle, stops),
+    );
+    el.style.removeProperty(`--hc-bg-size-${p}`);
+    el.style.removeProperty(`--hc-bg-position-${p}`);
+    el.style.removeProperty(`--hc-bg-repeat-${p}`);
+    el.style.removeProperty(`--hc-bg-attachment-${p}`);
+    return;
+  }
+
+  // image
+  const path = slice.bgImage.trim();
+  const href = path && resolveBgImageUrl ? resolveBgImageUrl(path) : path;
+  if (href) el.style.setProperty(`--hc-bg-image-${p}`, `url("${href}")`);
+  else el.style.removeProperty(`--hc-bg-image-${p}`);
+  const setOrClear = (prop: string, value: string) => {
+    if (value.trim()) el.style.setProperty(prop, value.trim());
+    else el.style.removeProperty(prop);
+  };
+  setOrClear(`--hc-bg-size-${p}`, slice.bgSize || 'cover');
+  setOrClear(`--hc-bg-position-${p}`, slice.bgPosition || 'center');
+  setOrClear(`--hc-bg-repeat-${p}`, slice.bgRepeat || 'no-repeat');
+  setOrClear(`--hc-bg-attachment-${p}`, slice.bgAttachment);
+}
+
 export function applyBoxPseudoStates(
   el: HTMLElement,
   hover: BoxPseudoSlice,
   active: BoxPseudoSlice,
+  resolveBgImageUrl?: (path: string) => string,
 ) {
   applyColorPseudo(el, 'hover', 'color', hover.color);
-  applyColorPseudo(el, 'hover', 'bg', hover.background);
+  applyBgPseudo(el, 'hover', hover, resolveBgImageUrl);
   applyColorPseudo(el, 'hover', 'border', hover.borderColor);
   applySidePseudo(el, 'hover', 'width', hover.borderWidth);
   applySidePseudo(el, 'hover', 'style', hover.borderStyle);
+  applySidePseudo(el, 'hover', 'radius', hover.borderRadius);
 
   applyColorPseudo(el, 'active', 'color', active.color);
-  applyColorPseudo(el, 'active', 'bg', active.background);
+  applyBgPseudo(el, 'active', active, resolveBgImageUrl);
   applyColorPseudo(el, 'active', 'border', active.borderColor);
   applySidePseudo(el, 'active', 'width', active.borderWidth);
   applySidePseudo(el, 'active', 'style', active.borderStyle);
+  applySidePseudo(el, 'active', 'radius', active.borderRadius);
 }
 
 export type TextShadowSlice = {
@@ -168,6 +386,13 @@ function parseCssColor(raw: string): { hex: string; alpha: number } | null {
     const hex =
       s.length === 4 ? `#${s[1]}${s[1]}${s[2]}${s[2]}${s[3]}${s[3]}` : s.toLowerCase();
     return { hex, alpha: 1 };
+  }
+  if (s.length === 9 && s.startsWith('#')) {
+    const a = parseInt(s.slice(7, 9), 16);
+    return {
+      hex: s.slice(0, 7).toLowerCase(),
+      alpha: Number.isFinite(a) ? a / 255 : 1,
+    };
   }
   const m = s.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([0-9.]+))?\s*\)/i);
   if (!m) return null;

@@ -7,6 +7,7 @@ import { courseAssetUrl, type ThemeSwatch } from './styleThemeColors';
 import { StyleStateSwitch, type StyleInteractionState } from './StyleStateSwitch';
 import {
   type BoxPseudoSlice,
+  EMPTY_BOX_PSEUDO,
   applyBoxPseudoStates,
   readBoxPseudoStates,
 } from '../../lesson-objects/stylePseudo';
@@ -364,7 +365,9 @@ function readSnapshot(el: HTMLElement, courseId?: string): ElementStyleSnapshot 
   else if (urlPath) bgMode = 'image';
   else if (bgSolid.enabled) bgMode = 'solid';
 
-  const { hover, active } = readBoxPseudoStates(el);
+  const { hover, active } = readBoxPseudoStates(el, (url) =>
+    relPathFromAssetUrl(url, courseId),
+  );
 
   return {
     margin: readBox(el, 'margin'),
@@ -529,7 +532,9 @@ function applySnapshot(el: HTMLElement, s: ElementStyleSnapshot, courseId?: stri
   if (id) el.setAttribute('id', id);
   else el.removeAttribute('id');
 
-  applyBoxPseudoStates(el, s.hoverPseudo, s.activePseudo);
+  applyBoxPseudoStates(el, s.hoverPseudo, s.activePseudo, (path) =>
+    bgImageCssUrl(courseId, path),
+  );
 }
 
 /** Shared Content | Style | Effects | Element tab chrome for inspectors. */
@@ -760,14 +765,30 @@ export function ElementStylePanel({
         body: { filename: file.name, dataBase64, folder: 'images' },
       });
       if (res.ok && res.data?.path) {
-        apply({
-          ...draft,
-          bgMode: 'image',
-          bgImage: res.data.path,
-          bgSize: draft.bgSize || 'cover',
-          bgPosition: draft.bgPosition || 'center',
-          bgRepeat: draft.bgRepeat || 'no-repeat',
-        });
+        if (bgState === 'normal') {
+          apply({
+            ...draft,
+            bgMode: 'image',
+            bgImage: res.data.path,
+            bgSize: draft.bgSize || 'cover',
+            bgPosition: draft.bgPosition || 'center',
+            bgRepeat: draft.bgRepeat || 'no-repeat',
+          });
+        } else {
+          const key = bgState === 'hover' ? 'hoverPseudo' : 'activePseudo';
+          const cur = { ...EMPTY_BOX_PSEUDO, ...draft[key] };
+          apply({
+            ...draft,
+            [key]: {
+              ...cur,
+              bgMode: 'image',
+              bgImage: res.data.path,
+              bgSize: cur.bgSize || draft.bgSize || 'cover',
+              bgPosition: cur.bgPosition || draft.bgPosition || 'center',
+              bgRepeat: cur.bgRepeat || draft.bgRepeat || 'no-repeat',
+            },
+          });
+        }
       }
     } finally {
       setUploadingBg(false);
@@ -815,11 +836,88 @@ export function ElementStylePanel({
     const key = which === 'hover' ? 'hoverPseudo' : 'activePseudo';
     apply({
       ...draft,
-      [key]: { ...draft[key], ...partial },
+      [key]: { ...EMPTY_BOX_PSEUDO, ...draft[key], ...partial },
     });
   };
-  const sliceFor = (state: StyleInteractionState): BoxPseudoSlice | null =>
-    state === 'hover' ? draft.hoverPseudo : state === 'active' ? draft.activePseudo : null;
+  const sliceFor = (state: StyleInteractionState): BoxPseudoSlice =>
+    state === 'hover'
+      ? { ...EMPTY_BOX_PSEUDO, ...draft.hoverPseudo }
+      : state === 'active'
+        ? { ...EMPTY_BOX_PSEUDO, ...draft.activePseudo }
+        : EMPTY_BOX_PSEUDO;
+
+  /** Effective background editor values for the current Normal/Hover/Active tab. */
+  const bgEditor =
+    bgState === 'normal'
+      ? {
+          bgMode: draft.bgMode as BgMode | '',
+          background: draft.background,
+          gradientType: draft.gradientType,
+          gradientAngle: draft.gradientAngle,
+          gradientStops: draft.gradientStops,
+          bgImage: draft.bgImage,
+          bgSize: draft.bgSize,
+          bgPosition: draft.bgPosition,
+          bgRepeat: draft.bgRepeat,
+          bgAttachment: draft.bgAttachment,
+        }
+      : (() => {
+          const slice = sliceFor(bgState);
+          // Seed unset hover/active UI from Normal so editors match (gradient stays gradient, etc.)
+          const seeded = !slice.bgMode;
+          return {
+            bgMode: (slice.bgMode || draft.bgMode) as BgMode | '',
+            background: slice.background ?? (seeded ? draft.background : emptyColor()),
+            gradientType: seeded ? draft.gradientType : slice.gradientType,
+            gradientAngle: seeded ? draft.gradientAngle : slice.gradientAngle,
+            gradientStops: seeded ? draft.gradientStops : slice.gradientStops,
+            bgImage: seeded ? draft.bgImage : slice.bgImage,
+            bgSize: seeded ? draft.bgSize : slice.bgSize,
+            bgPosition: seeded ? draft.bgPosition : slice.bgPosition,
+            bgRepeat: seeded ? draft.bgRepeat : slice.bgRepeat,
+            bgAttachment: seeded ? draft.bgAttachment : slice.bgAttachment,
+          };
+        })();
+
+  const patchBgEditor = (
+    partial: Partial<{
+      bgMode: BgMode;
+      background: ColorValue;
+      gradientType: GradientType;
+      gradientAngle: number;
+      gradientStops: GradientStop[];
+      bgImage: string;
+      bgSize: string;
+      bgPosition: string;
+      bgRepeat: string;
+      bgAttachment: string;
+    }>,
+  ) => {
+    if (bgState === 'normal') {
+      patch(partial);
+      return;
+    }
+    const nextMode = (partial.bgMode ?? (bgEditor.bgMode || 'solid')) as BgMode;
+    patchPseudo(bgState, {
+      bgMode: nextMode,
+      background:
+        partial.background !== undefined
+          ? partial.background.enabled
+            ? partial.background
+            : null
+          : bgEditor.background.enabled
+            ? bgEditor.background
+            : null,
+      gradientType: partial.gradientType ?? bgEditor.gradientType,
+      gradientAngle: partial.gradientAngle ?? bgEditor.gradientAngle,
+      gradientStops: partial.gradientStops ?? bgEditor.gradientStops,
+      bgImage: partial.bgImage ?? bgEditor.bgImage,
+      bgSize: partial.bgSize ?? bgEditor.bgSize,
+      bgPosition: partial.bgPosition ?? bgEditor.bgPosition,
+      bgRepeat: partial.bgRepeat ?? bgEditor.bgRepeat,
+      bgAttachment: partial.bgAttachment ?? bgEditor.bgAttachment,
+    });
+  };
 
   return (
     <div className="space-y-5">
@@ -1047,7 +1145,7 @@ export function ElementStylePanel({
           value={
             colorState === 'normal'
               ? draft.color
-              : sliceFor(colorState)?.color ?? emptyColor()
+              : sliceFor(colorState).color ?? draft.color
           }
           swatches={swatches}
           onChange={(color) => {
@@ -1080,7 +1178,7 @@ export function ElementStylePanel({
         )}
         <div
           className={`flex flex-wrap gap-1 rounded-lg border border-[var(--line)] bg-[var(--panel)]/60 p-1 ${
-            appearanceLocked || bgState !== 'normal' ? 'pointer-events-none opacity-45' : ''
+            appearanceLocked ? 'pointer-events-none opacity-45' : ''
           }`}
         >
           {(
@@ -1095,9 +1193,9 @@ export function ElementStylePanel({
               key={id}
               type="button"
               disabled={appearanceLocked}
-              onClick={() => patch({ bgMode: id })}
+              onClick={() => patchBgEditor({ bgMode: id })}
               className={`cursor-pointer rounded-md px-2.5 py-1 text-[11px] font-semibold disabled:cursor-not-allowed ${
-                draft.bgMode === id
+                bgEditor.bgMode === id
                   ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
                   : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
               }`}
@@ -1106,41 +1204,33 @@ export function ElementStylePanel({
             </button>
           ))}
         </div>
-        {!appearanceLocked && bgState !== 'normal' && (
+        {!appearanceLocked && bgEditor.bgMode === 'solid' && (
           <ColorControl
-            value={sliceFor(bgState)?.background ?? emptyColor()}
+            value={bgEditor.background}
             swatches={swatches}
             onChange={(background) =>
-              patchPseudo(bgState, { background: background.enabled ? background : null })
+              patchBgEditor({ background: { ...background, enabled: true } })
             }
             showOpacity
+            disableClear={bgState === 'normal'}
           />
         )}
-        {!appearanceLocked && bgState === 'normal' && draft.bgMode === 'solid' && (
-          <ColorControl
-            value={draft.background}
-            swatches={swatches}
-            onChange={(background) => patch({ background: { ...background, enabled: true } })}
-            showOpacity
-            disableClear
-          />
-        )}
-        {!appearanceLocked && bgState === 'normal' && draft.bgMode === 'gradient' && (
+        {!appearanceLocked && bgEditor.bgMode === 'gradient' && (
           <GradientEditor
-            type={draft.gradientType}
-            angle={draft.gradientAngle}
-            stops={draft.gradientStops}
+            type={bgEditor.gradientType}
+            angle={bgEditor.gradientAngle}
+            stops={bgEditor.gradientStops}
             swatches={swatches}
-            onChange={(partial) => patch(partial)}
+            onChange={(partial) => patchBgEditor(partial)}
           />
         )}
-        {!appearanceLocked && bgState === 'normal' && draft.bgMode === 'image' && (
+        {!appearanceLocked && bgEditor.bgMode === 'image' && (
           <div className="space-y-2 rounded-lg border border-[var(--line)] bg-[var(--panel)]/40 p-2">
-            {draft.bgImage && courseId ? (
+            {bgEditor.bgImage && courseId ? (
               <div
                 className="h-20 rounded-md border border-[var(--line)] bg-center bg-cover"
                 style={{
-                  backgroundImage: `url("${courseAssetUrl(courseId, draft.bgImage)}")`,
+                  backgroundImage: `url("${courseAssetUrl(courseId, bgEditor.bgImage)}")`,
                 }}
               />
             ) : (
@@ -1165,20 +1255,20 @@ export function ElementStylePanel({
             {!courseId && (
               <p className="text-[10px] text-[var(--ink-muted)]">{tr('styleBgImageNeedCourse')}</p>
             )}
-            {draft.bgImage && (
-              <p className="truncate font-mono text-[9px] text-[var(--ink-muted)]">{draft.bgImage}</p>
+            {bgEditor.bgImage && (
+              <p className="truncate font-mono text-[9px] text-[var(--ink-muted)]">{bgEditor.bgImage}</p>
             )}
             <Field label={tr('styleBgSize')}>
               <BgSizeControl
-                value={draft.bgSize || 'cover'}
-                onChange={(bgSize) => patch({ bgSize })}
+                value={bgEditor.bgSize || 'cover'}
+                onChange={(bgSize) => patchBgEditor({ bgSize })}
               />
             </Field>
             <Field label={tr('styleBgPosition')}>
               <select
                 className={fieldClass}
-                value={draft.bgPosition || 'center'}
-                onChange={(e) => patch({ bgPosition: e.target.value })}
+                value={bgEditor.bgPosition || 'center'}
+                onChange={(e) => patchBgEditor({ bgPosition: e.target.value })}
               >
                 <option value="center">center</option>
                 <option value="top">top</option>
@@ -1194,8 +1284,8 @@ export function ElementStylePanel({
             <Field label={tr('styleBgRepeat')}>
               <select
                 className={fieldClass}
-                value={draft.bgRepeat || 'no-repeat'}
-                onChange={(e) => patch({ bgRepeat: e.target.value })}
+                value={bgEditor.bgRepeat || 'no-repeat'}
+                onChange={(e) => patchBgEditor({ bgRepeat: e.target.value })}
               >
                 <option value="no-repeat">no-repeat</option>
                 <option value="repeat">repeat</option>
@@ -1208,8 +1298,8 @@ export function ElementStylePanel({
             <Field label={tr('styleBgAttachment')}>
               <select
                 className={fieldClass}
-                value={draft.bgAttachment || ''}
-                onChange={(e) => patch({ bgAttachment: e.target.value })}
+                value={bgEditor.bgAttachment || ''}
+                onChange={(e) => patchBgEditor({ bgAttachment: e.target.value })}
               >
                 <option value="">Default</option>
                 <option value="scroll">scroll</option>
@@ -1242,7 +1332,7 @@ export function ElementStylePanel({
               value={
                 borderState === 'normal'
                   ? draft.borderWidth
-                  : sliceFor(borderState)?.borderWidth ?? ''
+                  : sliceFor(borderState).borderWidth || draft.borderWidth
               }
               onChange={(v) => {
                 if (borderState === 'normal') {
@@ -1258,9 +1348,9 @@ export function ElementStylePanel({
                   patchPseudo(borderState, {
                     borderWidth: v,
                     borderStyle:
-                      v && (!cur?.borderStyle || cur.borderStyle === 'none')
+                      v && (!(cur.borderStyle || draft.borderStyle) || (cur.borderStyle || draft.borderStyle) === 'none')
                         ? 'solid'
-                        : cur?.borderStyle ?? '',
+                        : cur.borderStyle || draft.borderStyle,
                   });
                 }
               }}
@@ -1273,7 +1363,7 @@ export function ElementStylePanel({
               value={
                 (borderState === 'normal'
                   ? draft.borderStyle
-                  : sliceFor(borderState)?.borderStyle) || 'none'
+                  : sliceFor(borderState).borderStyle || draft.borderStyle) || 'none'
               }
               onChange={(e) => {
                 const borderStyle = e.target.value;
@@ -1288,22 +1378,27 @@ export function ElementStylePanel({
               <option value="double">double</option>
             </select>
           </Field>
-          {borderState === 'normal' && (
-            <Field label={tr('styleBorderRadius')}>
-              <LengthInput
-                value={draft.borderRadius}
-                onChange={(v) => patch({ borderRadius: v })}
-                ariaLabel={tr('styleBorderRadius')}
-              />
-            </Field>
-          )}
+          <Field label={tr('styleBorderRadius')}>
+            <LengthInput
+              value={
+                borderState === 'normal'
+                  ? draft.borderRadius
+                  : sliceFor(borderState).borderRadius || draft.borderRadius
+              }
+              onChange={(v) => {
+                if (borderState === 'normal') patch({ borderRadius: v });
+                else patchPseudo(borderState, { borderRadius: v });
+              }}
+              ariaLabel={tr('styleBorderRadius')}
+            />
+          </Field>
         </div>
         <Field label={tr('styleBorderColor')}>
           <ColorControl
             value={
               borderState === 'normal'
                 ? draft.borderColor
-                : sliceFor(borderState)?.borderColor ?? emptyColor()
+                : sliceFor(borderState).borderColor ?? draft.borderColor
             }
             swatches={swatches}
             onChange={(borderColor) => {

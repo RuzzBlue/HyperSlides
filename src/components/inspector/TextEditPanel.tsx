@@ -1211,32 +1211,36 @@ export function TextEditPanel({
             <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
               {tr('inspectorColor')}
             </span>
-            <PaintSwatch
-              hex={
+            {(() => {
+              const hasOverride =
                 appearanceState === 'hover'
-                  ? draft.colorHover || '#0e6e6a'
+                  ? Boolean(draft.colorHover)
                   : appearanceState === 'active'
-                    ? draft.colorActive || '#0e6e6a'
-                    : draft.color || '#1c1f26'
-              }
-              cleared={
+                    ? Boolean(draft.colorActive)
+                    : Boolean(draft.color);
+              const hex =
                 appearanceState === 'hover'
-                  ? !draft.colorHover
+                  ? draft.colorHover || draft.color || '#0e6e6a'
                   : appearanceState === 'active'
-                    ? !draft.colorActive
-                    : !draft.color
-              }
-              onChange={(hex) => {
-                if (appearanceState === 'hover') patch({ colorHover: hex });
-                else if (appearanceState === 'active') patch({ colorActive: hex });
-                else patch({ color: hex });
-              }}
-              onClear={() => {
-                if (appearanceState === 'hover') patch({ colorHover: '' });
-                else if (appearanceState === 'active') patch({ colorActive: '' });
-                else patch({ color: '' });
-              }}
-            />
+                    ? draft.colorActive || draft.color || '#0e6e6a'
+                    : draft.color || '#1c1f26';
+              return (
+                <PaintSwatch
+                  hex={hex}
+                  cleared={appearanceState === 'normal' ? !draft.color : !hasOverride}
+                  onChange={(next) => {
+                    if (appearanceState === 'hover') patch({ colorHover: next });
+                    else if (appearanceState === 'active') patch({ colorActive: next });
+                    else patch({ color: next });
+                  }}
+                  onClear={() => {
+                    if (appearanceState === 'hover') patch({ colorHover: '' });
+                    else if (appearanceState === 'active') patch({ colorActive: '' });
+                    else patch({ color: '' });
+                  }}
+                />
+              );
+            })()}
           </div>
           <div className="block">
             <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
@@ -1245,17 +1249,31 @@ export function TextEditPanel({
             {(() => {
               const hl =
                 appearanceState === 'hover'
-                  ? {
-                      enabled: draft.hoverFx.highlightEnabled,
-                      hex: draft.hoverFx.highlight,
-                      alpha: draft.hoverFx.highlightAlpha,
-                    }
-                  : appearanceState === 'active'
+                  ? draft.hoverFx.highlightEnabled
                     ? {
-                        enabled: draft.activeFx.highlightEnabled,
-                        hex: draft.activeFx.highlight,
-                        alpha: draft.activeFx.highlightAlpha,
+                        enabled: true,
+                        hex: draft.hoverFx.highlight,
+                        alpha: draft.hoverFx.highlightAlpha,
                       }
+                    : {
+                        enabled: draft.highlightEnabled,
+                        hex: draft.highlight,
+                        alpha: draft.highlightAlpha,
+                        seeded: true as const,
+                      }
+                  : appearanceState === 'active'
+                    ? draft.activeFx.highlightEnabled
+                      ? {
+                          enabled: true,
+                          hex: draft.activeFx.highlight,
+                          alpha: draft.activeFx.highlightAlpha,
+                        }
+                      : {
+                          enabled: draft.highlightEnabled,
+                          hex: draft.highlight,
+                          alpha: draft.highlightAlpha,
+                          seeded: true as const,
+                        }
                     : {
                         enabled: draft.highlightEnabled,
                         hex: draft.highlight,
@@ -1278,7 +1296,13 @@ export function TextEditPanel({
                 <PaintSwatch
                   hex={hl.hex || '#ffff00'}
                   alpha={hl.enabled ? hl.alpha : 1}
-                  cleared={!hl.enabled}
+                  cleared={
+                    appearanceState === 'normal'
+                      ? !draft.highlightEnabled
+                      : appearanceState === 'hover'
+                        ? !draft.hoverFx.highlightEnabled
+                        : !draft.activeFx.highlightEnabled
+                  }
                   showAlpha
                   onChange={(hex, alpha) =>
                     patchHl({
@@ -1297,9 +1321,35 @@ export function TextEditPanel({
         {(() => {
           const fx =
             appearanceState === 'hover'
-              ? draft.hoverFx
+              ? draft.hoverFx.textShadowEnabled || draft.hoverFx.textStrokeEnabled
+                ? draft.hoverFx
+                : {
+                    ...draft.hoverFx,
+                    textShadowEnabled: draft.textShadowEnabled,
+                    textShadowX: draft.textShadowX,
+                    textShadowY: draft.textShadowY,
+                    textShadowBlur: draft.textShadowBlur,
+                    textShadowColor: draft.textShadowColor,
+                    textStrokeEnabled: draft.textStrokeEnabled,
+                    textStrokeWidth: draft.textStrokeWidth,
+                    textStrokeColor: draft.textStrokeColor,
+                    _seeded: true as const,
+                  }
               : appearanceState === 'active'
-                ? draft.activeFx
+                ? draft.activeFx.textShadowEnabled || draft.activeFx.textStrokeEnabled
+                  ? draft.activeFx
+                  : {
+                      ...draft.activeFx,
+                      textShadowEnabled: draft.textShadowEnabled,
+                      textShadowX: draft.textShadowX,
+                      textShadowY: draft.textShadowY,
+                      textShadowBlur: draft.textShadowBlur,
+                      textShadowColor: draft.textShadowColor,
+                      textStrokeEnabled: draft.textStrokeEnabled,
+                      textStrokeWidth: draft.textStrokeWidth,
+                      textStrokeColor: draft.textStrokeColor,
+                      _seeded: true as const,
+                    }
                 : {
                     textShadowEnabled: draft.textShadowEnabled,
                     textShadowX: draft.textShadowX,
@@ -1309,12 +1359,43 @@ export function TextEditPanel({
                     textStrokeEnabled: draft.textStrokeEnabled,
                     textStrokeWidth: draft.textStrokeWidth,
                     textStrokeColor: draft.textStrokeColor,
+                    highlightEnabled: draft.highlightEnabled,
+                    highlight: draft.highlight,
+                    highlightAlpha: draft.highlightAlpha,
                   };
           const patchFx = (partial: Partial<TextFxSlice>) => {
             if (appearanceState === 'hover') {
-              patch({ hoverFx: { ...draft.hoverFx, ...partial } });
+              const base =
+                draft.hoverFx.textShadowEnabled || draft.hoverFx.textStrokeEnabled
+                  ? draft.hoverFx
+                  : {
+                      ...draft.hoverFx,
+                      textShadowEnabled: draft.textShadowEnabled,
+                      textShadowX: draft.textShadowX,
+                      textShadowY: draft.textShadowY,
+                      textShadowBlur: draft.textShadowBlur,
+                      textShadowColor: draft.textShadowColor,
+                      textStrokeEnabled: draft.textStrokeEnabled,
+                      textStrokeWidth: draft.textStrokeWidth,
+                      textStrokeColor: draft.textStrokeColor,
+                    };
+              patch({ hoverFx: { ...base, ...partial } });
             } else if (appearanceState === 'active') {
-              patch({ activeFx: { ...draft.activeFx, ...partial } });
+              const base =
+                draft.activeFx.textShadowEnabled || draft.activeFx.textStrokeEnabled
+                  ? draft.activeFx
+                  : {
+                      ...draft.activeFx,
+                      textShadowEnabled: draft.textShadowEnabled,
+                      textShadowX: draft.textShadowX,
+                      textShadowY: draft.textShadowY,
+                      textShadowBlur: draft.textShadowBlur,
+                      textShadowColor: draft.textShadowColor,
+                      textStrokeEnabled: draft.textStrokeEnabled,
+                      textStrokeWidth: draft.textStrokeWidth,
+                      textStrokeColor: draft.textStrokeColor,
+                    };
+              patch({ activeFx: { ...base, ...partial } });
             } else {
               patch(partial);
             }

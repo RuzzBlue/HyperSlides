@@ -916,7 +916,27 @@ html[data-theme='dark'] .lesson-stage .hc-btn--outline {
 .lesson-stage [data-hc-fx-hover-color]:hover {
   color: var(--hc-color-hover) !important;
 }
-.lesson-stage [data-hc-fx-hover-bg]:hover {
+.lesson-stage [data-hc-fx-hover-bg-mode='solid']:hover {
+  background-color: var(--hc-bg-hover) !important;
+  background-image: none !important;
+}
+.lesson-stage [data-hc-fx-hover-bg-mode='gradient']:hover,
+.lesson-stage [data-hc-fx-hover-bg-mode='image']:hover {
+  background-image: var(--hc-bg-image-hover) !important;
+  background-color: transparent !important;
+}
+.lesson-stage [data-hc-fx-hover-bg-mode='image']:hover {
+  background-size: var(--hc-bg-size-hover, cover) !important;
+  background-position: var(--hc-bg-position-hover, center) !important;
+  background-repeat: var(--hc-bg-repeat-hover, no-repeat) !important;
+  background-attachment: var(--hc-bg-attachment-hover, scroll);
+}
+.lesson-stage [data-hc-fx-hover-bg-mode='none']:hover {
+  background-image: none !important;
+  background-color: transparent !important;
+}
+/* Legacy solid-only flag */
+.lesson-stage [data-hc-fx-hover-bg]:hover:not([data-hc-fx-hover-bg-mode]) {
   background-color: var(--hc-bg-hover) !important;
 }
 .lesson-stage [data-hc-fx-hover-border]:hover {
@@ -928,12 +948,39 @@ html[data-theme='dark'] .lesson-stage .hc-btn--outline {
 .lesson-stage [data-hc-fx-hover-border-style]:hover {
   border-style: var(--hc-border-style-hover) !important;
 }
+.lesson-stage [data-hc-fx-hover-border-radius]:hover {
+  border-radius: var(--hc-border-radius-hover) !important;
+}
 .lesson-stage [data-hc-fx-active-color]:active,
 .lesson-stage [data-hc-fx-active-color]:focus-visible {
   color: var(--hc-color-active) !important;
 }
-.lesson-stage [data-hc-fx-active-bg]:active,
-.lesson-stage [data-hc-fx-active-bg]:focus-visible {
+.lesson-stage [data-hc-fx-active-bg-mode='solid']:active,
+.lesson-stage [data-hc-fx-active-bg-mode='solid']:focus-visible {
+  background-color: var(--hc-bg-active) !important;
+  background-image: none !important;
+}
+.lesson-stage [data-hc-fx-active-bg-mode='gradient']:active,
+.lesson-stage [data-hc-fx-active-bg-mode='gradient']:focus-visible,
+.lesson-stage [data-hc-fx-active-bg-mode='image']:active,
+.lesson-stage [data-hc-fx-active-bg-mode='image']:focus-visible {
+  background-image: var(--hc-bg-image-active) !important;
+  background-color: transparent !important;
+}
+.lesson-stage [data-hc-fx-active-bg-mode='image']:active,
+.lesson-stage [data-hc-fx-active-bg-mode='image']:focus-visible {
+  background-size: var(--hc-bg-size-active, cover) !important;
+  background-position: var(--hc-bg-position-active, center) !important;
+  background-repeat: var(--hc-bg-repeat-active, no-repeat) !important;
+  background-attachment: var(--hc-bg-attachment-active, scroll);
+}
+.lesson-stage [data-hc-fx-active-bg-mode='none']:active,
+.lesson-stage [data-hc-fx-active-bg-mode='none']:focus-visible {
+  background-image: none !important;
+  background-color: transparent !important;
+}
+.lesson-stage [data-hc-fx-active-bg]:active:not([data-hc-fx-active-bg-mode]),
+.lesson-stage [data-hc-fx-active-bg]:focus-visible:not([data-hc-fx-active-bg-mode]) {
   background-color: var(--hc-bg-active) !important;
 }
 .lesson-stage [data-hc-fx-active-border]:active,
@@ -947,6 +994,10 @@ html[data-theme='dark'] .lesson-stage .hc-btn--outline {
 .lesson-stage [data-hc-fx-active-border-style]:active,
 .lesson-stage [data-hc-fx-active-border-style]:focus-visible {
   border-style: var(--hc-border-style-active) !important;
+}
+.lesson-stage [data-hc-fx-active-border-radius]:active,
+.lesson-stage [data-hc-fx-active-border-radius]:focus-visible {
+  border-radius: var(--hc-border-radius-active) !important;
 }
 
 /* Text shadow / stroke pseudo-states */
