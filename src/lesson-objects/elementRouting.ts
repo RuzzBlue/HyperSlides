@@ -15,7 +15,14 @@ export function inspectorToolForElement(el: HTMLElement): InspectorTool {
   if (tag === 'img' || tag === 'video' || tag === 'audio' || tag === 'picture' || tag === 'svg') {
     return 'media';
   }
-  if (el.matches('figure.hc-media, .hc-media, [data-hc-label="Media"]')) {
+  if (
+    el.matches(
+      'figure.hc-media, .hc-media, [data-hc-media], [data-hc-label="Media"], [data-hc-label="Image"], [data-hc-label="Video"], [data-hc-label="Icon"], .hc-media--icon, .hc-icon, [data-icon]',
+    )
+  ) {
+    return 'media';
+  }
+  if (el.matches('i[class*="fa-"], i[class*="bi-"], .hc-emoji')) {
     return 'media';
   }
   if (tag === 'table' || tag === 'thead' || tag === 'tbody' || tag === 'tr' || tag === 'td' || tag === 'th') {

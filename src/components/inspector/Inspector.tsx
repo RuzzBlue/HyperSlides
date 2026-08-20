@@ -53,6 +53,10 @@ import {
 import { ElementEffectsPanel } from './ElementEffectsPanel';
 import { ElementMetaPanel } from './ElementMetaPanel';
 import { LinksPanel } from './LinksPanel';
+import { MediaPanel, createMediaHtml, type MediaKind } from './media/MediaPanel';
+import { ensureObjectId } from '../../lesson-objects/selection';
+import { isInsideLockedTemplate, serializeLessonRoot } from '../../lesson-objects/lessonHtml';
+import { topLevelSections } from '../../lesson-objects/elementInsert';
 import { swatchesFromCourseTheme } from './styleThemeColors';
 import { TemplatePickerButton } from './TemplatePicker';
 import { QuizEditPanel, type QuizEditContext } from './QuizEditPanel';
@@ -61,7 +65,6 @@ import { LabEditPanel, type LabEditContext } from './LabEditPanel';
 import { LabSectionTemplatePickerButton } from './LabSectionTemplatePicker';
 import { ProgressPanel, type ProgressContext } from './ProgressPanel';
 import { useLessonObjectModeOptional } from '../../lesson-objects/LessonObjectMode';
-import { serializeLessonRoot } from '../../lesson-objects/lessonHtml';
 export type InspectorTool =
   | 'graphs'
   | 'tables'
@@ -247,7 +250,6 @@ export function Inspector({
   const isText = tool === 'text';
   const isStyleTool =
     tool === 'links' ||
-    tool === 'shapesMedia' ||
     tool === 'charts' ||
     tool === 'shape' ||
     tool === 'media' ||
@@ -1308,6 +1310,13 @@ function StyledToolPanel({
   }, [registerSave, objectMode, onHtmlPersist, onDirtyChange, onSavingChange]);
 
   if (!objectMode?.selected) {
+    if (tool === 'media') {
+      return (
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+          <MediaInsertChooser onOpenTool={onOpenTool} />
+        </div>
+      );
+    }
     return <InspectorSelectElementHint />;
   }
 
@@ -1328,6 +1337,8 @@ function StyledToolPanel({
               sequence={sequence}
               currentSlideKey={currentSlideKey}
             />
+          ) : tool === 'media' ? (
+            <MediaPanel courseId={courseId} onDirtyChange={onDirtyChange} />
           ) : (
             <InspectorBody tool={tool} onOpenTool={onOpenTool} />
           )}
@@ -1387,20 +1398,11 @@ function InspectorBody({
     case 'shape':
       return <ShapePanel />;
     case 'media':
-      return <MediaPanel />;
+      return <MediaPanel courseId={undefined} />;
     case 'links':
       return null;
     case 'shapesMedia':
-      return (
-        <ChooserPanel
-          title={tr('toolShapesMedia')}
-          options={[
-            { tool: 'shape', label: tr('toolShape'), icon: <Shapes className="h-5 w-5" /> },
-            { tool: 'media', label: tr('toolMedia'), icon: <Film className="h-5 w-5" /> },
-          ]}
-          onOpenTool={onOpenTool}
-        />
-      );
+      return <MediaInsertChooser onOpenTool={onOpenTool} />;
     case 'charts':
       return (
         <ChooserPanel
@@ -1426,6 +1428,56 @@ function InspectorBody({
     case 'code':
       return null;
   }
+}
+
+function MediaInsertChooser({
+  onOpenTool,
+}: {
+  onOpenTool?: (tool: InspectorTool) => void;
+}) {
+  const { tr } = usePrefs();
+  const objectMode = useLessonObjectModeOptional();
+
+  const insertKind = (kind: MediaKind) => {
+    const root = objectMode?.root;
+    if (!root) return;
+    const selected = objectMode.selected?.element ?? null;
+    if (selected && isInsideLockedTemplate(selected, root)) {
+      objectMode.showNotice(tr('elementsTemplateLocked'));
+      return;
+    }
+    const wrap = document.createElement('div');
+    wrap.innerHTML = createMediaHtml(kind).trim();
+    const node = wrap.firstElementChild as HTMLElement | null;
+    if (!node) return;
+    ensureObjectId(node);
+
+    let host: HTMLElement | null = null;
+    if (selected) {
+      host =
+        selected.tagName === 'SECTION' || selected.tagName === 'DIV'
+          ? selected
+          : (selected.closest('section, div') as HTMLElement | null);
+    }
+    host = host ?? topLevelSections(root).at(-1) ?? (root.querySelector('article') as HTMLElement | null) ?? root;
+    if (selected && isInsideLockedTemplate(host, root)) {
+      objectMode.showNotice(tr('elementsTemplateLocked'));
+      return;
+    }
+    host.appendChild(node);
+    root.setAttribute('data-hc-live-dirty', '1');
+    objectMode.selectElement(node);
+    onOpenTool?.('media');
+  };
+
+  return (
+    <MediaPanel
+      onRequestInsert={insertKind}
+      onDirtyChange={() => {
+        objectMode?.root?.setAttribute('data-hc-live-dirty', '1');
+      }}
+    />
+  );
 }
 
 function ChooserPanel({
@@ -1606,39 +1658,6 @@ function ShapePanel() {
         <Field label={tr('inspectorCornerRadius')}>
           <DemoInput type="number" defaultValue={8} min={0} />
         </Field>
-      </Section>
-    </>
-  );
-}
-
-function MediaPanel() {
-  const { tr } = usePrefs();
-  return (
-    <>
-      <Section title={tr('inspectorSource')}>
-        <Field label={tr('inspectorMediaType')}>
-          <DemoSelect defaultValue="image">
-            <option value="image">Image</option>
-            <option value="video">Video</option>
-            <option value="embed">Embed URL</option>
-          </DemoSelect>
-        </Field>
-        <Field label={tr('inspectorFileOrUrl')}>
-          <DemoInput placeholder="assets/images/…" />
-        </Field>
-      </Section>
-      <Section title={tr('inspectorDisplay')}>
-        <Field label={tr('inspectorObjectFit')}>
-          <DemoSelect defaultValue="cover">
-            <option value="cover">Cover</option>
-            <option value="contain">Contain</option>
-            <option value="fill">Fill</option>
-          </DemoSelect>
-        </Field>
-        <label className="flex items-center gap-2 text-[12px] text-[var(--ink)]">
-          <input type="checkbox" className="accent-[var(--accent)]" />
-          {tr('inspectorShadow')}
-        </label>
       </Section>
     </>
   );

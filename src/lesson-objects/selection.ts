@@ -35,6 +35,7 @@ const SELECTABLE_TAGS = new Set([
   'BUTTON',
   'A',
   'SPAN',
+  'I',
   'BLOCKQUOTE',
   'PRE',
   'CODE',

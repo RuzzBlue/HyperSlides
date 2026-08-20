@@ -25,6 +25,7 @@ export type ElementCatalogItem = {
     | 'links'
     | 'code'
     | 'shapesMedia'
+    | 'media'
     | 'charts'
     | 'elements';
   /** Structure items open the element props view instead of another tool. */
@@ -62,10 +63,10 @@ export const ELEMENT_CATALOG: ElementCatalogItem[] = [
   {
     id: 'shapes-media',
     category: 'single',
-    openTool: 'shapesMedia',
+    openTool: 'media',
     dropRule: 'inside-container',
     createHtml: () =>
-      `<figure class="hc-media" data-hc-label="Media"><img alt="" src="" style="max-width:100%;height:auto" /></figure>`,
+      `<figure class="hc-media hc-media--image" data-hc-media="image" data-hc-label="Image"><img alt="" src="" style="max-width:100%;height:auto;object-fit:cover" /></figure>`,
   },
   {
     id: 'graphs-tables',

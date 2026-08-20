@@ -92,7 +92,7 @@ export type MountIconOptions = {
   lucideProps?: Omit<LucideProps, 'ref'>;
 };
 
-/** Render an icon node from a data-icon string (Lucide or Font Awesome). */
+/** Render an icon node from a data-icon string (Lucide, Font Awesome, Bootstrap, or emoji). */
 export function resolveMountIcon(
   raw: string | null | undefined,
   opts: MountIconOptions = {},
@@ -101,6 +101,23 @@ export function resolveMountIcon(
   if (!name) return null;
 
   const className = opts.className ?? 'h-4 w-4';
+
+  if (name.startsWith('emoji:') || /^\p{Extended_Pictographic}/u.test(name)) {
+    const emoji = name.startsWith('emoji:') ? name.slice(6) : name;
+    return createElement('span', {
+      className,
+      role: 'img',
+      'aria-label': 'emoji',
+    }, emoji);
+  }
+
+  if (name.startsWith('bi:') || /^bi\s+bi-/i.test(name) || /^bi-[a-z0-9-]+$/i.test(name)) {
+    const biName = name.replace(/^bi:/i, '').replace(/^bi\s+/i, '').replace(/^bi-/i, '');
+    return createElement('i', {
+      className: `bi bi-${biName} ${className}`.trim(),
+      'aria-hidden': true,
+    });
+  }
 
   if (looksLikeFontAwesome(name)) {
     const faClass = toFontAwesomeClass(name);
