@@ -1528,7 +1528,7 @@ export function LengthInput({
   );
 }
 
-function SizeInput({
+export function SizeInput({
   value,
   onChange,
   keywords,

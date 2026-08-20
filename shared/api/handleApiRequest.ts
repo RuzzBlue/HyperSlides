@@ -41,7 +41,7 @@ import {
   writeLabSource,
   writeQuizSource,
 } from './quizLabSource.ts';
-import { createCourse, deleteCourse, listCourseThemeFonts, listThemeTemplates, updateCourse, uploadCourseAsset, uploadCourseThemeAsset, uploadCourseThemeFont, type CreateCourseInput } from './createCourse.ts';
+import { createCourse, deleteCourse, listCourseAssets, listCourseThemeFonts, listThemeTemplates, updateCourse, uploadCourseAsset, uploadCourseThemeAsset, uploadCourseThemeFont, type CreateCourseInput } from './createCourse.ts';
 import { insertCourseItem, type InsertKind } from './insertCourseItem.ts';
 import {
   deleteStructureNode,
@@ -163,6 +163,25 @@ export async function handleApiRequest(
         return { ok: true, status: 201, data: saved };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to upload theme asset';
+        const status = message === 'Course not found' ? 404 : 400;
+        return { ok: false, status, error: message };
+      }
+    }
+
+    if (
+      method === 'GET' &&
+      segments[0] === 'courses' &&
+      segments.length === 3 &&
+      segments[2] === 'assets'
+    ) {
+      try {
+        const folderRaw = String(params?.folder ?? 'images');
+        const folder =
+          folderRaw === 'documents' || folderRaw === 'others' ? folderRaw : 'images';
+        const listed = listCourseAssets(ctx.appRoot, segments[1], folder);
+        return { ok: true, status: 200, data: listed };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to list course assets';
         const status = message === 'Course not found' ? 404 : 400;
         return { ok: false, status, error: message };
       }

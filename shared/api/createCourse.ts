@@ -427,6 +427,35 @@ export function uploadCourseAsset(
   return { path: `assets/${folder}/${safe}` };
 }
 
+const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif', '.bmp']);
+const VIDEO_EXT = new Set(['.mp4', '.webm', '.ogg', '.mov', '.m4v']);
+
+/** List files under courses/<id>/assets/<folder>/. */
+export function listCourseAssets(
+  appRoot: string,
+  courseId: string,
+  folder: 'images' | 'documents' | 'others' = 'images',
+): { files: { path: string; name: string }[] } {
+  const loaded = loadCourse(appRoot, courseId);
+  if (!loaded) throw new Error('Course not found');
+  const dir = path.join(loaded.rootPath, 'assets', folder);
+  const files: { path: string; name: string }[] = [];
+  if (!fs.existsSync(dir)) return { files };
+  for (const name of fs.readdirSync(dir)) {
+    if (name.startsWith('.')) continue;
+    const full = path.join(dir, name);
+    if (!fs.statSync(full).isFile()) continue;
+    const ext = path.extname(name).toLowerCase();
+    if (folder === 'images' && !IMAGE_EXT.has(ext)) continue;
+    if (folder === 'others' && !VIDEO_EXT.has(ext) && !IMAGE_EXT.has(ext)) {
+      // still include other binaries in others
+    }
+    files.push({ path: `assets/${folder}/${name}`, name });
+  }
+  files.sort((a, b) => a.name.localeCompare(b.name));
+  return { files };
+}
+
 const FONT_EXT = new Set(['.woff2', '.woff', '.ttf', '.otf']);
 
 function fontFormatFromExt(ext: string): string {

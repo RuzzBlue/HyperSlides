@@ -1,12 +1,20 @@
 /** Catalog of insertable lesson elements (Elementor-style Elements panel). */
 
+import {
+  createMediaIconHtml,
+  createMediaImageHtml,
+  createMediaVideoHtml,
+} from './mediaHtml';
+
 export type ElementCatalogCategoryId = 'single' | 'structure' | 'templates';
 
 export type ElementCatalogItemId =
   | 'titles-texts'
   | 'links-buttons'
   | 'html-widgets'
-  | 'shapes-media'
+  | 'media-icon'
+  | 'media-image'
+  | 'media-video'
   | 'graphs-tables'
   | 'section'
   | 'div'
@@ -61,12 +69,25 @@ export const ELEMENT_CATALOG: ElementCatalogItem[] = [
       `<div class="hc-widget-slot" data-component="custom" data-hc-label="Widget"><!-- widget --></div>`,
   },
   {
-    id: 'shapes-media',
+    id: 'media-icon',
     category: 'single',
     openTool: 'media',
     dropRule: 'inside-container',
-    createHtml: () =>
-      `<figure class="hc-media hc-media--image" data-hc-media="image" data-hc-label="Image"><img alt="" src="" style="max-width:100%;height:auto;object-fit:cover" /></figure>`,
+    createHtml: createMediaIconHtml,
+  },
+  {
+    id: 'media-image',
+    category: 'single',
+    openTool: 'media',
+    dropRule: 'inside-container',
+    createHtml: createMediaImageHtml,
+  },
+  {
+    id: 'media-video',
+    category: 'single',
+    openTool: 'media',
+    dropRule: 'inside-container',
+    createHtml: createMediaVideoHtml,
   },
   {
     id: 'graphs-tables',

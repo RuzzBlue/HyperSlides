@@ -1,13 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { Film, Image as ImageIcon, Smile, Upload } from 'lucide-react';
+import { Film, FolderOpen, Image as ImageIcon, Smile, Upload } from 'lucide-react';
 import { apiFetch } from '../../../api/client';
 import { usePrefs } from '../../../prefs/PrefsProvider';
 import { useLessonObjectModeOptional } from '../../../lesson-objects/LessonObjectMode';
 import { ensureObjectId } from '../../../lesson-objects/selection';
+import {
+  catalogIdForMediaKind,
+  createMediaHtml as createMediaHtmlShared,
+  type MediaKind,
+} from '../../../lesson-objects/mediaHtml';
 import { courseAssetUrl } from '../styleThemeColors';
+import { SizeInput } from '../ElementStylePanel';
 import { IconPickerModal } from './IconPickerModal';
 import {
   type IconCatalogEntry,
@@ -16,10 +22,56 @@ import {
   getLucideIconComponent,
 } from './iconLibraries';
 
-export type MediaKind = 'icon' | 'image' | 'video';
+export type { MediaKind };
+export function createMediaHtml(kind: MediaKind): string {
+  return createMediaHtmlShared(kind);
+}
 
 const fieldClass =
   'w-full rounded-md border border-[var(--line)] bg-[var(--panel)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)]';
+
+const OBJECT_POSITIONS = [
+  'top left',
+  'top center',
+  'top right',
+  'center left',
+  'center center',
+  'center right',
+  'bottom left',
+  'bottom center',
+  'bottom right',
+] as const;
+
+function normalizeObjectPosition(raw: string): string {
+  const s = raw.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!s) return 'center center';
+  const aliases: Record<string, string> = {
+    center: 'center center',
+    top: 'top center',
+    bottom: 'bottom center',
+    left: 'center left',
+    right: 'center right',
+    '50% 50%': 'center center',
+    '50% 0%': 'top center',
+    '0% 50%': 'center left',
+    '100% 50%': 'center right',
+    '50% 100%': 'bottom center',
+    '0% 0%': 'top left',
+    '100% 0%': 'top right',
+    '0% 100%': 'bottom left',
+    '100% 100%': 'bottom right',
+  };
+  if (aliases[s]) return aliases[s];
+  if ((OBJECT_POSITIONS as readonly string[]).includes(s)) return s;
+  // "top left" already; also accept "left top"
+  const parts = s.split(' ');
+  if (parts.length === 2) {
+    const [a, b] = parts;
+    const swapped = `${b} ${a}`;
+    if ((OBJECT_POSITIONS as readonly string[]).includes(swapped)) return swapped;
+  }
+  return 'center center';
+}
 
 function lucideSvgHtml(name: string, size = 48): string {
   const Icon = getLucideIconComponent(name);
@@ -120,23 +172,14 @@ export function resolveMediaTarget(el: HTMLElement): HTMLElement {
   return inner instanceof HTMLElement ? inner : el;
 }
 
-export function createMediaHtml(kind: MediaKind): string {
-  if (kind === 'video') {
-    return `<figure class="hc-media hc-media--video" data-hc-media="video" data-hc-label="Video"><video controls playsinline style="max-width:100%;height:auto" src=""></video></figure>`;
-  }
-  if (kind === 'icon') {
-    const svg = lucideSvgHtml('circle', 48);
-    return `<span class="hc-media hc-media--icon" data-hc-media="icon" data-hc-label="Icon" data-icon="circle" data-hc-icon-lib="lucide" style="display:inline-flex;align-items:center;justify-content:center;line-height:0">${svg}</span>`;
-  }
-  return `<figure class="hc-media hc-media--image" data-hc-media="image" data-hc-label="Image"><img alt="" src="" style="max-width:100%;height:auto;object-fit:cover" /></figure>`;
-}
-
 type ImageDraft = {
   src: string;
   alt: string;
   objectFit: string;
   objectPosition: string;
-  repeat: string; // CSS background-style tiling when used as decorative; also object-fit companion
+  repeat: string;
+  width: string;
+  height: string;
 };
 
 type VideoDraft = {
@@ -147,6 +190,10 @@ type VideoDraft = {
   loop: boolean;
   muted: boolean;
   playsInline: boolean;
+  objectFit: string;
+  objectPosition: string;
+  width: string;
+  height: string;
 };
 
 type IconDraft = {
@@ -166,8 +213,12 @@ function readImageDraft(el: HTMLElement): ImageDraft {
     src: img?.getAttribute('src') || '',
     alt: img?.getAttribute('alt') || '',
     objectFit: target.style.objectFit || cs.objectFit || 'cover',
-    objectPosition: target.style.objectPosition || cs.objectPosition || 'center',
+    objectPosition: normalizeObjectPosition(
+      target.style.objectPosition || cs.objectPosition || 'center center',
+    ),
     repeat: target.getAttribute('data-hc-img-tile') || 'no-repeat',
+    width: target.style.width || '',
+    height: target.style.height || 'auto',
   };
 }
 
@@ -176,6 +227,8 @@ function readVideoDraft(el: HTMLElement): VideoDraft {
     el.tagName === 'VIDEO'
       ? (el as HTMLVideoElement)
       : (el.querySelector('video') as HTMLVideoElement | null);
+  const target = video ?? el;
+  const cs = getComputedStyle(target);
   return {
     src: video?.getAttribute('src') || '',
     poster: video?.getAttribute('poster') || '',
@@ -184,6 +237,12 @@ function readVideoDraft(el: HTMLElement): VideoDraft {
     loop: video?.hasAttribute('loop') ?? false,
     muted: video?.muted || video?.hasAttribute('muted') || false,
     playsInline: video?.hasAttribute('playsinline') ?? true,
+    objectFit: target.style.objectFit || cs.objectFit || 'cover',
+    objectPosition: normalizeObjectPosition(
+      target.style.objectPosition || cs.objectPosition || 'center center',
+    ),
+    width: target.style.width || '',
+    height: target.style.height || 'auto',
   };
 }
 
@@ -230,8 +289,10 @@ export function MediaPanel({
     src: '',
     alt: '',
     objectFit: 'cover',
-    objectPosition: 'center',
+    objectPosition: 'center center',
     repeat: 'no-repeat',
+    width: '100%',
+    height: 'auto',
   });
   const [video, setVideo] = useState<VideoDraft>({
     src: '',
@@ -241,6 +302,10 @@ export function MediaPanel({
     loop: false,
     muted: false,
     playsInline: true,
+    objectFit: 'cover',
+    objectPosition: 'center center',
+    width: '100%',
+    height: 'auto',
   });
   const [icon, setIcon] = useState<IconDraft>({
     library: 'lucide',
@@ -249,6 +314,9 @@ export function MediaPanel({
   });
   const [pickerOpen, setPickerOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [libraryFiles, setLibraryFiles] = useState<{ path: string; name: string }[]>([]);
+  const [libraryLoading, setLibraryLoading] = useState(false);
 
   useEffect(() => {
     if (!el) return;
@@ -258,6 +326,26 @@ export function MediaPanel({
     if (k === 'video') setVideo(readVideoDraft(el));
     if (k === 'icon') setIcon(readIconDraft(el));
   }, [el, selected?.objectId]);
+
+  const loadLibrary = useCallback(async () => {
+    if (!courseId) return;
+    setLibraryLoading(true);
+    try {
+      const res = await apiFetch<{ files: { path: string; name: string }[] }>({
+        method: 'GET',
+        path: `/api/courses/${courseId}/assets`,
+        params: { folder: 'images' },
+      });
+      if (res.ok && res.data?.files) setLibraryFiles(res.data.files);
+      else setLibraryFiles([]);
+    } finally {
+      setLibraryLoading(false);
+    }
+  }, [courseId]);
+
+  useEffect(() => {
+    if (libraryOpen) void loadLibrary();
+  }, [libraryOpen, loadLibrary]);
 
   const markDirty = useCallback(() => {
     onDirtyChange?.(true);
@@ -296,23 +384,26 @@ export function MediaPanel({
   const applyImage = (next: ImageDraft) => {
     const img = ensureImageNode();
     if (!img || !el) return;
+    const pos = normalizeObjectPosition(next.objectPosition);
     if (next.src.trim()) img.setAttribute('src', next.src.trim());
     else img.removeAttribute('src');
     img.setAttribute('alt', next.alt);
     img.style.objectFit = next.objectFit || 'cover';
-    img.style.objectPosition = next.objectPosition || 'center';
+    img.style.objectPosition = pos;
     img.style.maxWidth = '100%';
-    img.style.height = 'auto';
+    if (next.width.trim()) img.style.width = next.width.trim();
+    else img.style.removeProperty('width');
+    if (next.height.trim()) img.style.height = next.height.trim();
+    else img.style.height = 'auto';
     if (next.repeat && next.repeat !== 'no-repeat') {
       img.setAttribute('data-hc-img-tile', next.repeat);
-      // Decorative tiling: treat as background-like repeat on the figure when possible
       const host = el.closest('figure') ?? el;
       if (host instanceof HTMLElement && next.src.trim()) {
         host.style.backgroundImage = `url("${next.src.trim()}")`;
         host.style.backgroundRepeat = next.repeat;
         host.style.backgroundSize =
           next.objectFit === 'contain' ? 'contain' : next.objectFit === 'fill' ? '100% 100%' : 'cover';
-        host.style.backgroundPosition = next.objectPosition || 'center';
+        host.style.backgroundPosition = pos;
       }
     } else {
       img.removeAttribute('data-hc-img-tile');
@@ -328,13 +419,14 @@ export function MediaPanel({
     el.setAttribute('data-hc-label', 'Image');
     const labeled = el.closest('figure') ?? el;
     if (labeled instanceof HTMLElement) labeled.setAttribute('data-hc-label', 'Image');
-    setImage(next);
+    setImage({ ...next, objectPosition: pos });
     markDirty();
   };
 
   const applyVideo = (next: VideoDraft) => {
     const videoEl = ensureVideoNode();
     if (!videoEl || !el) return;
+    const pos = normalizeObjectPosition(next.objectPosition);
     if (next.src.trim()) videoEl.setAttribute('src', next.src.trim());
     else videoEl.removeAttribute('src');
     if (next.poster.trim()) videoEl.setAttribute('poster', next.poster.trim());
@@ -345,10 +437,15 @@ export function MediaPanel({
     applyBoolAttr(videoEl, 'muted', next.muted);
     videoEl.muted = next.muted;
     applyBoolAttr(videoEl, 'playsinline', next.playsInline);
+    videoEl.style.objectFit = next.objectFit || 'cover';
+    videoEl.style.objectPosition = pos;
     videoEl.style.maxWidth = '100%';
-    videoEl.style.height = 'auto';
+    if (next.width.trim()) videoEl.style.width = next.width.trim();
+    else videoEl.style.removeProperty('width');
+    if (next.height.trim()) videoEl.style.height = next.height.trim();
+    else videoEl.style.height = 'auto';
     el.setAttribute('data-hc-media', 'video');
-    setVideo(next);
+    setVideo({ ...next, objectPosition: pos });
     markDirty();
   };
 
@@ -461,6 +558,19 @@ export function MediaPanel({
     return '';
   }, [kind, image.src, video.poster, video.src]);
 
+  const onKindDragStart = (e: DragEvent, mediaKind: MediaKind) => {
+    const itemId = catalogIdForMediaKind(mediaKind);
+    e.dataTransfer.setData('application/x-hc-element', itemId);
+    e.dataTransfer.effectAllowed = 'copy';
+    const label =
+      mediaKind === 'icon'
+        ? tr('mediaKindIcon')
+        : mediaKind === 'video'
+          ? tr('mediaKindVideo')
+          : tr('mediaKindImage');
+    objectMode?.beginCatalogDrag(itemId, label);
+  };
+
   const kindCards = (
     <div className="grid grid-cols-3 gap-2">
       {(
@@ -475,8 +585,10 @@ export function MediaPanel({
           <button
             key={id}
             type="button"
+            draggable
+            onDragStart={(e) => onKindDragStart(e, id)}
             onClick={() => convertKind(id)}
-            className={`flex cursor-pointer flex-col items-start gap-2 rounded-lg border px-3 py-3 text-left transition ${
+            className={`flex cursor-grab flex-col items-start gap-2 rounded-lg border px-3 py-3 text-left transition active:cursor-grabbing ${
               active
                 ? 'border-[var(--accent)] bg-[var(--accent-soft)]/50'
                 : 'border-[var(--line)] bg-[var(--panel)] hover:border-[var(--accent)]'
@@ -532,20 +644,74 @@ export function MediaPanel({
               style={{ backgroundImage: `url("${previewSrc}")` }}
             />
           )}
-          <label className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[var(--line)] px-2 py-2 text-[11px] font-semibold text-[var(--ink)] hover:bg-black/5">
-            <Upload className="h-3.5 w-3.5" />
-            {uploading ? tr('styleBgImageUploading') : tr('mediaUploadImage')}
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              disabled={!courseId || uploading}
-              onChange={(e) => {
-                void uploadAsset(e.target.files, 'image');
-                e.target.value = '';
-              }}
-            />
-          </label>
+          <div className="flex gap-2">
+            <label className="inline-flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[var(--line)] px-2 py-2 text-[11px] font-semibold text-[var(--ink)] hover:bg-black/5">
+              <Upload className="h-3.5 w-3.5" />
+              {uploading ? tr('styleBgImageUploading') : tr('mediaUploadImage')}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={!courseId || uploading}
+                onChange={(e) => {
+                  void uploadAsset(e.target.files, 'image');
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={!courseId}
+              onClick={() => setLibraryOpen((o) => !o)}
+              className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-[var(--line)] px-2.5 py-2 text-[11px] font-semibold text-[var(--ink)] hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <FolderOpen className="h-3.5 w-3.5" />
+              {tr('mediaLibraryPick')}
+            </button>
+          </div>
+          {libraryOpen && (
+            <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-[var(--line)] bg-[var(--panel)]/50 p-2">
+              {libraryLoading ? (
+                <p className="text-[10px] text-[var(--ink-muted)]">{tr('styleBgImageUploading')}</p>
+              ) : libraryFiles.length === 0 ? (
+                <p className="text-[10px] text-[var(--ink-muted)]">{tr('mediaLibraryEmpty')}</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {libraryFiles.map((f) => {
+                    const url = courseId ? courseAssetUrl(courseId, f.path) : f.path;
+                    const selectedSrc =
+                      image.src === url || image.src.endsWith(f.path) || image.src === f.path;
+                    return (
+                      <button
+                        key={f.path}
+                        type="button"
+                        title={f.name}
+                        onClick={() =>
+                          applyImage({
+                            ...image,
+                            src: courseId ? courseAssetUrl(courseId, f.path) : f.path,
+                          })
+                        }
+                        className={`overflow-hidden rounded-md border ${
+                          selectedSrc
+                            ? 'border-[var(--accent)] ring-1 ring-[var(--accent)]'
+                            : 'border-[var(--line)]'
+                        }`}
+                      >
+                        <div
+                          className="aspect-square bg-center bg-cover"
+                          style={{ backgroundImage: `url("${url}")` }}
+                        />
+                        <div className="truncate px-1 py-0.5 text-[8px] text-[var(--ink-muted)]">
+                          {f.name}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
           {!courseId && (
             <p className="text-[10px] text-[var(--ink-muted)]">{tr('mediaNeedCourse')}</p>
           )}
@@ -573,6 +739,28 @@ export function MediaPanel({
           <div className="grid grid-cols-2 gap-2">
             <label className="block">
               <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+                {tr('mediaWidth')}
+              </span>
+              <SizeInput
+                value={image.width || '100%'}
+                keywords={['auto']}
+                onChange={(width) => applyImage({ ...image, width })}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+                {tr('mediaHeight')}
+              </span>
+              <SizeInput
+                value={image.height || 'auto'}
+                keywords={['auto']}
+                onChange={(height) => applyImage({ ...image, height })}
+              />
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
                 {tr('inspectorObjectFit')}
               </span>
               <select
@@ -593,14 +781,14 @@ export function MediaPanel({
               </span>
               <select
                 className={fieldClass}
-                value={image.objectPosition}
+                value={normalizeObjectPosition(image.objectPosition)}
                 onChange={(e) => applyImage({ ...image, objectPosition: e.target.value })}
               >
-                <option value="center">center</option>
-                <option value="top">top</option>
-                <option value="bottom">bottom</option>
-                <option value="left">left</option>
-                <option value="right">right</option>
+                {OBJECT_POSITIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
@@ -655,6 +843,62 @@ export function MediaPanel({
               onChange={(e) => applyVideo({ ...video, src: e.target.value })}
             />
           </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+                {tr('mediaWidth')}
+              </span>
+              <SizeInput
+                value={video.width || '100%'}
+                keywords={['auto']}
+                onChange={(width) => applyVideo({ ...video, width })}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+                {tr('mediaHeight')}
+              </span>
+              <SizeInput
+                value={video.height || 'auto'}
+                keywords={['auto']}
+                onChange={(height) => applyVideo({ ...video, height })}
+              />
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+                {tr('inspectorObjectFit')}
+              </span>
+              <select
+                className={fieldClass}
+                value={video.objectFit}
+                onChange={(e) => applyVideo({ ...video, objectFit: e.target.value })}
+              >
+                <option value="cover">cover</option>
+                <option value="contain">contain</option>
+                <option value="fill">fill</option>
+                <option value="none">none</option>
+                <option value="scale-down">scale-down</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+                {tr('mediaObjectPosition')}
+              </span>
+              <select
+                className={fieldClass}
+                value={normalizeObjectPosition(video.objectPosition)}
+                onChange={(e) => applyVideo({ ...video, objectPosition: e.target.value })}
+              >
+                {OBJECT_POSITIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <label className="block">
             <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
               {tr('mediaPoster')}
