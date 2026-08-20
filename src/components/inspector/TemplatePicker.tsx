@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Loader2, Puzzle, X } from 'lucide-react';
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
+import { markTemplateSections } from '../../lesson-objects/lessonHtml';
 
 type TemplateSection = {
   id: string;
@@ -107,7 +108,7 @@ export function TemplatePickerButton({
           anchorEl={anchorRef.current}
           onClose={() => onOpenChange(false)}
           onInsert={(html) => {
-            const ok = onInsert(html);
+            const ok = onInsert(markTemplateSections(html));
             if (ok === false) return false;
             onOpenChange(false);
             return true;

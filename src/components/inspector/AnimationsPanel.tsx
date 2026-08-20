@@ -24,6 +24,7 @@ import {
   type SlideAnimationParams,
 } from '@shared/animations/types';
 import { useLessonObjectModeOptional } from '../../lesson-objects/LessonObjectMode';
+import { serializeLessonRoot } from '../../lesson-objects/lessonHtml';
 import { playSlideAnimation, readAuthorOpacity } from '../../lesson-objects/AnimationRunner';
 import {
   ensureObjectId,
@@ -228,7 +229,7 @@ export function AnimationsPanel({
     const id = ensureObjectId(sel.element);
     if (objectMode?.root && onHtmlPersist) {
       objectMode.stampIds();
-      await onHtmlPersist(objectMode.root.innerHTML);
+      await onHtmlPersist(serializeLessonRoot(objectMode.root));
     }
     return id;
   }, [objectMode, onHtmlPersist]);
@@ -364,7 +365,7 @@ export function AnimationsPanel({
           objectMode?.selectElement(el);
         }
         if (onHtmlPersist) {
-          await onHtmlPersist(root.innerHTML);
+          await onHtmlPersist(serializeLessonRoot(root));
         }
       }
 

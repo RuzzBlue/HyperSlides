@@ -45,6 +45,7 @@ import {
   type TextTypeId,
 } from '@shared/textTypeStyles';
 import { useLessonObjectModeOptional } from '../../lesson-objects/LessonObjectMode';
+import { serializeLessonRoot } from '../../lesson-objects/lessonHtml';
 import { ensureObjectId } from '../../lesson-objects/selection';
 import {
   ElementStylePanel,
@@ -58,8 +59,62 @@ import { ElementEffectsPanel } from './ElementEffectsPanel';
 import { ElementMetaPanel } from './ElementMetaPanel';
 import type { ThemeSwatch } from './styleThemeColors';
 import { objectLabel } from '../../lesson-objects/selection';
+import { StyleStateSwitch, type StyleInteractionState } from './StyleStateSwitch';
+import {
+  applyTextPseudoStates,
+  parseStroke,
+  readTextShadowFor,
+  type TextShadowSlice,
+  type TextStrokeSlice,
+} from '../../lesson-objects/stylePseudo';
 
 type TextCase = 'regular' | 'uppercase' | 'lowercase' | 'capitalize' | 'camelCase';
+
+type TextFxSlice = {
+  textShadowEnabled: boolean;
+  textShadowX: number;
+  textShadowY: number;
+  textShadowBlur: number;
+  textShadowColor: string;
+  textStrokeEnabled: boolean;
+  textStrokeWidth: number;
+  textStrokeColor: string;
+};
+
+function fxFromShadowStroke(shadow: TextShadowSlice, stroke: TextStrokeSlice): TextFxSlice {
+  return {
+    textShadowEnabled: shadow.enabled,
+    textShadowX: shadow.x,
+    textShadowY: shadow.y,
+    textShadowBlur: shadow.blur,
+    textShadowColor: shadow.color,
+    textStrokeEnabled: stroke.enabled,
+    textStrokeWidth: stroke.width,
+    textStrokeColor: stroke.color,
+  };
+}
+
+function fxToShadowSlice(fx: TextFxSlice): TextShadowSlice {
+  return {
+    enabled: fx.textShadowEnabled,
+    x: fx.textShadowX,
+    y: fx.textShadowY,
+    blur: fx.textShadowBlur,
+    color: fx.textShadowColor,
+  };
+}
+
+function fxToStrokeSlice(fx: TextFxSlice): TextStrokeSlice {
+  return {
+    enabled: fx.textStrokeEnabled,
+    width: fx.textStrokeWidth,
+    color: fx.textStrokeColor,
+  };
+}
+
+/** Distinct chrome for primary label/content inputs (links, buttons, text body). */
+export const inspectorContentFieldClass =
+  'border-[color-mix(in_srgb,var(--accent)_40%,var(--line))] bg-[color-mix(in_srgb,var(--accent-soft)_55%,var(--stage))]';
 
 type Snapshot = {
   typeId: TextTypeId;
@@ -80,9 +135,21 @@ type Snapshot = {
   textCase: TextCase;
   align: string;
   color: string;
+  colorHover: string;
+  colorActive: string;
   highlightEnabled: boolean;
   highlight: string;
   highlightAlpha: number;
+  textShadowEnabled: boolean;
+  textShadowX: number;
+  textShadowY: number;
+  textShadowBlur: number;
+  textShadowColor: string;
+  textStrokeEnabled: boolean;
+  textStrokeWidth: number;
+  textStrokeColor: string;
+  hoverFx: TextFxSlice;
+  activeFx: TextFxSlice;
   listType: 'none' | 'ul' | 'ol';
   listStyle: string;
 };
@@ -418,6 +485,40 @@ function applyPaint(
   }
 }
 
+function applyTextShadow(
+  el: HTMLElement,
+  enabled: boolean,
+  x: number,
+  y: number,
+  blur: number,
+  color: string,
+) {
+  if (!enabled) {
+    el.removeAttribute('data-hc-text-shadow');
+    el.style.removeProperty('--hc-text-shadow');
+    el.style.removeProperty('text-shadow');
+    return;
+  }
+  const css = `${x}px ${y}px ${blur}px ${color || 'rgba(0,0,0,0.45)'}`;
+  el.setAttribute('data-hc-text-shadow', '1');
+  el.style.setProperty('--hc-text-shadow', css);
+  el.style.textShadow = css;
+}
+
+function applyTextStroke(el: HTMLElement, enabled: boolean, width: number, color: string) {
+  if (!enabled) {
+    el.removeAttribute('data-hc-text-stroke');
+    el.style.removeProperty('--hc-text-stroke-width');
+    el.style.removeProperty('--hc-text-stroke-color');
+    el.style.removeProperty('-webkit-text-stroke');
+    return;
+  }
+  el.setAttribute('data-hc-text-stroke', '1');
+  el.style.setProperty('--hc-text-stroke-width', `${width}px`);
+  el.style.setProperty('--hc-text-stroke-color', color || '#0f172a');
+  el.style.setProperty('-webkit-text-stroke', `${width}px ${color || '#0f172a'}`);
+}
+
 function readPaint(el: HTMLElement): {
   color: string;
   highlightEnabled: boolean;
@@ -464,6 +565,12 @@ function readSnapshot(el: HTMLElement, uploaded: UploadedFontOption[]): Snapshot
 
   const pxSize = parseFloat(cs.fontSize) || 16;
   const paint = readPaint(el);
+  const shadowOn = el.getAttribute('data-hc-text-shadow') === '1';
+  const strokeOn = el.getAttribute('data-hc-text-stroke') === '1';
+  const shadowRaw = el.style.getPropertyValue('--hc-text-shadow') || el.style.textShadow || '';
+  const shadowParts = shadowRaw.match(
+    /(-?\d+(?:\.\d+)?)px\s+(-?\d+(?:\.\d+)?)px\s+(\d+(?:\.\d+)?)px\s+(.+)/,
+  );
 
   return {
     typeId,
@@ -488,9 +595,29 @@ function readSnapshot(el: HTMLElement, uploaded: UploadedFontOption[]): Snapshot
     textCase: detectCase(el),
     align: readAlign(el),
     color: paint.color,
+    colorHover: el.style.getPropertyValue('--hc-color-hover').trim() || '',
+    colorActive: el.style.getPropertyValue('--hc-color-active').trim() || '',
     highlightEnabled: paint.highlightEnabled,
     highlight: paint.highlight,
     highlightAlpha: paint.highlightAlpha,
+    textShadowEnabled: shadowOn,
+    textShadowX: shadowParts ? Number(shadowParts[1]) : 1,
+    textShadowY: shadowParts ? Number(shadowParts[2]) : 1,
+    textShadowBlur: shadowParts ? Number(shadowParts[3]) : 2,
+    textShadowColor: shadowParts ? shadowParts[4].trim() : 'rgba(0,0,0,0.45)',
+    textStrokeEnabled: strokeOn,
+    textStrokeWidth:
+      Number.parseFloat(el.style.getPropertyValue('--hc-text-stroke-width')) || 1,
+    textStrokeColor:
+      el.style.getPropertyValue('--hc-text-stroke-color').trim() || '#0f172a',
+    hoverFx: fxFromShadowStroke(
+      readTextShadowFor(el, 'hover'),
+      parseStroke(el, 'hover'),
+    ),
+    activeFx: fxFromShadowStroke(
+      readTextShadowFor(el, 'active'),
+      parseStroke(el, 'active'),
+    ),
     listType,
     listStyle,
   };
@@ -523,6 +650,7 @@ export function TextEditPanel({
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useInspectorElementTab(selected?.objectId);
+  const [appearanceState, setAppearanceState] = useState<StyleInteractionState>('normal');
   const fileRef = useRef<HTMLInputElement>(null);
   const skipNextLoad = useRef(false);
   const uploadedRef = useRef(uploaded);
@@ -533,7 +661,8 @@ export function TextEditPanel({
   const markDirty = useCallback(() => {
     setDirty(true);
     onDirtyChange?.(true);
-  }, [onDirtyChange]);
+    objectMode?.root?.setAttribute('data-hc-live-dirty', '1');
+  }, [onDirtyChange, objectMode]);
 
   const loadFonts = useCallback(async () => {
     if (!courseId) return;
@@ -573,13 +702,14 @@ export function TextEditPanel({
       return;
     }
     setDirty(false);
-    onDirtyChange?.(false);
+    // Keep inspector-level dirty; Style/Effects may have unsaved live-DOM edits.
     if (!el || !el.isConnected || !isTextLike(el)) {
       setDraft(null);
       return;
     }
     setDraft(readSnapshot(el, uploadedRef.current));
-  }, [el, selected?.objectId, onDirtyChange]);
+    setAppearanceState('normal');
+  }, [el, selected?.objectId]);
 
   const persist = useCallback(async () => {
     const root = objectMode?.root;
@@ -588,8 +718,9 @@ export function TextEditPanel({
     objectMode.stampIds();
     onSavingChange?.(true);
     try {
-      await onHtmlPersist(root.innerHTML);
+      await onHtmlPersist(serializeLessonRoot(root));
       setDirty(false);
+      root.removeAttribute('data-hc-live-dirty');
       onDirtyChange?.(false);
       if (objectId) {
         requestAnimationFrame(() => objectMode.selectByObjectId(objectId));
@@ -671,6 +802,33 @@ export function TextEditPanel({
         next.highlightEnabled,
         next.highlight,
         next.highlightAlpha,
+      );
+      applyTextPseudoStates(
+        node,
+        {
+          color: next.colorHover,
+          textShadow: fxToShadowSlice(next.hoverFx),
+          textStroke: fxToStrokeSlice(next.hoverFx),
+        },
+        {
+          color: next.colorActive,
+          textShadow: fxToShadowSlice(next.activeFx),
+          textStroke: fxToStrokeSlice(next.activeFx),
+        },
+      );
+      applyTextShadow(
+        node,
+        next.textShadowEnabled,
+        next.textShadowX,
+        next.textShadowY,
+        next.textShadowBlur,
+        next.textShadowColor,
+      );
+      applyTextStroke(
+        node,
+        next.textStrokeEnabled,
+        next.textStrokeWidth,
+        next.textStrokeColor,
       );
 
       if (next.canLists && next.listType !== 'none' && node.tagName !== 'LI') {
@@ -915,7 +1073,7 @@ export function TextEditPanel({
           </select>
         </div>
         <textarea
-          className={`${fieldClass} min-h-[96px] whitespace-pre-wrap`}
+          className={`${fieldClass} ${inspectorContentFieldClass} min-h-[96px] whitespace-pre-wrap`}
           value={draft.text}
           onChange={(e) => {
             const text = e.target.value;
@@ -1004,43 +1162,190 @@ export function TextEditPanel({
         )}
       </section>
 
-      {/* 4. Appearance — color + highlight (same chrome; highlight alpha in picker) */}
+      {/* 4. Appearance — color + highlight + shadow/stroke with Normal / Hover / Active */}
       <section className="space-y-2.5">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-          {tr('textEditSectionAppearance')}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            {tr('textEditSectionAppearance')}
+          </div>
+          <StyleStateSwitch value={appearanceState} onChange={setAppearanceState} compact />
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        {appearanceState !== 'normal' && (
+          <p className="text-[10px] leading-snug text-[var(--ink-muted)]">{tr('styleStatePseudoHint')}</p>
+        )}
+        <div className={`grid grid-cols-2 gap-2 ${appearanceState === 'normal' ? '' : 'grid-cols-1'}`}>
           <div className="block">
             <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
               {tr('inspectorColor')}
             </span>
             <PaintSwatch
-              hex={draft.color || '#1c1f26'}
-              cleared={!draft.color}
-              onChange={(hex) => patch({ color: hex })}
-              onClear={() => patch({ color: '' })}
-            />
-          </div>
-          <div className="block">
-            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
-              {tr('textEditHighlight')}
-            </span>
-            <PaintSwatch
-              hex={draft.highlight || '#ffff00'}
-              alpha={draft.highlightEnabled ? draft.highlightAlpha : 1}
-              cleared={!draft.highlightEnabled}
-              showAlpha
-              onChange={(hex, alpha) =>
-                patch({
-                  highlight: hex,
-                  highlightEnabled: true,
-                  highlightAlpha: alpha ?? 1,
-                })
+              hex={
+                appearanceState === 'hover'
+                  ? draft.colorHover || '#0e6e6a'
+                  : appearanceState === 'active'
+                    ? draft.colorActive || '#0e6e6a'
+                    : draft.color || '#1c1f26'
               }
-              onClear={() => patch({ highlightEnabled: false, highlightAlpha: 0 })}
+              cleared={
+                appearanceState === 'hover'
+                  ? !draft.colorHover
+                  : appearanceState === 'active'
+                    ? !draft.colorActive
+                    : !draft.color
+              }
+              onChange={(hex) => {
+                if (appearanceState === 'hover') patch({ colorHover: hex });
+                else if (appearanceState === 'active') patch({ colorActive: hex });
+                else patch({ color: hex });
+              }}
+              onClear={() => {
+                if (appearanceState === 'hover') patch({ colorHover: '' });
+                else if (appearanceState === 'active') patch({ colorActive: '' });
+                else patch({ color: '' });
+              }}
             />
           </div>
+          {appearanceState === 'normal' && (
+            <div className="block">
+              <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+                {tr('textEditHighlight')}
+              </span>
+              <PaintSwatch
+                hex={draft.highlight || '#ffff00'}
+                alpha={draft.highlightEnabled ? draft.highlightAlpha : 1}
+                cleared={!draft.highlightEnabled}
+                showAlpha
+                onChange={(hex, alpha) =>
+                  patch({
+                    highlight: hex,
+                    highlightEnabled: true,
+                    highlightAlpha: alpha ?? 1,
+                  })
+                }
+                onClear={() => patch({ highlightEnabled: false, highlightAlpha: 0 })}
+              />
+            </div>
+          )}
         </div>
+
+        {(() => {
+          const fx =
+            appearanceState === 'hover'
+              ? draft.hoverFx
+              : appearanceState === 'active'
+                ? draft.activeFx
+                : {
+                    textShadowEnabled: draft.textShadowEnabled,
+                    textShadowX: draft.textShadowX,
+                    textShadowY: draft.textShadowY,
+                    textShadowBlur: draft.textShadowBlur,
+                    textShadowColor: draft.textShadowColor,
+                    textStrokeEnabled: draft.textStrokeEnabled,
+                    textStrokeWidth: draft.textStrokeWidth,
+                    textStrokeColor: draft.textStrokeColor,
+                  };
+          const patchFx = (partial: Partial<TextFxSlice>) => {
+            if (appearanceState === 'hover') {
+              patch({ hoverFx: { ...draft.hoverFx, ...partial } });
+            } else if (appearanceState === 'active') {
+              patch({ activeFx: { ...draft.activeFx, ...partial } });
+            } else {
+              patch(partial);
+            }
+          };
+          return (
+            <>
+              <label className="flex cursor-pointer items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                <input
+                  type="checkbox"
+                  className="accent-[var(--accent)]"
+                  checked={fx.textShadowEnabled}
+                  onChange={(e) => patchFx({ textShadowEnabled: e.target.checked })}
+                />
+                {tr('textEditTextShadow')}
+              </label>
+              {fx.textShadowEnabled && (
+                <div className="space-y-2 rounded-lg border border-[var(--line)] bg-[var(--panel)]/40 p-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <label className="block text-[10px]">
+                      <span className="mb-1 block text-[var(--ink-muted)]">{tr('textEditShadowX')}</span>
+                      <input
+                        type="number"
+                        className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2 py-1 text-[12px]"
+                        value={fx.textShadowX}
+                        onChange={(e) => patchFx({ textShadowX: Number(e.target.value) || 0 })}
+                      />
+                    </label>
+                    <label className="block text-[10px]">
+                      <span className="mb-1 block text-[var(--ink-muted)]">{tr('textEditShadowY')}</span>
+                      <input
+                        type="number"
+                        className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2 py-1 text-[12px]"
+                        value={fx.textShadowY}
+                        onChange={(e) => patchFx({ textShadowY: Number(e.target.value) || 0 })}
+                      />
+                    </label>
+                    <label className="block text-[10px]">
+                      <span className="mb-1 block text-[var(--ink-muted)]">{tr('textEditShadowBlur')}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2 py-1 text-[12px]"
+                        value={fx.textShadowBlur}
+                        onChange={(e) => patchFx({ textShadowBlur: Number(e.target.value) || 0 })}
+                      />
+                    </label>
+                  </div>
+                  <div className="block">
+                    <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+                      {tr('textEditShadowColor')}
+                    </span>
+                    <PaintSwatch
+                      hex={fx.textShadowColor.startsWith('#') ? fx.textShadowColor : '#000000'}
+                      onChange={(hex) => patchFx({ textShadowColor: hex })}
+                      onClear={() => patchFx({ textShadowColor: 'rgba(0,0,0,0.45)' })}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <label className="flex cursor-pointer items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                <input
+                  type="checkbox"
+                  className="accent-[var(--accent)]"
+                  checked={fx.textStrokeEnabled}
+                  onChange={(e) => patchFx({ textStrokeEnabled: e.target.checked })}
+                />
+                {tr('textEditTextStroke')}
+              </label>
+              {fx.textStrokeEnabled && (
+                <div className="space-y-2 rounded-lg border border-[var(--line)] bg-[var(--panel)]/40 p-2">
+                  <label className="block text-[10px]">
+                    <span className="mb-1 block text-[var(--ink-muted)]">{tr('textEditStrokeWidth')}</span>
+                    <input
+                      type="number"
+                      min={0.25}
+                      step={0.25}
+                      className="w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2 py-1 text-[12px]"
+                      value={fx.textStrokeWidth}
+                      onChange={(e) => patchFx({ textStrokeWidth: Number(e.target.value) || 1 })}
+                    />
+                  </label>
+                  <div className="block">
+                    <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+                      {tr('textEditStrokeColor')}
+                    </span>
+                    <PaintSwatch
+                      hex={fx.textStrokeColor || '#0f172a'}
+                      onChange={(hex) => patchFx({ textStrokeColor: hex })}
+                      onClear={() => patchFx({ textStrokeColor: '#0f172a' })}
+                    />
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </section>
 
       {/* 5. Typography — family + metrics */}

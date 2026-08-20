@@ -11,6 +11,7 @@ import {
 import { keymap, type EditorView } from '@codemirror/view';
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
+import { prettyLessonHtml } from '../../lesson-objects/lessonHtml';
 
 export type CodeContext = {
   courseId: string;
@@ -26,6 +27,7 @@ export function CodePanel({
   registerSave,
   registerInsert,
   registerToggleFind,
+  registerOrganize,
   onSaved,
 }: {
   context: CodeContext;
@@ -35,6 +37,7 @@ export function CodePanel({
   registerSave: (fn: () => Promise<void>) => void;
   registerInsert?: (fn: (snippet: string) => void) => void;
   registerToggleFind?: (fn: () => void) => void;
+  registerOrganize?: (fn: () => void) => void;
   onSaved?: (slideKey: string) => void;
 }) {
   const { tr } = usePrefs();
@@ -167,10 +170,19 @@ export function CodePanel({
     else openSearchPanel(view);
   }, []);
 
+  const organize = useCallback(() => {
+    const next = prettyLessonHtml(htmlRef.current);
+    htmlRef.current = next;
+    setHtmlText(next);
+    onDirtyChange(next !== baseline.current);
+  }, [onDirtyChange]);
+
   const insertRef = useRef(insertAtCursor);
   insertRef.current = insertAtCursor;
   const toggleFindRef = useRef(toggleFind);
   toggleFindRef.current = toggleFind;
+  const organizeRef = useRef(organize);
+  organizeRef.current = organize;
 
   const saveRef = useRef(save);
   saveRef.current = save;
@@ -186,6 +198,10 @@ export function CodePanel({
   useLayoutEffect(() => {
     registerToggleFind?.(() => toggleFindRef.current());
   }, [registerToggleFind]);
+
+  useLayoutEffect(() => {
+    registerOrganize?.(() => organizeRef.current());
+  }, [registerOrganize]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

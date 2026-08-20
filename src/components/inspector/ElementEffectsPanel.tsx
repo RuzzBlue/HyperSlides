@@ -727,8 +727,9 @@ export function ElementEffectsPanel({
       applyEffects(el, next);
       setDraft(next);
       onDirtyChange?.(true);
+      objectMode?.root?.setAttribute('data-hc-live-dirty', '1');
     },
-    [el, onDirtyChange],
+    [el, onDirtyChange, objectMode],
   );
 
   const patch = (partial: Partial<EffectsDraft>) => {

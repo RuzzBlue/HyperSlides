@@ -49,7 +49,7 @@ export const ELEMENT_CATALOG: ElementCatalogItem[] = [
     openTool: 'links',
     dropRule: 'inside-container',
     createHtml: () =>
-      `<p><a class="hc-btn" href="#" data-hc-label="Button">Button</a></p>`,
+      `<p><a class="hc-btn hc-btn--primary" href="#" data-hc-label="Button" data-hc-link-kind="button" data-hc-btn-preset="primary" data-hc-style-lock="1" data-hc-open="external" target="_blank" rel="noopener noreferrer">Button</a></p>`,
   },
   {
     id: 'html-widgets',

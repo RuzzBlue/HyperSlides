@@ -48,6 +48,7 @@ export function isSelectableElement(el: Element | null | undefined): boolean {
   if (!el || !(el instanceof HTMLElement)) return false;
   if (SKIP_TAGS.has(el.tagName)) return false;
   if (el.hasAttribute('data-hc-source') || el.hidden) return false;
+  if (el.hasAttribute('data-hc-source-root')) return false;
   if (el.hasAttribute('data-hc-slide-inject') || el.closest('[data-hc-slide-inject]')) return false;
   if (el.classList.contains('hc-obj-chrome')) return false;
   if (el.closest('.hc-obj-chrome')) return false;
@@ -146,12 +147,16 @@ export function setObjectLabel(el: HTMLElement, label: string): void {
 export function stampObjectIds(root: HTMLElement): boolean {
   let changed = false;
   const walk = (node: Element) => {
+    if (!(node instanceof HTMLElement)) return;
+    if (node.hasAttribute('data-hc-source') || node.hasAttribute('data-hc-source-root')) return;
     if (node instanceof HTMLElement && isSelectableElement(node)) {
       if (!node.getAttribute(HC_OBJ_ATTR)?.trim()) {
         ensureObjectId(node);
         changed = true;
       }
     }
+    // Widget hosts are one object — don't stamp React portal chrome as lesson HTML.
+    if (node.hasAttribute('data-component')) return;
     for (const child of Array.from(node.children)) walk(child);
   };
   walk(root);

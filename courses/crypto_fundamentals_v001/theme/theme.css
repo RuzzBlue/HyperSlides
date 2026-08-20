@@ -1,4 +1,4 @@
-/* Crypto Teal — presentation polish */
+/* Custom course theme */
 .lesson-stage {
   --hc-accent: var(--lesson-accent, #0e6e6a);
 }
@@ -33,7 +33,6 @@ html[data-theme='dark'] .lesson-stage {
   color-scheme: dark;
 }
 
-/* Title / dark variants: lighten text when the stage itself is dark in light mode */
 .lesson-theme-root[data-slide-bg='dark'] .lesson-stage,
 .lesson-theme-root[data-slide-bg='dark'] .lesson-stage h1,
 .lesson-theme-root[data-slide-bg='dark'] .lesson-stage h2,

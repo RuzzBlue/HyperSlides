@@ -1,0 +1,103 @@
+{
+  "id": "custom",
+  "name": "Custom",
+  "fonts": {
+    "display": "\"Source Serif 4\", Georgia, serif",
+    "body": "\"Outfit\", system-ui, sans-serif",
+    "google": "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,600;700&display=swap"
+  },
+  "fontSizeBase": "16px",
+  "typeScale": {
+    "h1": "2.15rem",
+    "h2": "1.55rem",
+    "h3": "1.2rem",
+    "body": "16px"
+  },
+  "accent": "#0e6e6a",
+  "quiz": "#2f5aa8",
+  "lab": "#6b4f9a",
+  "background": {
+    "light": {
+      "type": "css",
+      "value": "custom",
+      "cssText": ".pattern-background {\nposition: relative;\noverflow: hidden;\nbackground-color: #452632;\n\n}\n\n.pattern-background::before {\ncontent: \"\";\nposition: absolute;\ninset: -100%;\ntransform: rotate(160deg);\ntransform-origin: center;\nbackground-color: #452632;\nopacity: 0.7;\nbackground-image:  radial-gradient(#91204d 17%, #452632 18% 35%, transparent 36.5%), radial-gradient(#91204d 17%, #452632 18% 35%, transparent 36.5%), radial-gradient(#452632 34%, #91204d 36% 68%, transparent 70%), repeating-linear-gradient(45deg, #91204d -12.5% 12.5%, #452632 0 37.5%);\nbackground-position: -30px -30px, 30px 30px, 0 0, 0 0;\nbackground-size: 120px 120px, 120px 120px, 60px 60px, 120px 120px;\n}"
+    },
+    "dark": {
+      "type": "css",
+      "value": "custom",
+      "cssText": "background-color: #e94e77;\nopacity: 0.8;\nbackground-image: radial-gradient(circle at center center, #d68189, #e94e77), repeating-radial-gradient(circle at center center, #d68189, #d68189, 15px, transparent 30px, transparent 15px);\nbackground-blend-mode: multiply;"
+    }
+  },
+  "backgrounds": {
+    "default": {
+      "light": {
+        "type": "css",
+        "value": "custom",
+        "cssText": ".pattern-background {\nposition: relative;\noverflow: hidden;\nbackground-color: #452632;\n\n}\n\n.pattern-background::before {\ncontent: \"\";\nposition: absolute;\ninset: -100%;\ntransform: rotate(160deg);\ntransform-origin: center;\nbackground-color: #452632;\nopacity: 0.7;\nbackground-image:  radial-gradient(#91204d 17%, #452632 18% 35%, transparent 36.5%), radial-gradient(#91204d 17%, #452632 18% 35%, transparent 36.5%), radial-gradient(#452632 34%, #91204d 36% 68%, transparent 70%), repeating-linear-gradient(45deg, #91204d -12.5% 12.5%, #452632 0 37.5%);\nbackground-position: -30px -30px, 30px 30px, 0 0, 0 0;\nbackground-size: 120px 120px, 120px 120px, 60px 60px, 120px 120px;\n}"
+      },
+      "dark": {
+        "type": "css",
+        "value": "custom",
+        "cssText": "background-color: #e94e77;\nopacity: 0.8;\nbackground-image: radial-gradient(circle at center center, #d68189, #e94e77), repeating-radial-gradient(circle at center center, #d68189, #d68189, 15px, transparent 30px, transparent 15px);\nbackground-blend-mode: multiply;"
+      }
+    },
+    "title": {
+      "light": {
+        "type": "gradient",
+        "value": "radial-gradient(ellipse 90% 60% at 50% -10%, color-mix(in srgb, #0e6e6a 28%, #ffffff) 0%, transparent 55%), linear-gradient(165deg, #ffffff 0%, color-mix(in srgb, #0e6e6a 8%, #ffffff) 100%)"
+      },
+      "dark": {
+        "type": "gradient",
+        "value": "radial-gradient(ellipse 80% 50% at 50% 0%, color-mix(in srgb, #0e6e6a 30%, transparent) 0%, transparent 55%), linear-gradient(180deg, #0f172a 0%, #020617 100%)"
+      }
+    },
+    "section": {
+      "light": {
+        "type": "gradient",
+        "value": "linear-gradient(135deg, color-mix(in srgb, #0e6e6a 18%, #ffffff) 0%, #ffffff 100%)"
+      },
+      "dark": {
+        "type": "gradient",
+        "value": "linear-gradient(135deg, color-mix(in srgb, #0e6e6a 35%, #0f172a) 0%, #020617 100%)"
+      }
+    },
+    "accent": {
+      "light": {
+        "type": "gradient",
+        "value": "linear-gradient(180deg, color-mix(in srgb, #0e6e6a 14%, #ffffff) 0%, #eff6ff 100%)"
+      },
+      "dark": {
+        "type": "gradient",
+        "value": "linear-gradient(180deg, color-mix(in srgb, #0e6e6a 40%, #0f172a) 0%, #1e3a5f 100%)"
+      }
+    },
+    "dark": {
+      "light": {
+        "type": "gradient",
+        "value": "linear-gradient(160deg, #0e6e6a 0%, #0f172a 100%)"
+      },
+      "dark": {
+        "type": "color",
+        "value": "#020617"
+      }
+    }
+  },
+  "cssFile": "theme.css",
+  "watermark": {
+    "enabled": true,
+    "kind": "text",
+    "value": "HYPERCLASS",
+    "opacity": 0.06,
+    "size": "12vmin",
+    "rotateDeg": -30,
+    "position": "center",
+    "repeat": "tiled"
+  },
+  "pageNumber": {
+    "enabled": true,
+    "position": "bottom-right",
+    "format": "Page {n}",
+    "opacity": 0.5,
+    "size": "11px"
+  }
+}

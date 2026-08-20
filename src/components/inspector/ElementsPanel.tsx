@@ -25,6 +25,7 @@ import {
 } from '../../lesson-objects/elementCatalog';
 import { isStructureElement } from '../../lesson-objects/elementRouting';
 import { nearestSection, topLevelSections } from '../../lesson-objects/elementInsert';
+import { isInsideLockedTemplate, markTemplateSections, serializeLessonRoot } from '../../lesson-objects/lessonHtml';
 import { ensureObjectId } from '../../lesson-objects/selection';
 import { TemplatePickerButton } from './TemplatePicker';
 import {
@@ -168,7 +169,8 @@ export function ElementsPanel({
     objectMode.stampIds();
     onSavingChange?.(true);
     try {
-      await onHtmlPersist(root.innerHTML);
+      await onHtmlPersist(serializeLessonRoot(root));
+      root.removeAttribute('data-hc-live-dirty');
       onDirtyChange?.(false);
     } finally {
       onSavingChange?.(false);
@@ -187,7 +189,7 @@ export function ElementsPanel({
       const root = objectMode?.root;
       if (!root) return;
       const wrap = document.createElement('div');
-      wrap.innerHTML = html.trim();
+      wrap.innerHTML = markTemplateSections(html.trim());
       const nodes = Array.from(wrap.children).filter(
         (n): n is HTMLElement => n instanceof HTMLElement,
       );
@@ -230,6 +232,14 @@ export function ElementsPanel({
       const node = wrap.firstElementChild as HTMLElement | null;
       if (!node) return;
       ensureObjectId(node);
+
+      if (item.dropRule !== 'section-sibling') {
+        const target = selected?.element ?? null;
+        if (target && isInsideLockedTemplate(target, root)) {
+          objectMode.showNotice(tr('elementsTemplateLocked'));
+          return;
+        }
+      }
 
       if (item.dropRule === 'section-sibling') {
         const sections = topLevelSections(root);

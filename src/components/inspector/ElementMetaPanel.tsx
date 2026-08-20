@@ -289,8 +289,9 @@ export function ElementMetaPanel({
       applyMeta(el, next);
       setDraft(next);
       onDirtyChange?.(true);
+      objectMode?.root?.setAttribute('data-hc-live-dirty', '1');
     },
-    [el, onDirtyChange],
+    [el, onDirtyChange, objectMode],
   );
 
   const patch = (partial: Partial<MetaDraft>) => {
@@ -305,6 +306,7 @@ export function ElementMetaPanel({
     setDraft({ ...draft, zIndex });
     objectMode.signalPicked();
     onDirtyChange?.(true);
+    objectMode.root.setAttribute('data-hc-live-dirty', '1');
     setArrangeOpen(false);
   };
 
@@ -355,6 +357,7 @@ export function ElementMetaPanel({
                 objectMode.selectElement(el);
                 objectMode.signalPicked();
                 onDirtyChange?.(true);
+                objectMode.root?.setAttribute('data-hc-live-dirty', '1');
               }}
             />
           </label>
@@ -384,6 +387,7 @@ export function ElementMetaPanel({
                 objectMode.selectElement(el);
               }
               onDirtyChange?.(true);
+              objectMode?.root?.setAttribute('data-hc-live-dirty', '1');
             }}
           />
         </label>

@@ -19,6 +19,7 @@ import {
   LibraryBig,
   Link2,
   List,
+  ListTree,
   Maximize2,
   Minimize2,
   StickyNote,
@@ -37,7 +38,7 @@ import {
 import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
 import type { StringKey } from '../../i18n/strings';
-import type { CourseTheme } from '@shared/types';
+import type { CourseTheme, SequenceItem } from '@shared/types';
 import { CodePanel, type CodeContext } from './CodePanel';
 import { AnimationsPanel } from './AnimationsPanel';
 import { ElementsPanel } from './ElementsPanel';
@@ -51,6 +52,7 @@ import {
 } from './ElementStylePanel';
 import { ElementEffectsPanel } from './ElementEffectsPanel';
 import { ElementMetaPanel } from './ElementMetaPanel';
+import { LinksPanel } from './LinksPanel';
 import { swatchesFromCourseTheme } from './styleThemeColors';
 import { TemplatePickerButton } from './TemplatePicker';
 import { QuizEditPanel, type QuizEditContext } from './QuizEditPanel';
@@ -59,6 +61,7 @@ import { LabEditPanel, type LabEditContext } from './LabEditPanel';
 import { LabSectionTemplatePickerButton } from './LabSectionTemplatePicker';
 import { ProgressPanel, type ProgressContext } from './ProgressPanel';
 import { useLessonObjectModeOptional } from '../../lesson-objects/LessonObjectMode';
+import { serializeLessonRoot } from '../../lesson-objects/lessonHtml';
 export type InspectorTool =
   | 'graphs'
   | 'tables'
@@ -294,6 +297,7 @@ export function Inspector({
   const panelDeleteRef = useRef<(() => Promise<void>) | null>(null);
   const panelInsertRef = useRef<((snippet: string) => void) | null>(null);
   const panelToggleFindRef = useRef<(() => void) | null>(null);
+  const panelOrganizeRef = useRef<(() => void) | null>(null);
 
   const registerSave = useCallback((fn: () => Promise<void>) => {
     panelSaveRef.current = fn;
@@ -309,6 +313,10 @@ export function Inspector({
 
   const registerToggleFind = useCallback((fn: () => void) => {
     panelToggleFindRef.current = fn;
+  }, []);
+
+  const registerOrganize = useCallback((fn: () => void) => {
+    panelOrganizeRef.current = fn;
   }, []);
 
   useEffect(() => {
@@ -352,11 +360,24 @@ export function Inspector({
           <div className="truncate text-[13px] font-semibold text-[var(--ink)]">{title}</div>
         </div>
         {editKind === 'lesson' && !codeContext?.slideKey?.startsWith('extras:') && (
-          <TemplatePickerButton
-            open={templatesOpen}
-            onOpenChange={setTemplatesOpen}
-            onInsert={onTemplateInsert}
-          />
+          <>
+            <button
+              type="button"
+              title={tr('inspectorCodeOrganize')}
+              onClick={() => panelOrganizeRef.current?.()}
+              className="cursor-pointer rounded-md px-2 py-1.5 text-[11px] font-semibold text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)] dark:hover:bg-white/10"
+            >
+              <span className="inline-flex items-center gap-1">
+                <ListTree className="h-3.5 w-3.5" />
+                {tr('inspectorCodeOrganize')}
+              </span>
+            </button>
+            <TemplatePickerButton
+              open={templatesOpen}
+              onOpenChange={setTemplatesOpen}
+              onInsert={onTemplateInsert}
+            />
+          </>
         )}
         {editKind === 'quiz' && (
           <QuestionTemplatePickerButton
@@ -459,6 +480,7 @@ export function Inspector({
             registerSave={registerSave}
             registerInsert={registerInsert}
             registerToggleFind={registerToggleFind}
+            registerOrganize={registerOrganize}
             onSaved={onCodeSaved}
           />
         ) : editKind === 'quiz' && quizEditContext ? (
@@ -548,6 +570,8 @@ export function Inspector({
               onSavingChange={setPanelSaving}
               themeSwatches={themeSwatches}
               courseId={animationsContext?.courseId}
+              sequence={progressContext?.sequence}
+              currentSlideKey={animationsContext?.slideKey}
             />
           </div>
         ) : (
@@ -1250,6 +1274,8 @@ function StyledToolPanel({
   onSavingChange,
   themeSwatches,
   courseId,
+  sequence,
+  currentSlideKey,
 }: {
   tool: InspectorTool;
   onOpenTool?: (tool: InspectorTool) => void;
@@ -1259,6 +1285,8 @@ function StyledToolPanel({
   onSavingChange?: (saving: boolean) => void;
   themeSwatches: import('./styleThemeColors').ThemeSwatch[];
   courseId?: string;
+  sequence?: SequenceItem[];
+  currentSlideKey?: string;
 }) {
   const objectMode = useLessonObjectModeOptional();
   const [tab, setTab] = useInspectorElementTab(objectMode?.selected?.objectId);
@@ -1270,7 +1298,8 @@ function StyledToolPanel({
       objectMode.stampIds();
       onSavingChange?.(true);
       try {
-        await onHtmlPersist(root.innerHTML);
+        await onHtmlPersist(serializeLessonRoot(root));
+        root.removeAttribute('data-hc-live-dirty');
         onDirtyChange?.(false);
       } finally {
         onSavingChange?.(false);
@@ -1292,7 +1321,16 @@ function StyledToolPanel({
             label={objectMode.selected.label}
             onEditIdentity={() => setTab('element')}
           />
-          <InspectorBody tool={tool} onOpenTool={onOpenTool} />
+          {tool === 'links' ? (
+            <LinksPanel
+              onDirtyChange={onDirtyChange}
+              courseId={courseId}
+              sequence={sequence}
+              currentSlideKey={currentSlideKey}
+            />
+          ) : (
+            <InspectorBody tool={tool} onOpenTool={onOpenTool} />
+          )}
         </div>
       }
       style={
@@ -1351,7 +1389,7 @@ function InspectorBody({
     case 'media':
       return <MediaPanel />;
     case 'links':
-      return <LinksPanel />;
+      return null;
     case 'shapesMedia':
       return (
         <ChooserPanel
@@ -1414,26 +1452,6 @@ function ChooserPanel({
           </button>
         ))}
       </div>
-    </Section>
-  );
-}
-
-function LinksPanel() {
-  const { tr } = usePrefs();
-  return (
-    <Section title={tr('toolLinks')}>
-      <Field label="Label">
-        <DemoInput defaultValue="Learn more" />
-      </Field>
-      <Field label="URL">
-        <DemoInput defaultValue="https://" />
-      </Field>
-      <Field label="Style">
-        <DemoSelect defaultValue="button">
-          <option value="button">Button</option>
-          <option value="link">Text link</option>
-        </DemoSelect>
-      </Field>
     </Section>
   );
 }

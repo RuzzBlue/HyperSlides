@@ -114,10 +114,25 @@ const MOUNT_SOURCE_SELECTOR = [
 
 export function hideMountSourceContent(host: HTMLElement | null | undefined): void {
   if (!host) return;
-  host.querySelectorAll(MOUNT_SOURCE_SELECTOR).forEach((node) => {
-    if (!(node instanceof HTMLElement)) return;
-    node.hidden = true;
-    node.setAttribute('data-hc-source', '');
-    node.style.display = 'none';
+  if (host.querySelector(':scope > [data-hc-source-root]')) {
+    host.querySelectorAll(MOUNT_SOURCE_SELECTOR).forEach((node) => {
+      if (!(node instanceof HTMLElement)) return;
+      node.hidden = true;
+      node.setAttribute('data-hc-source', '');
+      node.style.display = 'none';
+    });
+    return;
+  }
+  const kids = Array.from(host.childNodes).filter((n) => {
+    if (n.nodeType === Node.TEXT_NODE) return Boolean((n.textContent || '').trim());
+    return n.nodeType === Node.ELEMENT_NODE || n.nodeType === Node.COMMENT_NODE;
   });
+  if (!kids.length) return;
+  const wrap = document.createElement('div');
+  wrap.setAttribute('data-hc-source-root', '');
+  wrap.setAttribute('data-hc-source', '');
+  wrap.hidden = true;
+  wrap.style.display = 'none';
+  kids.forEach((n) => wrap.appendChild(n));
+  host.insertBefore(wrap, host.firstChild);
 }

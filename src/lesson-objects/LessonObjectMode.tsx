@@ -30,6 +30,7 @@ import {
 } from './selection';
 import type { ElementCatalogItemId } from './elementCatalog';
 import { insertCatalogItemAt } from './elementInsert';
+import { serializeLessonRoot } from './lessonHtml';
 import {
   canMoveDown,
   canMoveUp,
@@ -73,6 +74,7 @@ type LessonObjectModeContextValue = {
   catalogDrag: { itemId: string; label: string } | null;
   beginCatalogDrag: (itemId: string, label: string) => void;
   endCatalogDrag: () => void;
+  showNotice: (message: string) => void;
   /** Active stage element reorder drag (grip handle). */
   elementDrag: { objectId: string; label: string } | null;
   beginElementDrag: (objectId: string, label: string) => void;
@@ -120,6 +122,14 @@ export function LessonObjectModeProvider({
   const [showSelectionOutline, setShowSelectionOutline] = useState(
     () => settings.defaultShowSelected !== false,
   );
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<number | null>(null);
+
+  const showNotice = useCallback((message: string) => {
+    setNotice(message);
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 4200);
+  }, []);
 
   const setRoot = useCallback((el: HTMLElement | null) => {
     setRootState((prev) => (prev === el ? prev : el));
@@ -185,10 +195,10 @@ export function LessonObjectModeProvider({
 
   const stampIds = useCallback(() => {
     if (!root) return false;
-    const changed = stampObjectIds(root);
-    if (changed && onDomMutated) onDomMutated(root.innerHTML);
-    return changed;
-  }, [root, onDomMutated]);
+    // Stamp only — do not auto-persist. Persisting here races with slide navigation
+    // (root can still hold the previous lesson while current.key already changed).
+    return stampObjectIds(root);
+  }, [root]);
 
   const startPicking = useCallback(() => {
     if (!active) return;
@@ -234,6 +244,7 @@ export function LessonObjectModeProvider({
       endElementDrag,
       showSelectionOutline,
       setShowSelectionOutline,
+      showNotice,
     }),
     [
       active,
@@ -262,11 +273,23 @@ export function LessonObjectModeProvider({
       endElementDrag,
       showSelectionOutline,
       setShowSelectionOutline,
+      showNotice,
     ],
   );
 
   return (
-    <LessonObjectModeContext.Provider value={value}>{children}</LessonObjectModeContext.Provider>
+    <LessonObjectModeContext.Provider value={value}>
+      {children}
+      {notice &&
+        createPortal(
+          <div className="pointer-events-none fixed inset-0 z-[240] flex items-center justify-center px-6">
+            <div className="pointer-events-auto max-w-md rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-5 py-4 text-center shadow-2xl">
+              <p className="text-[13px] font-medium leading-relaxed text-[var(--ink)]">{notice}</p>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </LessonObjectModeContext.Provider>
   );
 }
 
@@ -552,7 +575,7 @@ export function LessonPickOverlay() {
         setDropMark(null);
         setGhostPos(null);
         if (moving && deep && relocateElement(moving, deep, position)) {
-          mode.onDomMutated?.(mode.root.innerHTML);
+          mode.onDomMutated?.(serializeLessonRoot(mode.root));
           mode.selectElement(moving);
           mode.signalPicked();
           mode.onEditRequest?.(toSelection(moving));
@@ -562,13 +585,18 @@ export function LessonPickOverlay() {
 
       const itemId = ((e.dataTransfer?.getData('application/x-hc-element') ||
         mode.catalogDrag!.itemId) ?? '') as ElementCatalogItemId;
-      const node = insertCatalogItemAt(mode.root, itemId, deep, position);
+      const result = insertCatalogItemAt(mode.root, itemId, deep, position);
       mode.endCatalogDrag();
       setDropMark(null);
       setGhostPos(null);
+      if (result && result.ok === false) {
+        mode.showNotice(tr('elementsTemplateLocked'));
+        return;
+      }
+      const node = result?.ok ? result.node : null;
       if (node) {
         mode.stampIds();
-        mode.onDomMutated?.(mode.root.innerHTML);
+        mode.onDomMutated?.(serializeLessonRoot(mode.root));
         mode.selectElement(node);
         mode.signalPicked();
       }
@@ -599,7 +627,7 @@ export function LessonPickOverlay() {
       stage?.classList.remove('hc-obj-picking');
       mode.root?.classList.remove('hc-obj-picking');
     };
-  }, [mode]);
+  }, [mode, tr]);
 
   if (!mode?.active) return null;
 
@@ -628,7 +656,7 @@ export function LessonPickOverlay() {
 
   const persistMutation = (el?: HTMLElement | null) => {
     if (!mode.root) return;
-    mode.onDomMutated?.(mode.root.innerHTML);
+    mode.onDomMutated?.(serializeLessonRoot(mode.root));
     if (el?.isConnected) {
       mode.selectElement(el);
       mode.setHovered(toSelection(el));
@@ -646,7 +674,7 @@ export function LessonPickOverlay() {
     if (deleteTarget.element.isConnected) deleteElement(deleteTarget.element);
     mode.setHovered(null);
     if (wasSelected) mode.selectElement(null);
-    mode.onDomMutated?.(mode.root.innerHTML);
+    mode.onDomMutated?.(serializeLessonRoot(mode.root));
     setDeleteTarget(null);
   };
 

@@ -22,8 +22,10 @@ import { FullPageSlideView } from './components/FullPageSlideView';
 import { HomeView } from './components/HomeView';
 import { LabView } from './components/LabView';
 import { LessonView } from './components/LessonView';
+import { InAppLinkWindow } from './components/InAppLinkWindow';
 import { PresenterChrome } from './components/PresenterChrome';
 import { QuizView } from './components/QuizView';
+import { sanitizeLessonHtml } from './lesson-objects/lessonHtml';
 import { SettingsModal } from './components/SettingsModal';
 import {
   clampNavigatorSidebarWidth,
@@ -86,11 +88,24 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('appearance');
   const [error, setError] = useState<string | null>(null);
+  const [inAppLinkUrl, setInAppLinkUrl] = useState<string | null>(null);
+  const [pendingLessonAnchor, setPendingLessonAnchor] = useState<string | null>(null);
+  const lessonSlideKeyRef = useRef<string | null>(null);
+  const currentKeyRef = useRef<string | null>(null);
   const [contentZoom, setContentZoomState] = useState<ContentZoomPreset>(
     settings.contentZoom ?? '100',
   );
 
   const presenterMenu = settings.presenterMenu ?? 'fixed-footer';
+  const current: SequenceItem | null = course?.sequence[index] ?? null;
+
+  useEffect(() => {
+    currentKeyRef.current = current?.key ?? null;
+    lessonSlideKeyRef.current =
+      current?.type === 'lesson' || (current && isSpecialSlideType(current.type))
+        ? current.key
+        : null;
+  }, [current]);
 
   useEffect(() => {
     if (settings.contentZoom) setContentZoomState(settings.contentZoom);
@@ -150,8 +165,6 @@ export default function App() {
     });
     setProgress(prog.data ?? null);
   }, [course]);
-
-  const current: SequenceItem | null = course?.sequence[index] ?? null;
 
   const loadCourses = useCallback(async () => {
     const res = await apiFetch<CourseSummary[]>({ method: 'GET', path: '/api/courses' });
@@ -242,6 +255,7 @@ export default function App() {
     (next: number) => {
       if (!course) return;
       const clamped = Math.max(0, Math.min(course.sequence.length - 1, next));
+      setInAppLinkUrl(null);
       setIndex(clamped);
       setQuizResult(null);
       const completedKey =
@@ -252,12 +266,26 @@ export default function App() {
   );
 
   const goToKey = useCallback(
-    (key: string) => {
+    (key: string, anchorId?: string | null) => {
       if (!course) return;
       const i = course.sequence.findIndex((s) => s.key === key);
-      if (i >= 0) goTo(i);
+      if (i < 0) return;
+      const sameSlide = i === index;
+      const anchor = anchorId?.trim() || null;
+      if (sameSlide) {
+        if (anchor) {
+          setPendingLessonAnchor(null);
+          requestAnimationFrame(() => setPendingLessonAnchor(anchor));
+        } else {
+          const scroller = document.querySelector('.lesson-theme-root .overflow-y-auto');
+          scroller?.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        return;
+      }
+      setPendingLessonAnchor(anchor);
+      goTo(i);
     },
-    [course, goTo],
+    [course, goTo, index],
   );
 
   const handleStructureChange = useCallback(
@@ -320,6 +348,23 @@ export default function App() {
     setEditMode(false);
     if (inspectorTool && inspectorTool !== 'notes') closeInspector();
   }, [closeInspector, inspectorTool]);
+
+  const persistLessonHtml = useCallback(
+    async (html: string) => {
+      if (!course || !current || current.type !== 'lesson') return;
+      const slideKey = current.key;
+      const courseId = course.summary.id;
+      const res = await apiFetch<{ slideKey: string; file: string; html: string }>({
+        method: 'PUT',
+        path: `/api/courses/${courseId}/lesson-source`,
+        body: { slideKey, html: sanitizeLessonHtml(html) },
+      });
+      if (res.ok && res.data && lessonSlideKeyRef.current === slideKey) {
+        setLesson((prev) => (prev ? { ...prev, html: res.data!.html } : prev));
+      }
+    },
+    [course, current],
+  );
 
   const handleInspectorTool = useCallback(
     (tool: InspectorTool | null) => {
@@ -535,6 +580,10 @@ export default function App() {
   useEffect(() => {
     if (!course || !current) return;
     let cancelled = false;
+    const loadKey = current.key;
+    const loadFile = current.file;
+    const loadType = current.type;
+    const loadActivityId = current.activityId;
 
     (async () => {
       setLoading(true);
@@ -544,16 +593,24 @@ export default function App() {
       setLab(null);
 
       if (
-        (current.type === 'lesson' || isSpecialSlideType(current.type)) &&
-        current.file
+        (loadType === 'lesson' || isSpecialSlideType(loadType)) &&
+        loadFile
       ) {
         const res = await apiFetch<LessonPayload>({
           method: 'GET',
           path: `/api/courses/${course.summary.id}/lesson`,
-          params: { file: current.file },
+          params: { file: loadFile },
         });
-        if (!cancelled && res.ok && res.data) setLesson(res.data);
-        if (current.type === 'lesson') {
+        if (
+          !cancelled &&
+          res.ok &&
+          res.data &&
+          res.data.file === loadFile &&
+          currentKeyRef.current === loadKey
+        ) {
+          setLesson(res.data);
+        }
+        if (loadType === 'lesson') {
           const animRes = await apiFetch<{
             slideKey: string;
             file: string;
@@ -561,26 +618,35 @@ export default function App() {
           }>({
             method: 'GET',
             path: `/api/courses/${course.summary.id}/lesson-animations`,
-            params: { slideKey: current.key },
+            params: { slideKey: loadKey },
           });
-          if (!cancelled && animRes.ok && animRes.data) {
+          if (
+            !cancelled &&
+            animRes.ok &&
+            animRes.data &&
+            currentKeyRef.current === loadKey
+          ) {
             setLessonAnimations(animRes.data.animations);
           }
         }
-      } else if (current.type === 'quiz' && current.activityId) {
+      } else if (loadType === 'quiz' && loadActivityId) {
         const res = await apiFetch<QuizPayload>({
           method: 'GET',
-          path: `/api/courses/${course.summary.id}/quizzes/${current.activityId}`,
+          path: `/api/courses/${course.summary.id}/quizzes/${loadActivityId}`,
         });
-        if (!cancelled && res.ok && res.data) setQuiz(res.data);
-      } else if (current.type === 'lab' && current.activityId) {
+        if (!cancelled && res.ok && res.data && currentKeyRef.current === loadKey) {
+          setQuiz(res.data);
+        }
+      } else if (loadType === 'lab' && loadActivityId) {
         const res = await apiFetch<LabPayload>({
           method: 'GET',
-          path: `/api/courses/${course.summary.id}/labs/${current.activityId}`,
+          path: `/api/courses/${course.summary.id}/labs/${loadActivityId}`,
         });
-        if (!cancelled && res.ok && res.data) setLab(res.data);
+        if (!cancelled && res.ok && res.data && currentKeyRef.current === loadKey) {
+          setLab(res.data);
+        }
       }
-      if (!cancelled) setLoading(false);
+      if (!cancelled && currentKeyRef.current === loadKey) setLoading(false);
     })();
 
     return () => {
@@ -795,13 +861,21 @@ export default function App() {
         }}
         onDomMutated={(html) => {
           if (!course || !current || current.type !== 'lesson') return;
+          // Freeze key + html together so a mid-flight navigation cannot write this
+          // payload into a different slide.
+          const slideKey = current.key;
+          const courseId = course.summary.id;
           void (async () => {
             const res = await apiFetch<{ slideKey: string; file: string; html: string }>({
               method: 'PUT',
-              path: `/api/courses/${course.summary.id}/lesson-source`,
-              body: { slideKey: current.key, html },
+              path: `/api/courses/${courseId}/lesson-source`,
+              body: { slideKey, html: sanitizeLessonHtml(html) },
             });
-            if (res.ok && res.data) {
+            if (
+              res.ok &&
+              res.data &&
+              lessonSlideKeyRef.current === slideKey
+            ) {
               setLesson((prev) => (prev ? { ...prev, html: res.data!.html } : prev));
             }
           })();
@@ -955,6 +1029,10 @@ export default function App() {
                         runnerRef={animRunnerRef}
                         onPresent={enterPresent}
                         editMode={editMode}
+                        onGotoKey={goToKey}
+                        pendingAnchor={pendingLessonAnchor}
+                        onPendingAnchorConsumed={() => setPendingLessonAnchor(null)}
+                        onOpenInApp={(url) => setInAppLinkUrl(url)}
                       />
                     )}
                     {!loading &&
@@ -969,7 +1047,7 @@ export default function App() {
                           sequence={course.sequence}
                           extras={course.packageManifest?.extras}
                           progress={progress}
-                          onGotoKey={goToKey}
+                          onGotoKey={(key) => goToKey(key)}
                         />
                       )}
                     {!loading && current?.type === 'quiz' && quiz && course && (
@@ -1132,19 +1210,7 @@ export default function App() {
                 ? { courseId: course.summary.id, slideKey: current.key }
                 : null
             }
-            onHtmlPersist={async (html) => {
-              if (!course || !current || current.type !== 'lesson') return;
-              const res = await apiFetch<{ slideKey: string; file: string; html: string }>({
-                method: 'PUT',
-                path: `/api/courses/${course.summary.id}/lesson-source`,
-                body: { slideKey: current.key, html },
-              });
-              if (res.ok && res.data) {
-                setLesson((prev) =>
-                  prev ? { ...prev, html: res.data!.html } : prev,
-                );
-              }
-            }}
+            onHtmlPersist={persistLessonHtml}
             onAnimationsChange={(doc) => setLessonAnimations(doc)}
             onOpenTool={(tool) => handleInspectorTool(tool)}
           />
@@ -1223,19 +1289,7 @@ export default function App() {
               ? { courseId: course.summary.id, slideKey: current.key }
               : null
           }
-          onHtmlPersist={async (html) => {
-            if (!course || !current || current.type !== 'lesson') return;
-            const res = await apiFetch<{ slideKey: string; file: string; html: string }>({
-              method: 'PUT',
-              path: `/api/courses/${course.summary.id}/lesson-source`,
-              body: { slideKey: current.key, html },
-            });
-            if (res.ok && res.data) {
-              setLesson((prev) =>
-                prev ? { ...prev, html: res.data!.html } : prev,
-              );
-            }
-          }}
+          onHtmlPersist={persistLessonHtml}
           onAnimationsChange={(doc) => setLessonAnimations(doc)}
           onOpenTool={(tool) => handleInspectorTool(tool)}
         />
@@ -1266,6 +1320,9 @@ export default function App() {
           void loadCourses();
         }}
       />
+      {inAppLinkUrl && (
+        <InAppLinkWindow url={inAppLinkUrl} onClose={() => setInAppLinkUrl(null)} />
+      )}
       </LessonObjectModeProvider>
     </AppShell>
   );

@@ -18,7 +18,7 @@
       }
     ],
     "explanation": "Placeholder explanation · option B is marked correct for the demo.",
-    "points": 1
+    "points": 5
   },
   {
     "id": "q2",
@@ -43,7 +43,7 @@
       }
     ],
     "explanation": "Demo multi-select · A, B, and D are correct.",
-    "points": 2
+    "points": 3
   },
   {
     "id": "q3",

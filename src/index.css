@@ -749,6 +749,34 @@ html[data-theme='dark'] .lesson-stage .hc-hero__lead {
   margin-top: 1.75rem;
 }
 
+.lesson-stage .hc-hero__actions:has(> [data-hc-align='left']:only-child),
+.lesson-stage .hc-hero__actions[style*='flex-start'] {
+  justify-content: flex-start;
+}
+
+.lesson-stage .hc-hero__actions:has(> [data-hc-align='right']:only-child) {
+  justify-content: flex-end;
+}
+
+.lesson-stage .hc-hero__actions:has(> [data-hc-align='center']:only-child) {
+  justify-content: center;
+}
+
+.lesson-stage [data-hc-align='left'] {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+
+.lesson-stage [data-hc-align='center'] {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.lesson-stage [data-hc-align='right'] {
+  margin-left: auto !important;
+  margin-right: 0 !important;
+}
+
 .lesson-stage .hc-btn {
   display: inline-flex;
   align-items: center;
@@ -764,6 +792,36 @@ html[data-theme='dark'] .lesson-stage .hc-hero__lead {
 
 .lesson-stage .hc-btn--primary {
   background: linear-gradient(135deg, var(--lesson-accent, #0e6e6a), #2f5aa8);
+  color: #ffffff;
+  border: 1px solid transparent;
+}
+
+.lesson-stage .hc-btn--secondary {
+  background: #334155;
+  color: #ffffff;
+  border: 1px solid transparent;
+}
+
+.lesson-stage .hc-btn--info {
+  background: #0284c7;
+  color: #ffffff;
+  border: 1px solid transparent;
+}
+
+.lesson-stage .hc-btn--success {
+  background: #059669;
+  color: #ffffff;
+  border: 1px solid transparent;
+}
+
+.lesson-stage .hc-btn--warning {
+  background: #d97706;
+  color: #ffffff;
+  border: 1px solid transparent;
+}
+
+.lesson-stage .hc-btn--danger {
+  background: #dc2626;
   color: #ffffff;
   border: 1px solid transparent;
 }
@@ -784,10 +842,125 @@ html[data-theme='dark'] .lesson-stage .hc-btn--ghost {
   color: #0f172a;
 }
 
+.lesson-stage .hc-btn--outline-primary {
+  border: 1px solid var(--lesson-accent, #0e6e6a);
+  background: transparent;
+  color: var(--lesson-accent, #0e6e6a);
+}
+
+.lesson-stage .hc-btn--outline-secondary {
+  border: 1px solid #64748b;
+  background: transparent;
+  color: #334155;
+}
+
+.lesson-stage .hc-btn--outline-info {
+  border: 1px solid #0284c7;
+  background: transparent;
+  color: #0284c7;
+}
+
+.lesson-stage .hc-btn--outline-success {
+  border: 1px solid #059669;
+  background: transparent;
+  color: #059669;
+}
+
+.lesson-stage .hc-btn--outline-warning {
+  border: 1px solid #d97706;
+  background: transparent;
+  color: #d97706;
+}
+
+.lesson-stage .hc-btn--outline-danger {
+  border: 1px solid #dc2626;
+  background: transparent;
+  color: #dc2626;
+}
+
 html[data-theme='dark'] .lesson-stage .hc-btn--outline {
   border-color: #334155;
   background: #1e293b;
   color: #e2e8f0;
+}
+
+/* Author hover / active colors for text & links */
+.lesson-stage [data-hc-color-hover] {
+  transition: color 0.15s ease;
+}
+.lesson-stage [data-hc-color-hover]:hover {
+  color: var(--hc-color-hover) !important;
+}
+.lesson-stage [data-hc-color-active]:active,
+.lesson-stage [data-hc-color-active].hc-is-selected,
+.lesson-stage [data-hc-color-active]:focus-visible {
+  color: var(--hc-color-active) !important;
+}
+
+/* Box pseudo-states (Style tab Normal / Hover / Active) */
+.lesson-stage [data-hc-fx-hover-color]:hover {
+  color: var(--hc-color-hover) !important;
+}
+.lesson-stage [data-hc-fx-hover-bg]:hover {
+  background-color: var(--hc-bg-hover) !important;
+}
+.lesson-stage [data-hc-fx-hover-border]:hover {
+  border-color: var(--hc-border-color-hover) !important;
+}
+.lesson-stage [data-hc-fx-hover-border-width]:hover {
+  border-width: var(--hc-border-width-hover) !important;
+}
+.lesson-stage [data-hc-fx-hover-border-style]:hover {
+  border-style: var(--hc-border-style-hover) !important;
+}
+.lesson-stage [data-hc-fx-active-color]:active,
+.lesson-stage [data-hc-fx-active-color]:focus-visible {
+  color: var(--hc-color-active) !important;
+}
+.lesson-stage [data-hc-fx-active-bg]:active,
+.lesson-stage [data-hc-fx-active-bg]:focus-visible {
+  background-color: var(--hc-bg-active) !important;
+}
+.lesson-stage [data-hc-fx-active-border]:active,
+.lesson-stage [data-hc-fx-active-border]:focus-visible {
+  border-color: var(--hc-border-color-active) !important;
+}
+.lesson-stage [data-hc-fx-active-border-width]:active,
+.lesson-stage [data-hc-fx-active-border-width]:focus-visible {
+  border-width: var(--hc-border-width-active) !important;
+}
+.lesson-stage [data-hc-fx-active-border-style]:active,
+.lesson-stage [data-hc-fx-active-border-style]:focus-visible {
+  border-style: var(--hc-border-style-active) !important;
+}
+
+/* Text shadow / stroke pseudo-states */
+.lesson-stage [data-hc-text-shadow-hover]:hover {
+  text-shadow: var(--hc-text-shadow-hover) !important;
+}
+.lesson-stage [data-hc-text-shadow-active]:active,
+.lesson-stage [data-hc-text-shadow-active]:focus-visible {
+  text-shadow: var(--hc-text-shadow-active) !important;
+}
+.lesson-stage [data-hc-text-stroke-hover]:hover {
+  -webkit-text-stroke: var(--hc-text-stroke-width-hover, 1px) var(--hc-text-stroke-color-hover, #0f172a);
+  paint-order: stroke fill;
+}
+.lesson-stage [data-hc-text-stroke-active]:active,
+.lesson-stage [data-hc-text-stroke-active]:focus-visible {
+  -webkit-text-stroke: var(--hc-text-stroke-width-active, 1px) var(--hc-text-stroke-color-active, #0f172a);
+  paint-order: stroke fill;
+}
+
+/* Text shadow (letter shadow) */
+.lesson-stage [data-hc-text-shadow='1'] {
+  text-shadow: var(--hc-text-shadow);
+}
+
+/* Text stroke / border around glyphs */
+.lesson-stage [data-hc-text-stroke='1'] {
+  -webkit-text-stroke: var(--hc-text-stroke-width, 1px) var(--hc-text-stroke-color, #0f172a);
+  paint-order: stroke fill;
 }
 
 /* Features tabs · browser + phone mockups */

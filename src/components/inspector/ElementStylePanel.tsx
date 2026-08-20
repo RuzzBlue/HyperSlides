@@ -4,13 +4,38 @@ import { apiFetch } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
 import { useLessonObjectModeOptional } from '../../lesson-objects/LessonObjectMode';
 import { courseAssetUrl, type ThemeSwatch } from './styleThemeColors';
+import { StyleStateSwitch, type StyleInteractionState } from './StyleStateSwitch';
+import {
+  type BoxPseudoSlice,
+  applyBoxPseudoStates,
+  readBoxPseudoStates,
+} from '../../lesson-objects/stylePseudo';
 
 export type BoxSides = { top: string; right: string; bottom: string; left: string };
 
 export type CssLengthUnit = 'px' | 'rem' | 'em' | '%' | 'vh' | 'vw' | 'vmin' | 'vmax' | 'ch';
 export type BoxLinkMode = 'all' | 'axes' | 'none';
-export type SizeKeyword = 'auto' | 'none';
-export type SizeUnit = CssLengthUnit | SizeKeyword;
+export type SizeKeyword =
+  | 'auto'
+  | 'none'
+  | 'fit-content'
+  | 'max-content'
+  | 'min-content'
+  | 'inherit'
+  | 'initial'
+  | 'unset';
+export type SizeUnit = CssLengthUnit | SizeKeyword | 'custom';
+
+const SIZE_KEYWORDS: SizeKeyword[] = [
+  'auto',
+  'none',
+  'fit-content',
+  'max-content',
+  'min-content',
+  'inherit',
+  'initial',
+  'unset',
+];
 
 export type ColorValue = {
   /** When false, the CSS property is removed (inherits / default). */
@@ -68,6 +93,8 @@ export type ElementStyleSnapshot = {
   bgPosition: string;
   bgRepeat: string;
   bgAttachment: string;
+  hoverPseudo: BoxPseudoSlice;
+  activePseudo: BoxPseudoSlice;
 };
 
 const LENGTH_UNITS: CssLengthUnit[] = [
@@ -111,18 +138,29 @@ export function formatCssLength(num: string, unit: CssLengthUnit): string {
   return `${n}${unit}`;
 }
 
+function isSizeKeyword(v: string): v is SizeKeyword {
+  return SIZE_KEYWORDS.includes(v as SizeKeyword);
+}
+
 function parseSizeValue(
   value: string,
   keywords: SizeKeyword[],
-): { num: string; unit: SizeUnit } {
-  const v = (value || '').trim().toLowerCase();
-  if (keywords.includes(v as SizeKeyword)) return { num: '', unit: v as SizeKeyword };
-  const parsed = parseCssLength(value);
-  return parsed;
+): { num: string; unit: SizeUnit; raw: string } {
+  const raw = (value || '').trim();
+  const v = raw.toLowerCase();
+  if (!raw) return { num: '', unit: 'px', raw: '' };
+  if (keywords.includes(v as SizeKeyword) || isSizeKeyword(v)) {
+    return { num: '', unit: v as SizeKeyword, raw };
+  }
+  const parsed = parseCssLength(raw);
+  if (parsed.num) return { ...parsed, raw };
+  // Free-form CSS (calc(), clamp(), 50cqw, etc.)
+  return { num: '', unit: 'custom', raw };
 }
 
-function formatSizeValue(num: string, unit: SizeUnit): string {
-  if (unit === 'auto' || unit === 'none') return unit;
+function formatSizeValue(num: string, unit: SizeUnit, raw = ''): string {
+  if (unit === 'custom') return raw.trim();
+  if (isSizeKeyword(unit)) return unit;
   return formatCssLength(num, unit);
 }
 
@@ -326,6 +364,8 @@ function readSnapshot(el: HTMLElement, courseId?: string): ElementStyleSnapshot 
   else if (urlPath) bgMode = 'image';
   else if (bgSolid.enabled) bgMode = 'solid';
 
+  const { hover, active } = readBoxPseudoStates(el);
+
   return {
     margin: readBox(el, 'margin'),
     padding: readBox(el, 'padding'),
@@ -365,6 +405,8 @@ function readSnapshot(el: HTMLElement, courseId?: string): ElementStyleSnapshot 
     bgPosition: el.style.backgroundPosition || '',
     bgRepeat: el.style.backgroundRepeat || '',
     bgAttachment: el.style.backgroundAttachment || '',
+    hoverPseudo: hover,
+    activePseudo: active,
   };
 }
 
@@ -453,8 +495,10 @@ function applySnapshot(el: HTMLElement, s: ElementStyleSnapshot, courseId?: stri
   else el.removeAttribute('class');
 
   const id = s.id.trim().replace(/\s+/g, '-');
-  if (id) el.id = id;
+  if (id) el.setAttribute('id', id);
   else el.removeAttribute('id');
+
+  applyBoxPseudoStates(el, s.hoverPseudo, s.activePseudo);
 }
 
 /** Shared Content | Style | Effects | Element tab chrome for inspectors. */
@@ -609,8 +653,15 @@ export function ElementStylePanel({
   const [draft, setDraft] = useState<ElementStyleSnapshot | null>(null);
   const [customInject, setCustomInject] = useState('');
   const [uploadingBg, setUploadingBg] = useState(false);
+  const [styleState, setStyleState] = useState<StyleInteractionState>('normal');
   const swatches = themeSwatches;
   const glassActive = el?.getAttribute('data-hc-fx-glass') === '1';
+  const styleLocked =
+    el?.getAttribute('data-hc-style-lock') === '1' &&
+    el?.getAttribute('data-hc-btn-family') !== 'custom' &&
+    el?.getAttribute('data-hc-btn-preset') !== 'custom' &&
+    (el?.classList.contains('hc-btn') ?? false);
+  const appearanceLocked = glassActive || styleLocked;
 
   useEffect(() => {
     if (!el || !el.isConnected) {
@@ -618,6 +669,7 @@ export function ElementStylePanel({
       return;
     }
     setDraft(readSnapshot(el, courseId));
+    setStyleState('normal');
   }, [el, selected?.objectId, courseId]);
 
   useEffect(() => {
@@ -636,8 +688,10 @@ export function ElementStylePanel({
       applySnapshot(el, next, courseId);
       setDraft(next);
       onDirtyChange?.(true);
+      const root = objectMode?.root;
+      if (root) root.setAttribute('data-hc-live-dirty', '1');
     },
-    [el, onDirtyChange, courseId],
+    [el, onDirtyChange, courseId, objectMode],
   );
 
   const patch = (partial: Partial<ElementStyleSnapshot>) => {
@@ -694,6 +748,7 @@ export function ElementStylePanel({
     if (!trimmed) {
       node?.remove();
       onDirtyChange?.(true);
+      root.setAttribute('data-hc-live-dirty', '1');
       return;
     }
     if (!node) {
@@ -707,6 +762,7 @@ export function ElementStylePanel({
     }
     node.innerHTML = html;
     onDirtyChange?.(true);
+    root.setAttribute('data-hc-live-dirty', '1');
   };
 
   if (!selected || !el) {
@@ -718,12 +774,39 @@ export function ElementStylePanel({
   if (!draft) return null;
 
   const isFlex = draft.display === 'flex' || draft.display === 'inline-flex';
+  const isPseudo = styleState !== 'normal';
+  const pseudoKey = styleState === 'hover' ? 'hoverPseudo' : 'activePseudo';
+  const pseudoSlice = isPseudo ? draft[pseudoKey] : null;
+
+  const patchPseudo = (partial: Partial<BoxPseudoSlice>) => {
+    if (!draft || !isPseudo) return;
+    apply({
+      ...draft,
+      [pseudoKey]: { ...draft[pseudoKey], ...partial },
+    });
+  };
+
+  const emptyColor = (): ColorValue => ({ enabled: false, hex: '#1c1f26', alpha: 1 });
 
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--line)] bg-[var(--panel)]/50 px-2.5 py-2">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+          {tr('styleStateLabel')}
+        </span>
+        <StyleStateSwitch value={styleState} onChange={setStyleState} />
+      </div>
+      {isPseudo && (
+        <p className="text-[10px] leading-snug text-[var(--ink-muted)]">{tr('styleStatePseudoHint')}</p>
+      )}
       {/* Spacing */}
-      <section className="space-y-2">
+      <section className={`space-y-2 ${styleLocked || isPseudo ? 'pointer-events-none opacity-45' : ''}`}>
         <SectionTitle>{tr('styleSpacing')}</SectionTitle>
+        {styleLocked && (
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] leading-snug text-amber-800">
+            {tr('styleButtonPresetLocked')}
+          </p>
+        )}
         <BoxFields
           key={`${selected.objectId}-margin`}
           label={tr('styleMargin')}
@@ -739,7 +822,7 @@ export function ElementStylePanel({
       </section>
 
       {/* Size */}
-      <section className="space-y-2">
+      <section className={`space-y-2 ${isPseudo ? 'pointer-events-none opacity-45' : ''}`}>
         <SectionTitle>{tr('styleSize')}</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
           <Field label={tr('styleWidth')}>
@@ -788,7 +871,7 @@ export function ElementStylePanel({
       </section>
 
       {/* Layout */}
-      <section className="space-y-2">
+      <section className={`space-y-2 ${isPseudo ? 'pointer-events-none opacity-45' : ''}`}>
         <SectionTitle>{tr('styleLayout')}</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
           <Field label={tr('styleDisplay')}>
@@ -922,13 +1005,24 @@ export function ElementStylePanel({
       </section>
 
       {/* Text color */}
-      <section className="space-y-2">
+      <section className={`space-y-2 ${styleLocked ? 'pointer-events-none opacity-45' : ''}`}>
         <SectionTitle>{tr('styleTextColor')}</SectionTitle>
         <p className="text-[10px] leading-snug text-[var(--ink-muted)]">{tr('styleTextColorHint')}</p>
+        {styleLocked && (
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] leading-snug text-amber-800">
+            {tr('styleButtonPresetLocked')}
+          </p>
+        )}
         <ColorControl
-          value={draft.color}
+          value={isPseudo ? pseudoSlice?.color ?? emptyColor() : draft.color}
           swatches={swatches}
-          onChange={(color) => patch({ color })}
+          onChange={(color) => {
+            if (isPseudo) {
+              patchPseudo({ color: color.enabled ? color : null });
+            } else {
+              patch({ color });
+            }
+          }}
           showOpacity
         />
       </section>
@@ -942,9 +1036,14 @@ export function ElementStylePanel({
             {tr('styleGlassOverridesBg')}
           </p>
         )}
+        {styleLocked && !glassActive && (
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] leading-snug text-amber-800">
+            {tr('styleButtonPresetLocked')}
+          </p>
+        )}
         <div
           className={`flex flex-wrap gap-1 rounded-lg border border-[var(--line)] bg-[var(--panel)]/60 p-1 ${
-            glassActive ? 'pointer-events-none opacity-45' : ''
+            appearanceLocked || isPseudo ? 'pointer-events-none opacity-45' : ''
           }`}
         >
           {(
@@ -958,7 +1057,7 @@ export function ElementStylePanel({
             <button
               key={id}
               type="button"
-              disabled={glassActive}
+              disabled={appearanceLocked}
               onClick={() => patch({ bgMode: id })}
               className={`cursor-pointer rounded-md px-2.5 py-1 text-[11px] font-semibold disabled:cursor-not-allowed ${
                 draft.bgMode === id
@@ -970,7 +1069,17 @@ export function ElementStylePanel({
             </button>
           ))}
         </div>
-        {!glassActive && draft.bgMode === 'solid' && (
+        {!appearanceLocked && isPseudo && (
+          <ColorControl
+            value={pseudoSlice?.background ?? emptyColor()}
+            swatches={swatches}
+            onChange={(background) =>
+              patchPseudo({ background: background.enabled ? background : null })
+            }
+            showOpacity
+          />
+        )}
+        {!appearanceLocked && !isPseudo && draft.bgMode === 'solid' && (
           <ColorControl
             value={draft.background}
             swatches={swatches}
@@ -979,7 +1088,7 @@ export function ElementStylePanel({
             disableClear
           />
         )}
-        {!glassActive && draft.bgMode === 'gradient' && (
+        {!appearanceLocked && !isPseudo && draft.bgMode === 'gradient' && (
           <GradientEditor
             type={draft.gradientType}
             angle={draft.gradientAngle}
@@ -988,7 +1097,7 @@ export function ElementStylePanel({
             onChange={(partial) => patch(partial)}
           />
         )}
-        {!glassActive && draft.bgMode === 'image' && (
+        {!appearanceLocked && !isPseudo && draft.bgMode === 'image' && (
           <div className="space-y-2 rounded-lg border border-[var(--line)] bg-[var(--panel)]/40 p-2">
             {draft.bgImage && courseId ? (
               <div
@@ -1076,30 +1185,51 @@ export function ElementStylePanel({
       </section>
 
       {/* Border — outline of the box, not fill */}
-      <section className="space-y-2">
+      <section className={`space-y-2 ${styleLocked ? 'pointer-events-none opacity-45' : ''}`}>
         <SectionTitle>{tr('styleBorder')}</SectionTitle>
         <p className="text-[10px] leading-snug text-[var(--ink-muted)]">{tr('styleBorderHint')}</p>
-        <div className="grid grid-cols-2 gap-2">
+        {styleLocked && (
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] leading-snug text-amber-800">
+            {tr('styleButtonPresetLocked')}
+          </p>
+        )}
+        <div className={`grid grid-cols-2 gap-2 ${isPseudo ? '' : ''}`}>
           <Field label={tr('styleBorderWidth')}>
             <LengthInput
-              value={draft.borderWidth}
-              onChange={(v) =>
-                patch({
-                  borderWidth: v,
-                  borderStyle:
-                    v && (!draft.borderStyle || draft.borderStyle === 'none')
-                      ? 'solid'
-                      : draft.borderStyle,
-                })
-              }
+              value={isPseudo ? pseudoSlice?.borderWidth ?? '' : draft.borderWidth}
+              onChange={(v) => {
+                if (isPseudo) {
+                  patchPseudo({
+                    borderWidth: v,
+                    borderStyle:
+                      v && (!pseudoSlice?.borderStyle || pseudoSlice.borderStyle === 'none')
+                        ? 'solid'
+                        : pseudoSlice?.borderStyle ?? '',
+                  });
+                } else {
+                  patch({
+                    borderWidth: v,
+                    borderStyle:
+                      v && (!draft.borderStyle || draft.borderStyle === 'none')
+                        ? 'solid'
+                        : draft.borderStyle,
+                  });
+                }
+              }}
               ariaLabel={tr('styleBorderWidth')}
             />
           </Field>
           <Field label={tr('styleBorderStyle')}>
             <select
               className={fieldClass}
-              value={draft.borderStyle || 'none'}
-              onChange={(e) => patch({ borderStyle: e.target.value })}
+              value={
+                (isPseudo ? pseudoSlice?.borderStyle : draft.borderStyle) || 'none'
+              }
+              onChange={(e) => {
+                const borderStyle = e.target.value;
+                if (isPseudo) patchPseudo({ borderStyle });
+                else patch({ borderStyle });
+              }}
             >
               <option value="none">none</option>
               <option value="solid">solid</option>
@@ -1108,19 +1238,31 @@ export function ElementStylePanel({
               <option value="double">double</option>
             </select>
           </Field>
-          <Field label={tr('styleBorderRadius')}>
-            <LengthInput
-              value={draft.borderRadius}
-              onChange={(v) => patch({ borderRadius: v })}
-              ariaLabel={tr('styleBorderRadius')}
-            />
-          </Field>
+          {!isPseudo && (
+            <Field label={tr('styleBorderRadius')}>
+              <LengthInput
+                value={draft.borderRadius}
+                onChange={(v) => patch({ borderRadius: v })}
+                ariaLabel={tr('styleBorderRadius')}
+              />
+            </Field>
+          )}
         </div>
         <Field label={tr('styleBorderColor')}>
           <ColorControl
-            value={draft.borderColor}
+            value={
+              isPseudo
+                ? pseudoSlice?.borderColor ?? emptyColor()
+                : draft.borderColor
+            }
             swatches={swatches}
-            onChange={(borderColor) => patch({ borderColor })}
+            onChange={(borderColor) => {
+              if (isPseudo) {
+                patchPseudo({ borderColor: borderColor.enabled ? borderColor : null });
+              } else {
+                patch({ borderColor });
+              }
+            }}
             showOpacity
           />
         </Field>
@@ -1186,36 +1328,59 @@ export function LengthInput({
   value,
   onChange,
   ariaLabel,
+  keywords = ['auto'],
 }: {
   value: string;
   onChange: (next: string) => void;
   ariaLabel: string;
+  /** CSS keywords allowed in the unit dropdown (default: auto). */
+  keywords?: SizeKeyword[];
 }) {
-  const parsed = parseCssLength(value);
+  const allowed = keywords.length ? keywords : (['auto'] as SizeKeyword[]);
+  const parsed = parseSizeValue(value, allowed);
+  const isKeyword = isSizeKeyword(parsed.unit);
+  const isCustom = parsed.unit === 'custom';
+
   return (
     <div className="flex min-w-0 items-stretch overflow-hidden rounded-md border border-[var(--line)] bg-[var(--panel)] focus-within:border-[var(--accent)]">
       <input
-        type="number"
+        type={isKeyword || isCustom ? 'text' : 'number'}
         step="any"
         aria-label={ariaLabel}
-        placeholder="—"
-        className="min-w-0 flex-1 bg-transparent px-1.5 py-1.5 text-[12px] text-[var(--ink)] outline-none"
-        value={parsed.num}
-        onChange={(e) => onChange(formatCssLength(e.target.value, parsed.unit))}
+        placeholder={isKeyword ? parsed.unit : isCustom ? 'calc(…)' : '—'}
+        className="min-w-0 flex-1 bg-transparent px-1.5 py-1.5 text-[12px] text-[var(--ink)] outline-none disabled:opacity-40"
+        disabled={isKeyword}
+        value={isKeyword ? '' : isCustom ? parsed.raw : parsed.num}
+        onChange={(e) => {
+          if (isCustom || isKeyword) {
+            onChange(e.target.value);
+            return;
+          }
+          onChange(formatSizeValue(e.target.value, parsed.unit as CssLengthUnit));
+        }}
       />
       <select
         aria-label="unit"
-        className="w-[3.25rem] shrink-0 cursor-pointer border-l border-[var(--line)] bg-transparent py-1.5 pl-0.5 pr-0.5 text-[10px] font-semibold uppercase text-[var(--ink-muted)] outline-none"
+        className="w-[4.5rem] shrink-0 cursor-pointer border-l border-[var(--line)] bg-transparent py-1.5 pl-0.5 pr-0.5 text-[10px] font-semibold uppercase text-[var(--ink-muted)] outline-none"
         value={parsed.unit}
-        onChange={(e) =>
-          onChange(formatCssLength(parsed.num || '0', e.target.value as CssLengthUnit))
-        }
+        onChange={(e) => {
+          const unit = e.target.value as SizeUnit;
+          if (isSizeKeyword(unit)) onChange(unit);
+          else if (unit === 'custom') onChange(parsed.raw || parsed.num || '');
+          else onChange(formatSizeValue(parsed.num || '0', unit));
+        }}
       >
+        {allowed.map((k) => (
+          <option key={k} value={k}>
+            {k}
+          </option>
+        ))}
         {LENGTH_UNITS.map((u) => (
           <option key={u} value={u}>
             {u}
           </option>
         ))}
+        <option value="custom">css…</option>
       </select>
     </div>
   );
@@ -1230,30 +1395,56 @@ function SizeInput({
   onChange: (next: string) => void;
   keywords: SizeKeyword[];
 }) {
-  const parsed = parseSizeValue(value, keywords);
-  const isKeyword = parsed.unit === 'auto' || parsed.unit === 'none';
+  const opts: SizeKeyword[] = [];
+  const preferred: SizeKeyword[] = [
+    ...keywords,
+    'auto',
+    'fit-content',
+    'max-content',
+    'min-content',
+    'inherit',
+    'initial',
+    'unset',
+  ];
+  for (const k of preferred) {
+    if (k === 'none' && !keywords.includes('none')) continue;
+    if (!opts.includes(k)) opts.push(k);
+  }
+  if (keywords.includes('none') && !opts.includes('none')) opts.push('none');
+
+  const parsed = parseSizeValue(value, opts);
+  const isKeyword = isSizeKeyword(parsed.unit);
+  const isCustom = parsed.unit === 'custom';
+
   return (
     <div className="flex min-w-0 items-stretch overflow-hidden rounded-md border border-[var(--line)] bg-[var(--panel)] focus-within:border-[var(--accent)]">
       <input
-        type="number"
+        type={isKeyword || isCustom ? 'text' : 'number'}
         step="any"
         disabled={isKeyword}
-        placeholder={isKeyword ? '—' : '—'}
+        placeholder={isKeyword ? parsed.unit : isCustom ? 'calc(…)' : '—'}
         className="min-w-0 flex-1 bg-transparent px-1.5 py-1.5 text-[12px] text-[var(--ink)] outline-none disabled:opacity-40"
-        value={isKeyword ? '' : parsed.num}
-        onChange={(e) => onChange(formatSizeValue(e.target.value, parsed.unit as CssLengthUnit))}
+        value={isKeyword ? '' : isCustom ? parsed.raw : parsed.num}
+        onChange={(e) => {
+          if (isCustom || isKeyword) {
+            onChange(e.target.value);
+            return;
+          }
+          onChange(formatSizeValue(e.target.value, parsed.unit as CssLengthUnit));
+        }}
       />
       <select
         aria-label="unit"
-        className="w-[3.6rem] shrink-0 cursor-pointer border-l border-[var(--line)] bg-transparent py-1.5 pl-0.5 pr-0.5 text-[10px] font-semibold uppercase text-[var(--ink-muted)] outline-none"
+        className="w-[4.5rem] shrink-0 cursor-pointer border-l border-[var(--line)] bg-transparent py-1.5 pl-0.5 pr-0.5 text-[10px] font-semibold uppercase text-[var(--ink-muted)] outline-none"
         value={parsed.unit}
         onChange={(e) => {
           const unit = e.target.value as SizeUnit;
-          if (unit === 'auto' || unit === 'none') onChange(unit);
+          if (isSizeKeyword(unit)) onChange(unit);
+          else if (unit === 'custom') onChange(parsed.raw || parsed.num || '0');
           else onChange(formatSizeValue(parsed.num || '0', unit));
         }}
       >
-        {keywords.map((k) => (
+        {opts.map((k) => (
           <option key={k} value={k}>
             {k}
           </option>
@@ -1263,6 +1454,7 @@ function SizeInput({
             {u}
           </option>
         ))}
+        <option value="custom">css…</option>
       </select>
     </div>
   );

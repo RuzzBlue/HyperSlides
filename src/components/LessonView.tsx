@@ -5,6 +5,7 @@ import { slideContainerAppliedCss } from '@shared/slideContainer';
 import { usePrefs } from '../prefs/PrefsProvider';
 import { PortalsRenderer } from './lesson/InteractiveWidgets';
 import { ThemeDecorations } from './theme/ThemeDecorations';
+import { normalizeExternalUrl } from './InAppLinkWindow';
 import {
   bgSpecToCss,
   bgSpecToStyle,
@@ -36,6 +37,10 @@ export function LessonView({
   runnerRef,
   onPresent,
   editMode = false,
+  onGotoKey,
+  pendingAnchor,
+  onPendingAnchorConsumed,
+  onOpenInApp,
 }: {
   html: string;
   title: string;
@@ -57,6 +62,13 @@ export function LessonView({
   onPresent?: () => void;
   /** When true, block links and in-lesson actions so elements can be selected. */
   editMode?: boolean;
+  /** Navigate to a course sequence key from `[data-hc-goto]`. */
+  onGotoKey?: (key: string, anchorId?: string | null) => void;
+  /** Scroll target after navigation (`data-hc-obj` or HTML id). */
+  pendingAnchor?: string | null;
+  onPendingAnchorConsumed?: () => void;
+  /** Open URL in the in-app link window. */
+  onOpenInApp?: (url: string) => void;
 }) {
   const { appearance } = usePrefs();
   const mode = resolveAppearanceMode(appearance.theme);
@@ -84,7 +96,13 @@ export function LessonView({
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
-    // Avoid wiping live DOM (and selection) when we just persisted the same markup.
+    // Avoid wiping live DOM (and selection) when we just persisted the same markup,
+    // or while the inspector has unsaved live edits on this root.
+    if (el.getAttribute('data-hc-live-dirty') === '1') {
+      runInlineScripts(el);
+      setObjectRoot?.(el);
+      return;
+    }
     if (el.innerHTML === html) {
       runInlineScripts(el);
       setObjectRoot?.(el);
@@ -150,7 +168,7 @@ export function LessonView({
 
   useEffect(() => {
     const root = contentRef.current;
-    if (!root || presentPlayback) return;
+    if (!root) return;
 
     const isLessonAction = (el: Element | null): el is HTMLElement => {
       if (!el || !root.contains(el)) return false;
@@ -162,29 +180,84 @@ export function LessonView({
     };
 
     const onPointerDown = (e: PointerEvent) => {
-      if (!editMode) return;
+      // Block default navigation while editing; also block inapp/external early so the
+      // browser never starts navigating the host app before click handlers run.
       const target = e.target as Element | null;
-      const action = target?.closest(
-        'a[href], button, [role="link"], [role="button"], [data-hc-present], input, select, textarea, summary',
-      );
-      if (!action || !root.contains(action)) return;
-      e.preventDefault();
+      if (editMode && !presentPlayback) {
+        const action = target?.closest(
+          'a[href], button, [role="link"], [role="button"], [data-hc-present], input, select, textarea, summary',
+        );
+        if (action && root.contains(action)) e.preventDefault();
+        return;
+      }
+      const link = target?.closest('a[href]') as HTMLElement | null;
+      if (!link || !root.contains(link)) return;
+      const open = link.getAttribute('data-hc-open');
+      if (open === 'inapp' || open === 'course' || link.hasAttribute('data-hc-goto') || link.hasAttribute('data-hc-present')) {
+        e.preventDefault();
+      }
     };
 
     const onClick = (e: MouseEvent) => {
       const target = e.target as Element | null;
-      if (editMode) {
+      if (editMode && !presentPlayback) {
         if (isLessonAction(target)) {
           e.preventDefault();
           e.stopPropagation();
         }
         return;
       }
+
       const presentBtn = target?.closest('[data-hc-present]');
       if (presentBtn && root.contains(presentBtn) && onPresent) {
         e.preventDefault();
         e.stopPropagation();
         onPresent();
+        return;
+      }
+
+      const gotoLink = target?.closest('[data-hc-goto]') as HTMLElement | null;
+      if (gotoLink && root.contains(gotoLink) && onGotoKey) {
+        const key = gotoLink.getAttribute('data-hc-goto')?.trim();
+        if (key) {
+          e.preventDefault();
+          e.stopPropagation();
+          const anchorVal = gotoLink.getAttribute('data-hc-anchor')?.trim() || '';
+          const mode = gotoLink.getAttribute('data-hc-anchor-mode')?.trim() || '';
+          const packed = anchorVal ? `${mode || 'obj'}|${anchorVal}` : null;
+          onGotoKey(key, packed);
+          return;
+        }
+      }
+
+      const inApp = target?.closest('[data-hc-open="inapp"]') as HTMLElement | null;
+      if (inApp && root.contains(inApp)) {
+        const href = inApp.getAttribute('href')?.trim();
+        e.preventDefault();
+        e.stopPropagation();
+        if (href && href !== '#' && onOpenInApp) onOpenInApp(normalizeExternalUrl(href));
+        return;
+      }
+
+      // External / default anchors: never navigate the HyperClass shell away.
+      const plain = target?.closest('a[href]') as HTMLElement | null;
+      if (plain && root.contains(plain)) {
+        const href = plain.getAttribute('href')?.trim() || '';
+        if (!href || href === '#' || href.startsWith('#')) {
+          e.preventDefault();
+          return;
+        }
+        const open = plain.getAttribute('data-hc-open');
+        if (open === 'external' || plain.getAttribute('target') === '_blank') {
+          e.preventDefault();
+          e.stopPropagation();
+          window.open(href, '_blank', 'noopener,noreferrer');
+        } else if (/^https?:\/\//i.test(href) || href.startsWith('//')) {
+          // Absolute URLs without an open mode still must not replace the app.
+          e.preventDefault();
+          e.stopPropagation();
+          window.open(href, '_blank', 'noopener,noreferrer');
+        }
       }
     };
 
@@ -194,7 +267,44 @@ export function LessonView({
       root.removeEventListener('pointerdown', onPointerDown, true);
       root.removeEventListener('click', onClick, true);
     };
-  }, [html, editMode, presentPlayback, onPresent]);
+  }, [html, editMode, presentPlayback, onPresent, onGotoKey, onOpenInApp]);
+
+  useEffect(() => {
+    const root = contentRef.current;
+    const id = pendingAnchor?.trim();
+    if (!root || !id) return;
+    const timer = window.setTimeout(() => {
+      const packed = id;
+      const pipe = packed.indexOf('|');
+      const mode = pipe >= 0 ? packed.slice(0, pipe) : '';
+      const value = (pipe >= 0 ? packed.slice(pipe + 1) : packed).trim();
+      if (!value) {
+        onPendingAnchorConsumed?.();
+        return;
+      }
+      let target: HTMLElement | null = null;
+      if (mode === 'class' || mode === 'custom-class') {
+        const name = value.replace(/^\./, '');
+        try {
+          target = root.querySelector<HTMLElement>(`.${CSS.escape(name)}`);
+        } catch {
+          target = root.querySelector<HTMLElement>(`[class~="${name}"]`);
+        }
+      } else if (mode === 'id' || mode === 'custom-id') {
+        target = /^[A-Za-z][\w:-]*$/.test(value)
+          ? root.querySelector<HTMLElement>(`#${CSS.escape(value)}`)
+          : root.querySelector<HTMLElement>(`[id="${CSS.escape(value)}"]`);
+      } else {
+        target = root.querySelector<HTMLElement>(`[data-hc-obj="${CSS.escape(value)}"]`);
+        if (!target && /^[A-Za-z][\w:-]*$/.test(value)) {
+          target = root.querySelector<HTMLElement>(`#${CSS.escape(value)}`);
+        }
+      }
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      onPendingAnchorConsumed?.();
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [html, pendingAnchor, onPendingAnchorConsumed]);
 
   useEffect(() => {
     if (!theme?.fonts?.google) return;
