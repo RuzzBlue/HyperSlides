@@ -132,13 +132,6 @@ export default function App() {
     setSidebarOpen(true);
   }, []);
 
-  const enterPresent = useCallback(() => {
-    setSidebarOpen(false);
-    setFullscreenStage(true);
-    setEditMode(false);
-    if (inspectorTool && inspectorTool !== 'notes') closeInspector();
-  }, [closeInspector, inspectorTool]);
-
   const openSettings = (tab?: SettingsTab) => {
     if (tab) setSettingsTab(tab);
     setSettingsOpen(true);
@@ -316,7 +309,17 @@ export default function App() {
       if (prev) setContentZoom(prev);
       return null;
     });
-  }, [setContentZoom]);
+    if (settings.inspectorEditOffClose) {
+      setEditMode(false);
+    }
+  }, [setContentZoom, settings.inspectorEditOffClose]);
+
+  const enterPresent = useCallback(() => {
+    setSidebarOpen(false);
+    setFullscreenStage(true);
+    setEditMode(false);
+    if (inspectorTool && inspectorTool !== 'notes') closeInspector();
+  }, [closeInspector, inspectorTool]);
 
   const handleInspectorTool = useCallback(
     (tool: InspectorTool | null) => {
@@ -326,6 +329,9 @@ export default function App() {
       }
       setLastInspectorTool(tool);
       setInspectorTool(tool);
+      if (settings.inspectorEditOnOpen) {
+        setEditMode(true);
+      }
       // Code opens floating by default (wider, resizable editor).
       if (tool === 'code') {
         setInspectorMode('floating');
@@ -348,7 +354,7 @@ export default function App() {
         });
       }
     },
-    [closeInspector, contentZoom, inspectorMode, setContentZoom],
+    [closeInspector, contentZoom, inspectorMode, setContentZoom, settings.inspectorEditOnOpen],
   );
 
   const handleInspectorMode = useCallback(
@@ -386,13 +392,39 @@ export default function App() {
     const tool = inspectorTool ?? lastInspectorTool;
     setInspectorTool(tool);
     setLastInspectorTool(tool);
+    if (settings.inspectorEditOnOpen) {
+      setEditMode(true);
+    }
     if (inspectorMode === 'floating') {
       setFloatResetToken((n) => n + 1);
     } else {
       setInspectorMode('floating');
       setFloatResetToken((n) => n + 1);
     }
-  }, [inspectorMode, inspectorTool, lastInspectorTool]);
+  }, [inspectorMode, inspectorTool, lastInspectorTool, settings.inspectorEditOnOpen]);
+
+  const handleEditModeChange = useCallback(
+    (next: boolean) => {
+      setEditMode(next);
+      if (next) {
+        if (settings.editInspectorOnOpen && !inspectorTool) {
+          handleInspectorTool(lastInspectorTool);
+        }
+        return;
+      }
+      if (settings.editInspectorOffClose && inspectorTool) {
+        closeInspector();
+      }
+    },
+    [
+      closeInspector,
+      handleInspectorTool,
+      inspectorTool,
+      lastInspectorTool,
+      settings.editInspectorOffClose,
+      settings.editInspectorOnOpen,
+    ],
+  );
 
   const toggleInspectorPin = useCallback(() => {
     handleInspectorMode(inspectorMode === 'floating' ? 'docked' : 'floating');
@@ -824,7 +856,7 @@ export default function App() {
           inspectorTool={inspectorTool}
           onInspectorTool={handleInspectorTool}
           editMode={editMode}
-          onEditModeChange={setEditMode}
+          onEditModeChange={handleEditModeChange}
           onInsert={(kind) => void handleInsert(kind)}
           onOpenCourseSettings={() => setCourseSettingsOpen(true)}
         />
@@ -922,6 +954,7 @@ export default function App() {
                         presentPlayback={fullscreenStage}
                         runnerRef={animRunnerRef}
                         onPresent={enterPresent}
+                        editMode={editMode}
                       />
                     )}
                     {!loading &&
@@ -1041,7 +1074,7 @@ export default function App() {
             onModeChange={handleInspectorMode}
             onClose={closeInspector}
             editMode={editMode}
-            onEditModeChange={setEditMode}
+            onEditModeChange={handleEditModeChange}
             courseTheme={course?.theme}
             coverAccent={course?.summary.coverAccent}
             notesContext={
@@ -1125,7 +1158,7 @@ export default function App() {
           onModeChange={handleInspectorMode}
           onClose={closeInspector}
           editMode={editMode}
-          onEditModeChange={setEditMode}
+          onEditModeChange={handleEditModeChange}
           courseTheme={course?.theme}
           coverAccent={course?.summary.coverAccent}
           floatResetToken={floatResetToken}

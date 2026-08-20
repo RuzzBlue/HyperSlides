@@ -35,6 +35,7 @@ export function LessonView({
   presentPlayback,
   runnerRef,
   onPresent,
+  editMode = false,
 }: {
   html: string;
   title: string;
@@ -54,6 +55,8 @@ export function LessonView({
   runnerRef?: React.MutableRefObject<AnimationRunner | null>;
   /** Toolbar Present — triggered by `[data-hc-present]` buttons in lesson HTML. */
   onPresent?: () => void;
+  /** When true, block links and in-lesson actions so elements can be selected. */
+  editMode?: boolean;
 }) {
   const { appearance } = usePrefs();
   const mode = resolveAppearanceMode(appearance.theme);
@@ -147,16 +150,51 @@ export function LessonView({
 
   useEffect(() => {
     const root = contentRef.current;
-    if (!root || !onPresent) return;
-    const onClick = (e: MouseEvent) => {
-      const btn = (e.target as HTMLElement | null)?.closest('[data-hc-present]');
-      if (!btn || !root.contains(btn)) return;
-      e.preventDefault();
-      onPresent();
+    if (!root || presentPlayback) return;
+
+    const isLessonAction = (el: Element | null): el is HTMLElement => {
+      if (!el || !root.contains(el)) return false;
+      return Boolean(
+        el.closest(
+          'a[href], button, [role="link"], [role="button"], [data-hc-present], input, select, textarea, summary',
+        ),
+      );
     };
-    root.addEventListener('click', onClick);
-    return () => root.removeEventListener('click', onClick);
-  }, [html, onPresent]);
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (!editMode) return;
+      const target = e.target as Element | null;
+      const action = target?.closest(
+        'a[href], button, [role="link"], [role="button"], [data-hc-present], input, select, textarea, summary',
+      );
+      if (!action || !root.contains(action)) return;
+      e.preventDefault();
+    };
+
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      if (editMode) {
+        if (isLessonAction(target)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        return;
+      }
+      const presentBtn = target?.closest('[data-hc-present]');
+      if (presentBtn && root.contains(presentBtn) && onPresent) {
+        e.preventDefault();
+        e.stopPropagation();
+        onPresent();
+      }
+    };
+
+    root.addEventListener('pointerdown', onPointerDown, true);
+    root.addEventListener('click', onClick, true);
+    return () => {
+      root.removeEventListener('pointerdown', onPointerDown, true);
+      root.removeEventListener('click', onClick, true);
+    };
+  }, [html, editMode, presentPlayback, onPresent]);
 
   useEffect(() => {
     if (!theme?.fonts?.google) return;
@@ -237,7 +275,7 @@ export function LessonView({
       <div className="relative z-[1] h-full overflow-y-auto">
         <article
           id={stageId}
-          className="lesson-stage relative mx-auto w-full max-w-4xl px-6 py-10 md:px-12 md:py-14"
+          className={`lesson-stage relative mx-auto w-full max-w-4xl px-6 py-10 md:px-12 md:py-14${editMode && !presentPlayback ? ' hc-lesson-edit-mode' : ''}`}
           aria-label={title}
           style={{ ['--lesson-accent' as string]: accent }}
         >

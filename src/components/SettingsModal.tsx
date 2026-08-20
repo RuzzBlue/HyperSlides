@@ -865,6 +865,99 @@ function AppSettingsTab({
   );
 }
 
+function InspectorEditLinkMatrix({
+  draft,
+  setDraft,
+  tr,
+}: {
+  draft: AppPrefs;
+  setDraft: (v: AppPrefs) => void;
+  tr: (k: StringKey) => string;
+}) {
+  const cell = (
+    labelKey: StringKey,
+    hintKey: StringKey,
+    checked: boolean,
+    onChange: (on: boolean) => void,
+  ) => (
+    <div className="min-w-0 rounded-lg border border-[var(--line)] bg-[var(--panel)]/40 p-2.5">
+      <label className="flex cursor-pointer items-start gap-2">
+        <input
+          type="checkbox"
+          className="mt-0.5 accent-[var(--accent)]"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+        <span className="min-w-0">
+          <span className="block text-[11px] font-medium leading-snug text-[var(--ink)]">
+            {tr(labelKey)}
+          </span>
+          <span className="mt-0.5 block text-[10px] leading-snug text-[var(--ink-muted)]">
+            {tr(hintKey)}
+          </span>
+        </span>
+      </label>
+    </div>
+  );
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-[var(--line)]">
+      <div className="grid grid-cols-[minmax(0,4.5rem)_minmax(0,1fr)_1px_minmax(0,1fr)] grid-rows-[auto_auto_auto_auto]">
+        <div className="col-start-2 border-b border-[var(--line)] bg-[var(--panel)]/30 px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+          {tr('inspectorEditLinkColInspector')}
+        </div>
+        <div
+          className="col-start-3 row-span-4 hidden bg-[var(--line)] sm:block"
+          aria-hidden
+        />
+        <div className="col-start-4 border-b border-[var(--line)] bg-[var(--panel)]/30 px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+          {tr('inspectorEditLinkColEdit')}
+        </div>
+
+        <div className="col-start-1 flex items-center border-b border-[var(--line)] px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+          {tr('inspectorEditLinkRowOpen')}
+        </div>
+        <div className="col-start-2 border-b border-[var(--line)] p-2">
+          {cell(
+            'inspectorEditOnOpen',
+            'inspectorEditOnOpenHint',
+            draft.inspectorEditOnOpen === true,
+            (on) => setDraft({ ...draft, inspectorEditOnOpen: on }),
+          )}
+        </div>
+        <div className="col-start-4 border-b border-[var(--line)] p-2">
+          {cell(
+            'editInspectorOnOpen',
+            'editInspectorOnOpenHint',
+            draft.editInspectorOnOpen === true,
+            (on) => setDraft({ ...draft, editInspectorOnOpen: on }),
+          )}
+        </div>
+
+        <div className="col-start-1 flex items-center px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+          {tr('inspectorEditLinkRowClose')}
+        </div>
+        <div className="col-start-2 p-2">
+          {cell(
+            'inspectorEditOffClose',
+            'inspectorEditOffCloseHint',
+            draft.inspectorEditOffClose === true,
+            (on) => setDraft({ ...draft, inspectorEditOffClose: on }),
+          )}
+        </div>
+        <div className="col-start-4 p-2">
+          {cell(
+            'editInspectorOffClose',
+            'editInspectorOffCloseHint',
+            draft.editInspectorOffClose === true,
+            (on) => setDraft({ ...draft, editInspectorOffClose: on }),
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function InspectorSettingsTab({
   draft,
   setDraft,
@@ -946,6 +1039,10 @@ function InspectorSettingsTab({
           <option value="remember">{tr('inspectorElementTabRemember')}</option>
           <option value="start-content">{tr('inspectorElementTabStartContent')}</option>
         </select>
+      </Field>
+
+      <Field label={tr('inspectorEditLinkGroupTitle')} hint={tr('inspectorEditLinkGroupHint')}>
+        <InspectorEditLinkMatrix draft={draft} setDraft={setDraft} tr={tr} />
       </Field>
     </div>
   );

@@ -797,6 +797,26 @@ export interface AppPrefs {
    * - `start-content` — always open on Content
    */
   inspectorElementTabMode: 'remember' | 'start-content';
+  /**
+   * When true, opening the inspector turns Edit mode on.
+   * When false, Edit mode stays independent (current default).
+   */
+  inspectorEditOnOpen: boolean;
+  /**
+   * When true, closing the inspector turns Edit mode off.
+   * When false, Edit mode stays on until toggled manually.
+   */
+  inspectorEditOffClose: boolean;
+  /**
+   * When true, turning Edit mode on opens the inspector (last panel used).
+   * When false, the inspector stays as-is.
+   */
+  editInspectorOnOpen: boolean;
+  /**
+   * When true, turning Edit mode off closes the inspector.
+   * When false, the inspector stays open until closed manually.
+   */
+  editInspectorOffClose: boolean;
   /** Course navigator sidebar width in px (capped at default; drag to shrink). */
   navigatorSidebarWidth: number;
   /** Default left sidebar layout while presenting (navigator thumbnails vs overview outline). */

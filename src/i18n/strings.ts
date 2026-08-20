@@ -108,6 +108,25 @@ const en = {
     'When you select another stage element, either keep the Content / Style / Effects / Element tab you were on, or always start on Content.',
   inspectorElementTabRemember: 'Remember last tab',
   inspectorElementTabStartContent: 'Always start on Content',
+  inspectorEditOnOpen: 'Turn Edit mode on when opening the inspector',
+  inspectorEditOnOpenHint:
+    'When On, opening any inspector panel enables Edit mode. When Off, Edit mode stays independent.',
+  inspectorEditOffClose: 'Turn Edit mode off when closing the inspector',
+  inspectorEditOffCloseHint:
+    'When On, closing the inspector disables Edit mode. When Off, Edit mode stays on until you toggle it.',
+  editInspectorOnOpen: 'Open inspector when Edit mode turns on',
+  editInspectorOnOpenHint:
+    'When On, enabling Edit mode opens the inspector (last panel used). When Off, the inspector stays as-is.',
+  editInspectorOffClose: 'Close inspector when Edit mode turns off',
+  editInspectorOffCloseHint:
+    'When On, disabling Edit mode closes the inspector. When Off, the inspector stays open until you close it.',
+  inspectorEditLinkGroupTitle: 'Inspector & Edit mode',
+  inspectorEditLinkGroupHint:
+    'Optionally link the inspector and Edit mode when either one opens or closes. Each switch is independent.',
+  inspectorEditLinkColInspector: 'Inspector',
+  inspectorEditLinkColEdit: 'Edit mode',
+  inspectorEditLinkRowOpen: 'On open',
+  inspectorEditLinkRowClose: 'On close',
   zoom: 'Zoom',
   zoomFit: 'Fit',
   zoomFullWidth: 'Full width',
@@ -1096,6 +1115,25 @@ const es: Record<keyof typeof en, string> = {
     'Al seleccionar otro elemento en el escenario, mantener la pestaña Contenido / Estilo / Efectos / Elemento, o empezar siempre en Contenido.',
   inspectorElementTabRemember: 'Recordar última pestaña',
   inspectorElementTabStartContent: 'Siempre empezar en Contenido',
+  inspectorEditOnOpen: 'Activar modo Edición al abrir el inspector',
+  inspectorEditOnOpenHint:
+    'Si está activado, abrir cualquier panel del inspector activa el modo Edición. Si no, el modo Edición sigue siendo independiente.',
+  inspectorEditOffClose: 'Desactivar modo Edición al cerrar el inspector',
+  inspectorEditOffCloseHint:
+    'Si está activado, cerrar el inspector desactiva el modo Edición. Si no, permanece hasta que lo cambies manualmente.',
+  editInspectorOnOpen: 'Abrir inspector al activar modo Edición',
+  editInspectorOnOpenHint:
+    'Si está activado, activar el modo Edición abre el inspector (último panel usado). Si no, el inspector no cambia.',
+  editInspectorOffClose: 'Cerrar inspector al desactivar modo Edición',
+  editInspectorOffCloseHint:
+    'Si está activado, desactivar el modo Edición cierra el inspector. Si no, permanece abierto hasta cerrarlo.',
+  inspectorEditLinkGroupTitle: 'Inspector y modo Edición',
+  inspectorEditLinkGroupHint:
+    'Opcionalmente vincula el inspector y el modo Edición al abrir o cerrar cualquiera de los dos. Cada interruptor es independiente.',
+  inspectorEditLinkColInspector: 'Inspector',
+  inspectorEditLinkColEdit: 'Modo Edición',
+  inspectorEditLinkRowOpen: 'Al abrir',
+  inspectorEditLinkRowClose: 'Al cerrar',
   zoom: 'Zoom',
   zoomFit: 'Ajustar',
   zoomFullWidth: 'Ancho completo',
