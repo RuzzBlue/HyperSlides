@@ -428,31 +428,81 @@ export function uploadCourseAsset(
 }
 
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif', '.bmp']);
-const VIDEO_EXT = new Set(['.mp4', '.webm', '.ogg', '.mov', '.m4v']);
+const VIDEO_EXT = new Set(['.mp4', '.webm', '.ogg', '.mov', '.m4v', '.mkv']);
 
-/** List files under courses/<id>/assets/<folder>/. */
-export function listCourseAssets(
-  appRoot: string,
-  courseId: string,
-  folder: 'images' | 'documents' | 'others' = 'images',
-): { files: { path: string; name: string }[] } {
-  const loaded = loadCourse(appRoot, courseId);
-  if (!loaded) throw new Error('Course not found');
-  const dir = path.join(loaded.rootPath, 'assets', folder);
-  const files: { path: string; name: string }[] = [];
-  if (!fs.existsSync(dir)) return { files };
+export type CourseAssetKind = 'image' | 'video' | 'other';
+export type CourseAssetFolder = 'images' | 'documents' | 'others';
+
+export type CourseAssetFile = {
+  path: string;
+  name: string;
+  folder: CourseAssetFolder;
+  kind: CourseAssetKind;
+  mtimeMs: number;
+};
+
+function assetKindFromExt(ext: string): CourseAssetKind {
+  if (IMAGE_EXT.has(ext)) return 'image';
+  if (VIDEO_EXT.has(ext)) return 'video';
+  return 'other';
+}
+
+function listFilesInAssetFolder(
+  rootPath: string,
+  folder: CourseAssetFolder,
+  opts?: { mediaOnly?: boolean },
+): CourseAssetFile[] {
+  const dir = path.join(rootPath, 'assets', folder);
+  const files: CourseAssetFile[] = [];
+  if (!fs.existsSync(dir)) return files;
   for (const name of fs.readdirSync(dir)) {
     if (name.startsWith('.')) continue;
     const full = path.join(dir, name);
-    if (!fs.statSync(full).isFile()) continue;
-    const ext = path.extname(name).toLowerCase();
-    if (folder === 'images' && !IMAGE_EXT.has(ext)) continue;
-    if (folder === 'others' && !VIDEO_EXT.has(ext) && !IMAGE_EXT.has(ext)) {
-      // still include other binaries in others
+    let st: fs.Stats;
+    try {
+      st = fs.statSync(full);
+    } catch {
+      continue;
     }
-    files.push({ path: `assets/${folder}/${name}`, name });
+    if (!st.isFile()) continue;
+    const ext = path.extname(name).toLowerCase();
+    const kind = assetKindFromExt(ext);
+    if (opts?.mediaOnly) {
+      if (kind !== 'image' && kind !== 'video') continue;
+    } else if (folder === 'images' && kind !== 'image' && kind !== 'video') {
+      continue;
+    }
+    files.push({
+      path: `assets/${folder}/${name}`,
+      name,
+      folder,
+      kind,
+      mtimeMs: st.mtimeMs,
+    });
   }
-  files.sort((a, b) => a.name.localeCompare(b.name));
+  return files;
+}
+
+/** List files under courses/<id>/assets/<folder>/ (or combined media library). */
+export function listCourseAssets(
+  appRoot: string,
+  courseId: string,
+  folder: CourseAssetFolder | 'media' = 'images',
+): { files: CourseAssetFile[] } {
+  const loaded = loadCourse(appRoot, courseId);
+  if (!loaded) throw new Error('Course not found');
+
+  const files =
+    folder === 'media'
+      ? [
+          ...listFilesInAssetFolder(loaded.rootPath, 'images', { mediaOnly: true }),
+          ...listFilesInAssetFolder(loaded.rootPath, 'others', { mediaOnly: true }),
+        ]
+      : listFilesInAssetFolder(loaded.rootPath, folder, {
+          mediaOnly: false,
+        });
+
+  files.sort((a, b) => b.mtimeMs - a.mtimeMs || a.name.localeCompare(b.name));
   return { files };
 }
 

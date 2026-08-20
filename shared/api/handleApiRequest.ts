@@ -175,9 +175,14 @@ export async function handleApiRequest(
       segments[2] === 'assets'
     ) {
       try {
-        const folderRaw = String(params?.folder ?? 'images');
+        const folderRaw = String(params?.folder ?? 'media');
         const folder =
-          folderRaw === 'documents' || folderRaw === 'others' ? folderRaw : 'images';
+          folderRaw === 'documents' ||
+          folderRaw === 'others' ||
+          folderRaw === 'images' ||
+          folderRaw === 'media'
+            ? folderRaw
+            : 'media';
         const listed = listCourseAssets(ctx.appRoot, segments[1], folder);
         return { ok: true, status: 200, data: listed };
       } catch (err) {

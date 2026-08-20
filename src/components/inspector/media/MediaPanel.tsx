@@ -14,6 +14,7 @@ import {
 } from '../../../lesson-objects/mediaHtml';
 import { courseAssetUrl } from '../styleThemeColors';
 import { SizeInput } from '../ElementStylePanel';
+import { AssetLibraryModal, type LibraryAsset } from './AssetLibraryModal';
 import { IconPickerModal } from './IconPickerModal';
 import {
   type IconCatalogEntry,
@@ -315,8 +316,6 @@ export function MediaPanel({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const [libraryFiles, setLibraryFiles] = useState<{ path: string; name: string }[]>([]);
-  const [libraryLoading, setLibraryLoading] = useState(false);
 
   useEffect(() => {
     if (!el) return;
@@ -326,26 +325,6 @@ export function MediaPanel({
     if (k === 'video') setVideo(readVideoDraft(el));
     if (k === 'icon') setIcon(readIconDraft(el));
   }, [el, selected?.objectId]);
-
-  const loadLibrary = useCallback(async () => {
-    if (!courseId) return;
-    setLibraryLoading(true);
-    try {
-      const res = await apiFetch<{ files: { path: string; name: string }[] }>({
-        method: 'GET',
-        path: `/api/courses/${courseId}/assets`,
-        params: { folder: 'images' },
-      });
-      if (res.ok && res.data?.files) setLibraryFiles(res.data.files);
-      else setLibraryFiles([]);
-    } finally {
-      setLibraryLoading(false);
-    }
-  }, [courseId]);
-
-  useEffect(() => {
-    if (libraryOpen) void loadLibrary();
-  }, [libraryOpen, loadLibrary]);
 
   const markDirty = useCallback(() => {
     onDirtyChange?.(true);
@@ -552,6 +531,92 @@ export function MediaPanel({
     setKind(next);
   };
 
+  /** Pick from library: image → image element, video → video element (converts if needed). */
+  const applyLibraryAsset = (asset: LibraryAsset) => {
+    if (!courseId || !el || !rawEl) return;
+    if (asset.kind !== 'image' && asset.kind !== 'video') return;
+    const url = courseAssetUrl(courseId, asset.path);
+    const wantKind: MediaKind = asset.kind;
+
+    if (kind === wantKind) {
+      if (wantKind === 'image') applyImage({ ...image, src: url });
+      else applyVideo({ ...video, src: url });
+      return;
+    }
+
+    const html = createMediaHtml(wantKind);
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html.trim();
+    const node = wrap.firstElementChild as HTMLElement | null;
+    if (!node) return;
+    const replaceTarget =
+      rawEl.matches('figure.hc-media, .hc-media, [data-hc-media]') ||
+      rawEl.tagName === 'IMG' ||
+      rawEl.tagName === 'VIDEO' ||
+      rawEl.tagName === 'SVG' ||
+      rawEl.hasAttribute('data-icon')
+        ? rawEl.closest('figure.hc-media, .hc-media, [data-hc-media]') ?? rawEl
+        : rawEl;
+    replaceTarget.replaceWith(node);
+    ensureObjectId(node);
+
+    if (wantKind === 'image') {
+      const img =
+        node.tagName === 'IMG'
+          ? (node as HTMLImageElement)
+          : (node.querySelector('img') as HTMLImageElement | null);
+      if (img) {
+        img.setAttribute('src', url);
+        img.style.maxWidth = '100%';
+        img.style.width = '100%';
+        img.style.height = 'auto';
+        img.style.objectFit = 'cover';
+        img.style.objectPosition = 'center center';
+      }
+      setImage({
+        src: url,
+        alt: '',
+        objectFit: 'cover',
+        objectPosition: 'center center',
+        repeat: 'no-repeat',
+        width: '100%',
+        height: 'auto',
+      });
+    } else {
+      const videoEl =
+        node.tagName === 'VIDEO'
+          ? (node as HTMLVideoElement)
+          : (node.querySelector('video') as HTMLVideoElement | null);
+      if (videoEl) {
+        videoEl.setAttribute('src', url);
+        videoEl.setAttribute('controls', '');
+        videoEl.setAttribute('playsinline', '');
+        videoEl.style.maxWidth = '100%';
+        videoEl.style.width = '100%';
+        videoEl.style.height = 'auto';
+        videoEl.style.objectFit = 'cover';
+        videoEl.style.objectPosition = 'center center';
+      }
+      setVideo({
+        src: url,
+        poster: '',
+        controls: true,
+        autoplay: false,
+        loop: false,
+        muted: false,
+        playsInline: true,
+        objectFit: 'cover',
+        objectPosition: 'center center',
+        width: '100%',
+        height: 'auto',
+      });
+    }
+
+    objectMode?.selectElement(node);
+    markDirty();
+    setKind(wantKind);
+  };
+
   const previewSrc = useMemo(() => {
     if (kind === 'image' && image.src) return image.src;
     if (kind === 'video' && (video.poster || video.src)) return video.poster || video.src;
@@ -662,56 +727,13 @@ export function MediaPanel({
             <button
               type="button"
               disabled={!courseId}
-              onClick={() => setLibraryOpen((o) => !o)}
+              onClick={() => setLibraryOpen(true)}
               className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-[var(--line)] px-2.5 py-2 text-[11px] font-semibold text-[var(--ink)] hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <FolderOpen className="h-3.5 w-3.5" />
               {tr('mediaLibraryPick')}
             </button>
           </div>
-          {libraryOpen && (
-            <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-[var(--line)] bg-[var(--panel)]/50 p-2">
-              {libraryLoading ? (
-                <p className="text-[10px] text-[var(--ink-muted)]">{tr('styleBgImageUploading')}</p>
-              ) : libraryFiles.length === 0 ? (
-                <p className="text-[10px] text-[var(--ink-muted)]">{tr('mediaLibraryEmpty')}</p>
-              ) : (
-                <div className="grid grid-cols-3 gap-1.5">
-                  {libraryFiles.map((f) => {
-                    const url = courseId ? courseAssetUrl(courseId, f.path) : f.path;
-                    const selectedSrc =
-                      image.src === url || image.src.endsWith(f.path) || image.src === f.path;
-                    return (
-                      <button
-                        key={f.path}
-                        type="button"
-                        title={f.name}
-                        onClick={() =>
-                          applyImage({
-                            ...image,
-                            src: courseId ? courseAssetUrl(courseId, f.path) : f.path,
-                          })
-                        }
-                        className={`overflow-hidden rounded-md border ${
-                          selectedSrc
-                            ? 'border-[var(--accent)] ring-1 ring-[var(--accent)]'
-                            : 'border-[var(--line)]'
-                        }`}
-                      >
-                        <div
-                          className="aspect-square bg-center bg-cover"
-                          style={{ backgroundImage: `url("${url}")` }}
-                        />
-                        <div className="truncate px-1 py-0.5 text-[8px] text-[var(--ink-muted)]">
-                          {f.name}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
           {!courseId && (
             <p className="text-[10px] text-[var(--ink-muted)]">{tr('mediaNeedCourse')}</p>
           )}
@@ -815,20 +837,31 @@ export function MediaPanel({
           <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
             {tr('mediaVideoSource')}
           </div>
-          <label className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[var(--line)] px-2 py-2 text-[11px] font-semibold text-[var(--ink)] hover:bg-black/5">
-            <Upload className="h-3.5 w-3.5" />
-            {uploading ? tr('styleBgImageUploading') : tr('mediaUploadVideo')}
-            <input
-              type="file"
-              accept="video/*"
-              className="hidden"
-              disabled={!courseId || uploading}
-              onChange={(e) => {
-                void uploadAsset(e.target.files, 'video');
-                e.target.value = '';
-              }}
-            />
-          </label>
+          <div className="flex gap-2">
+            <label className="inline-flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[var(--line)] px-2 py-2 text-[11px] font-semibold text-[var(--ink)] hover:bg-black/5">
+              <Upload className="h-3.5 w-3.5" />
+              {uploading ? tr('styleBgImageUploading') : tr('mediaUploadVideo')}
+              <input
+                type="file"
+                accept="video/*"
+                className="hidden"
+                disabled={!courseId || uploading}
+                onChange={(e) => {
+                  void uploadAsset(e.target.files, 'video');
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={!courseId}
+              onClick={() => setLibraryOpen(true)}
+              className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-[var(--line)] px-2.5 py-2 text-[11px] font-semibold text-[var(--ink)] hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <FolderOpen className="h-3.5 w-3.5" />
+              {tr('mediaLibraryPick')}
+            </button>
+          </div>
           {!courseId && (
             <p className="text-[10px] text-[var(--ink-muted)]">{tr('mediaNeedCourse')}</p>
           )}
@@ -1019,6 +1052,14 @@ export function MediaPanel({
           setPickerOpen(false);
         }}
       />
+      {courseId && (
+        <AssetLibraryModal
+          open={libraryOpen}
+          courseId={courseId}
+          onClose={() => setLibraryOpen(false)}
+          onPick={applyLibraryAsset}
+        />
+      )}
     </div>
   );
 }
