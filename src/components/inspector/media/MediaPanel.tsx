@@ -2,7 +2,20 @@ import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { Film, FolderOpen, Image as ImageIcon, Smile, Upload } from 'lucide-react';
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  AlignVerticalJustifyStart,
+  Film,
+  FileText,
+  FolderOpen,
+  Image as ImageIcon,
+  Smile,
+  Upload,
+} from 'lucide-react';
 import { apiFetch } from '../../../api/client';
 import { usePrefs } from '../../../prefs/PrefsProvider';
 import { useLessonObjectModeOptional } from '../../../lesson-objects/LessonObjectMode';
@@ -10,6 +23,9 @@ import { ensureObjectId } from '../../../lesson-objects/selection';
 import {
   catalogIdForMediaKind,
   createMediaHtml as createMediaHtmlShared,
+  defaultFolderForFile,
+  type MediaAssetFolder,
+  type MediaFileMode,
   type MediaKind,
 } from '../../../lesson-objects/mediaHtml';
 import { courseAssetUrl } from '../styleThemeColors';
@@ -123,7 +139,14 @@ function dataIconValue(lib: IconLibraryId, value: string): string {
 
 export function detectMediaKind(el: HTMLElement): MediaKind | null {
   const explicit = (el.getAttribute('data-hc-media') || '').toLowerCase();
-  if (explicit === 'icon' || explicit === 'image' || explicit === 'video') return explicit;
+  if (explicit === 'icon' || explicit === 'image' || explicit === 'video' || explicit === 'file') {
+    return explicit;
+  }
+
+  const component = (el.getAttribute('data-component') || '').toLowerCase();
+  if (component === 'hc-file' || component === 'pdf-embed' || component === 'asset-download') {
+    return 'file';
+  }
 
   const tag = el.tagName.toLowerCase();
   if (tag === 'video' || tag === 'audio') return 'video';
@@ -139,6 +162,9 @@ export function detectMediaKind(el: HTMLElement): MediaKind | null {
   }
 
   if (el.matches('figure.hc-media, .hc-media')) {
+    if (el.getAttribute('data-hc-media') === 'file' || el.getAttribute('data-component') === 'hc-file') {
+      return 'file';
+    }
     if (el.querySelector('video, audio')) return 'video';
     if (el.querySelector('img, picture')) return 'image';
     if (el.querySelector('svg, i[class*="fa-"], i[class*="bi-"], .hc-emoji, [data-icon]')) {
@@ -147,29 +173,47 @@ export function detectMediaKind(el: HTMLElement): MediaKind | null {
     return 'image';
   }
 
-  const nested = el.querySelector('img, video, audio, svg, picture');
+  const nested = el.querySelector(
+    '[data-hc-media="file"], [data-component="hc-file"], [data-component="pdf-embed"], [data-component="asset-download"], img, video, audio, svg, picture',
+  );
   if (nested instanceof HTMLElement) return detectMediaKind(nested);
 
   return null;
 }
 
-/** Prefer the concrete media node (img/video/svg/icon host) for editing. */
-export function resolveMediaTarget(el: HTMLElement): HTMLElement {
-  const tag = el.tagName.toLowerCase();
-  if (
-    tag === 'img' ||
-    tag === 'video' ||
-    tag === 'audio' ||
-    tag === 'svg' ||
-    tag === 'picture' ||
-    el.hasAttribute('data-icon') ||
+function isMediaIconHost(el: HTMLElement): boolean {
+  return (
+    el.getAttribute('data-hc-media') === 'icon' ||
+    el.classList.contains('hc-media--icon') ||
     el.classList.contains('hc-media--icon')
-  ) {
-    return el;
+  );
+}
+
+/** Resolve the editable media host (never an inner svg/i for icons). */
+export function resolveMediaTarget(el: HTMLElement): HTMLElement {
+  const fileHost = el.closest(
+    '[data-hc-media="file"], [data-component="hc-file"], [data-component="pdf-embed"], [data-component="asset-download"]',
+  ) as HTMLElement | null;
+  if (fileHost) return fileHost;
+
+  const mediaHost = el.closest('[data-hc-media], .hc-media, .hc-media') as HTMLElement | null;
+  if (mediaHost) {
+    const kind = (mediaHost.getAttribute('data-hc-media') || '').toLowerCase();
+    if (kind === 'icon' || isMediaIconHost(mediaHost)) return mediaHost;
+    if (kind === 'image' || kind === 'video' || kind === 'file') return mediaHost;
+    if (mediaHost.matches('figure.hc-media, figure.hc-media, .hc-media, .hc-media')) {
+      return mediaHost;
+    }
   }
+
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'img' || tag === 'video' || tag === 'audio' || tag === 'picture') return el;
+  if (isMediaIconHost(el) || el.hasAttribute('data-icon')) return el;
+
   const inner =
-    el.querySelector('video, audio, img, picture, svg, [data-icon], .hc-media--icon, i[class*="fa-"], i[class*="bi-"], .hc-emoji') ||
-    null;
+    el.querySelector(
+      'video, audio, img, picture, [data-hc-media], .hc-media--icon, .hc-media--icon, [data-icon]',
+    ) || null;
   return inner instanceof HTMLElement ? inner : el;
 }
 
@@ -202,6 +246,126 @@ type IconDraft = {
   dataIcon: string;
   size: string;
 };
+
+type FileDraft = {
+  src: string;
+  mode: MediaFileMode;
+  title: string;
+  label: string;
+  folder: MediaAssetFolder;
+  expand: boolean;
+  zoom: boolean;
+  pan: boolean;
+  snapshot: boolean;
+};
+
+function readFileDraft(el: HTMLElement): FileDraft {
+  const src = el.getAttribute('data-src') || '';
+  const mode = (el.getAttribute('data-hc-file-mode') || 'visualize').toLowerCase();
+  const component = (el.getAttribute('data-component') || '').toLowerCase();
+  let resolvedMode: MediaFileMode =
+    mode === 'download' || component === 'asset-download' ? 'download' : 'visualize';
+  const folderGuess = defaultFolderForFile(src.split('/').pop() || 'file.bin');
+  return {
+    src,
+    mode: resolvedMode,
+    title:
+      el.getAttribute('data-shell-title') ||
+      el.getAttribute('data-title') ||
+      el.getAttribute('data-hc-label') ||
+      'File',
+    label: el.getAttribute('data-label') || 'Download file',
+    folder: folderGuess,
+    expand: el.getAttribute('data-shell-expand') !== '0',
+    zoom: el.getAttribute('data-shell-zoom') === '1',
+    pan: el.getAttribute('data-shell-pan') === '1',
+    snapshot: el.getAttribute('data-shell-snapshot') !== '0',
+  };
+}
+
+function applyFileDraft(el: HTMLElement, next: FileDraft) {
+  el.setAttribute('data-hc-media', 'file');
+  el.setAttribute('data-component', 'hc-file');
+  el.setAttribute('data-hc-file-mode', next.mode);
+  el.setAttribute('data-src', next.src);
+  el.setAttribute('data-title', next.title);
+  el.setAttribute('data-label', next.label);
+  el.setAttribute('data-shell-title', next.title);
+  el.setAttribute('data-shell-expand', next.expand ? '1' : '0');
+  el.setAttribute('data-shell-zoom', next.zoom ? '1' : '0');
+  el.setAttribute('data-shell-pan', next.pan ? '1' : '0');
+  el.setAttribute('data-shell-snapshot', next.snapshot ? '1' : '0');
+  el.setAttribute('data-hc-label', 'File');
+  el.classList.add('hc-media', 'hc-media--file');
+}
+
+type IconHAlign = 'left' | 'center' | 'right';
+type IconVAlign = 'top' | 'middle' | 'bottom';
+type IconStack = 'horizontal' | 'vertical';
+
+function readIconLayout(el: HTMLElement): {
+  hAlign: IconHAlign;
+  vAlign: IconVAlign;
+  stack: IconStack;
+} {
+  const h = (el.getAttribute('data-hc-align') || '') as IconHAlign;
+  const v = (el.getAttribute('data-hc-valign') || '') as IconVAlign;
+  const stack = (el.getAttribute('data-hc-stack') || '') as IconStack;
+  const cs = getComputedStyle(el);
+  return {
+    hAlign: h === 'left' || h === 'center' || h === 'right' ? h : 'left',
+    vAlign: v === 'top' || v === 'middle' || v === 'bottom' ? v : 'middle',
+    stack:
+      stack === 'horizontal' || stack === 'vertical'
+        ? stack
+        : cs.display.includes('flex') && cs.flexDirection.includes('column')
+          ? 'vertical'
+          : 'horizontal',
+  };
+}
+
+function applyIconLayout(
+  el: HTMLElement,
+  next: { hAlign: IconHAlign; vAlign: IconVAlign; stack: IconStack },
+) {
+  el.setAttribute('data-hc-align', next.hAlign);
+  el.setAttribute('data-hc-valign', next.vAlign);
+  el.setAttribute('data-hc-stack', next.stack);
+  el.style.display = 'inline-flex';
+  el.style.flexDirection = next.stack === 'vertical' ? 'column' : 'row';
+  el.style.justifyContent =
+    next.stack === 'horizontal'
+      ? next.hAlign === 'left'
+        ? 'flex-start'
+        : next.hAlign === 'right'
+          ? 'flex-end'
+          : 'center'
+      : next.vAlign === 'top'
+        ? 'flex-start'
+        : next.vAlign === 'bottom'
+          ? 'flex-end'
+          : 'center';
+  el.style.alignItems =
+    next.stack === 'horizontal'
+      ? next.vAlign === 'top'
+        ? 'flex-start'
+        : next.vAlign === 'bottom'
+          ? 'flex-end'
+          : 'center'
+      : next.hAlign === 'left'
+        ? 'flex-start'
+        : next.hAlign === 'right'
+          ? 'flex-end'
+          : 'center';
+
+  // Position the icon within its parent flow (text block / section).
+  el.style.marginLeft = next.hAlign === 'right' ? 'auto' : next.hAlign === 'center' ? 'auto' : '0';
+  el.style.marginRight = next.hAlign === 'left' ? 'auto' : next.hAlign === 'center' ? 'auto' : '0';
+  el.style.alignSelf =
+    next.hAlign === 'left' ? 'flex-start' : next.hAlign === 'right' ? 'flex-end' : 'center';
+  el.style.verticalAlign =
+    next.vAlign === 'top' ? 'top' : next.vAlign === 'bottom' ? 'bottom' : 'middle';
+}
 
 function readImageDraft(el: HTMLElement): ImageDraft {
   const img =
@@ -309,9 +473,25 @@ export function MediaPanel({
     height: 'auto',
   });
   const [icon, setIcon] = useState<IconDraft>({
-    library: 'lucide',
-    dataIcon: 'circle',
+    library: 'fa',
+    dataIcon: 'fa-solid fa-star',
     size: '48px',
+  });
+  const [iconLayout, setIconLayout] = useState<{
+    hAlign: IconHAlign;
+    vAlign: IconVAlign;
+    stack: IconStack;
+  }>({ hAlign: 'left', vAlign: 'middle', stack: 'horizontal' });
+  const [file, setFile] = useState<FileDraft>({
+    src: '',
+    mode: 'visualize',
+    title: 'File',
+    label: 'Download file',
+    folder: 'documents',
+    expand: true,
+    zoom: false,
+    pan: false,
+    snapshot: true,
   });
   const [pickerOpen, setPickerOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -323,7 +503,11 @@ export function MediaPanel({
     setKind(k);
     if (k === 'image') setImage(readImageDraft(el));
     if (k === 'video') setVideo(readVideoDraft(el));
-    if (k === 'icon') setIcon(readIconDraft(el));
+    if (k === 'file') setFile(readFileDraft(el));
+    if (k === 'icon') {
+      setIcon(readIconDraft(el));
+      setIconLayout(readIconLayout(el));
+    }
   }, [el, selected?.objectId]);
 
   const markDirty = useCallback(() => {
@@ -432,17 +616,22 @@ export function MediaPanel({
     if (!el) return;
     const value = dataIconValue(next.library, next.dataIcon);
     const host =
-      el.tagName === 'SVG' || el.tagName === 'I' || el.classList.contains('hc-emoji')
-        ? el.parentElement instanceof HTMLElement && el.parentElement.classList.contains('hc-media--icon')
-          ? el.parentElement
-          : el
-        : el;
+      isMediaIconHost(el)
+        ? el
+        : el.closest('[data-hc-media="icon"], .hc-media--icon, .hc-media--icon') instanceof
+            HTMLElement
+          ? (el.closest('[data-hc-media="icon"], .hc-media--icon, .hc-media--icon') as HTMLElement)
+          : el.tagName === 'SVG' || el.tagName === 'I' || el.classList.contains('hc-emoji')
+            ? el.parentElement instanceof HTMLElement
+              ? el.parentElement
+              : el
+            : el;
 
     host.setAttribute('data-hc-media', 'icon');
     host.setAttribute('data-hc-icon-lib', next.library);
     host.setAttribute('data-icon', value);
     host.setAttribute('data-hc-label', 'Icon');
-    host.classList.add('hc-media', 'hc-media--icon');
+    host.classList.add('hc-media', 'hc-media--icon', 'hc-media', 'hc-media--icon');
     host.style.display = 'inline-flex';
     host.style.alignItems = 'center';
     host.style.justifyContent = 'center';
@@ -453,8 +642,11 @@ export function MediaPanel({
       host.style.fontSize = next.size;
       host.setAttribute('data-hc-icon-size', next.size);
     }
-    host.innerHTML = iconInnerHtml(next.library, value);
-    // Scale inner svg/i to fill
+    const html = iconInnerHtml(next.library, value);
+    host.innerHTML =
+      html ||
+      `<i class="fa-solid fa-star" aria-hidden="true" style="width:100%;height:100%;pointer-events:none"></i>`;
+    // Scale inner svg/i to fill; ignore pointer events so clicks hit the host.
     const inner = host.querySelector('svg, i, .hc-emoji');
     if (inner instanceof HTMLElement || inner instanceof SVGElement) {
       inner.setAttribute('width', '100%');
@@ -462,6 +654,9 @@ export function MediaPanel({
       if (inner instanceof HTMLElement) {
         inner.style.width = '100%';
         inner.style.height = '100%';
+        inner.style.pointerEvents = 'none';
+      } else {
+        (inner as SVGElement).style.pointerEvents = 'none';
       }
     }
     ensureObjectId(host);
@@ -472,9 +667,20 @@ export function MediaPanel({
     markDirty();
   };
 
-  const uploadAsset = async (files: FileList | null, forKind: 'image' | 'video' | 'poster') => {
+  const applyFile = (next: FileDraft) => {
+    if (!el) return;
+    applyFileDraft(el, next);
+    setFile(next);
+    markDirty();
+  };
+
+  const uploadAsset = async (
+    files: FileList | null,
+    forKind: 'image' | 'video' | 'poster' | 'file',
+    folderOverride?: MediaAssetFolder,
+  ) => {
     if (!files?.length || !courseId) return;
-    const file = files[0]!;
+    const fileObj = files[0]!;
     setUploading(true);
     try {
       const dataBase64 = await new Promise<string>((resolve, reject) => {
@@ -484,16 +690,33 @@ export function MediaPanel({
           resolve(result.includes(',') ? result.split(',')[1]! : result);
         };
         reader.onerror = () => reject(new Error('Failed to read file'));
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(fileObj);
       });
-      const folder = forKind === 'image' || forKind === 'poster' ? 'images' : 'videos';
+      const folder: MediaAssetFolder =
+        folderOverride ||
+        (forKind === 'file'
+          ? file.folder || defaultFolderForFile(fileObj.name)
+          : forKind === 'image' || forKind === 'poster'
+            ? 'images'
+            : 'videos');
       const res = await apiFetch<{ path: string }>({
         method: 'POST',
         path: `/api/courses/${courseId}/assets`,
-        body: { filename: file.name, dataBase64, folder },
+        body: { filename: fileObj.name, dataBase64, folder },
       });
       if (!res.ok || !res.data?.path) return;
       const path = res.data.path;
+      if (forKind === 'file') {
+        const base = fileObj.name.replace(/\.[^.]+$/, '') || 'File';
+        applyFile({
+          ...file,
+          src: path,
+          folder,
+          title: file.title === 'File' || !file.title ? base : file.title,
+          label: file.label === 'Download file' ? `Download ${fileObj.name}` : file.label,
+        });
+        return;
+      }
       const url = courseAssetUrl(courseId, path);
       if (forKind === 'image') applyImage({ ...image, src: url });
       else if (forKind === 'poster') applyVideo({ ...video, poster: url });
@@ -517,12 +740,16 @@ export function MediaPanel({
     const node = wrap.firstElementChild as HTMLElement | null;
     if (!node) return;
     const replaceTarget =
-      rawEl.matches('figure.hc-media, .hc-media, [data-hc-media]') ||
+      rawEl.matches(
+        'figure.hc-media, figure.hc-media, .hc-media, .hc-media, [data-hc-media]',
+      ) ||
       rawEl.tagName === 'IMG' ||
       rawEl.tagName === 'VIDEO' ||
       rawEl.tagName === 'SVG' ||
       rawEl.hasAttribute('data-icon')
-        ? rawEl.closest('figure.hc-media, .hc-media, [data-hc-media]') ?? rawEl
+        ? rawEl.closest(
+            'figure.hc-media, figure.hc-media, .hc-media, .hc-media, [data-hc-media]',
+          ) ?? rawEl
         : rawEl;
     replaceTarget.replaceWith(node);
     ensureObjectId(node);
@@ -550,12 +777,16 @@ export function MediaPanel({
     const node = wrap.firstElementChild as HTMLElement | null;
     if (!node) return;
     const replaceTarget =
-      rawEl.matches('figure.hc-media, .hc-media, [data-hc-media]') ||
+      rawEl.matches(
+        'figure.hc-media, figure.hc-media, .hc-media, .hc-media, [data-hc-media]',
+      ) ||
       rawEl.tagName === 'IMG' ||
       rawEl.tagName === 'VIDEO' ||
       rawEl.tagName === 'SVG' ||
       rawEl.hasAttribute('data-icon')
-        ? rawEl.closest('figure.hc-media, .hc-media, [data-hc-media]') ?? rawEl
+        ? rawEl.closest(
+            'figure.hc-media, figure.hc-media, .hc-media, .hc-media, [data-hc-media]',
+          ) ?? rawEl
         : rawEl;
     replaceTarget.replaceWith(node);
     ensureObjectId(node);
@@ -632,17 +863,20 @@ export function MediaPanel({
         ? tr('mediaKindIcon')
         : mediaKind === 'video'
           ? tr('mediaKindVideo')
-          : tr('mediaKindImage');
+          : mediaKind === 'file'
+            ? tr('mediaKindFile')
+            : tr('mediaKindImage');
     objectMode?.beginCatalogDrag(itemId, label);
   };
 
   const kindCards = (
-    <div className="grid grid-cols-3 gap-2">
+    <div className="grid grid-cols-2 gap-2">
       {(
         [
           ['icon', tr('mediaKindIcon'), <Smile className="h-5 w-5" key="i" />],
           ['image', tr('mediaKindImage'), <ImageIcon className="h-5 w-5" key="m" />],
           ['video', tr('mediaKindVideo'), <Film className="h-5 w-5" key="v" />],
+          ['file', tr('mediaKindFile'), <FileText className="h-5 w-5" key="f" />],
         ] as const
       ).map(([id, label, iconNode]) => {
         const active = kind === id && Boolean(el || onRequestInsert);
@@ -668,12 +902,9 @@ export function MediaPanel({
   );
 
   if (!el && !onRequestInsert) {
+    // Edit level without a resolvable media host — never show insert cards here.
     return (
-      <div className="space-y-3">
-        <p className="text-[12px] text-[var(--ink-muted)]">{tr('mediaSelectHint')}</p>
-        {kindCards}
-        <p className="text-[10px] text-[var(--ink-muted)]">{tr('mediaSelectHint2')}</p>
-      </div>
+      <p className="text-[12px] text-[var(--ink-muted)]">{tr('mediaSelectHint')}</p>
     );
   }
 
@@ -691,13 +922,6 @@ export function MediaPanel({
 
   return (
     <div className="space-y-4">
-      <section className="space-y-2">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-          {tr('mediaKindTitle')}
-        </div>
-        {kindCards}
-      </section>
-
       {kind === 'image' && (
         <section className="space-y-2.5">
           <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
@@ -988,6 +1212,128 @@ export function MediaPanel({
         </section>
       )}
 
+      {kind === 'file' && (
+        <section className="space-y-2.5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            {tr('mediaFileSection')}
+          </div>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+              {tr('mediaFileMode')}
+            </span>
+            <select
+              className={fieldClass}
+              value={file.mode}
+              onChange={(e) =>
+                applyFile({ ...file, mode: e.target.value === 'download' ? 'download' : 'visualize' })
+              }
+            >
+              <option value="visualize">{tr('mediaFileModeVisualize')}</option>
+              <option value="download">{tr('mediaFileModeDownload')}</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+              {tr('mediaFileFolder')}
+            </span>
+            <select
+              className={fieldClass}
+              value={file.folder}
+              onChange={(e) =>
+                applyFile({ ...file, folder: e.target.value as MediaAssetFolder })
+              }
+            >
+              <option value="documents">{tr('mediaFolderDocuments')}</option>
+              <option value="images">{tr('mediaFolderImages')}</option>
+              <option value="videos">{tr('mediaFolderVideos')}</option>
+              <option value="others">{tr('mediaFolderOthers')}</option>
+            </select>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[var(--line)] bg-[var(--panel)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--ink)] hover:border-[var(--accent)]">
+              <Upload className="h-3.5 w-3.5" />
+              {uploading ? tr('mediaUploading') : tr('mediaFileImport')}
+              <input
+                type="file"
+                className="hidden"
+                disabled={!courseId || uploading}
+                onChange={(e) => {
+                  void uploadAsset(e.target.files, 'file', file.folder);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+          </div>
+          {!courseId && (
+            <p className="text-[10px] text-[var(--ink-muted)]">{tr('mediaNeedCourse')}</p>
+          )}
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+              {tr('mediaFileSrc')}
+            </span>
+            <input
+              className={fieldClass}
+              value={file.src}
+              placeholder="assets/documents/…"
+              onChange={(e) => applyFile({ ...file, src: e.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+              {tr('mediaFileTitle')}
+            </span>
+            <input
+              className={fieldClass}
+              value={file.title}
+              onChange={(e) => applyFile({ ...file, title: e.target.value })}
+            />
+          </label>
+          {file.mode === 'download' && (
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">
+                {tr('mediaFileButtonLabel')}
+              </span>
+              <input
+                className={fieldClass}
+                value={file.label}
+                onChange={(e) => applyFile({ ...file, label: e.target.value })}
+              />
+            </label>
+          )}
+          {file.mode === 'visualize' && (
+            <div className="space-y-1.5 rounded-lg border border-[var(--line)] bg-[var(--panel)]/40 p-2.5">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+                {tr('mediaFileViewer')}
+              </div>
+              {(
+                [
+                  ['expand', tr('mediaFileShellExpand'), file.expand],
+                  ['zoom', tr('mediaFileShellZoom'), file.zoom],
+                  ['pan', tr('mediaFileShellPan'), file.pan],
+                  ['snapshot', tr('mediaFileShellSnapshot'), file.snapshot],
+                ] as const
+              ).map(([key, label, checked]) => (
+                <label
+                  key={key}
+                  className="flex cursor-pointer items-center gap-2 text-[12px] text-[var(--ink)]"
+                >
+                  <input
+                    type="checkbox"
+                    className="accent-[var(--accent)]"
+                    checked={checked}
+                    onChange={(e) => applyFile({ ...file, [key]: e.target.checked })}
+                  />
+                  {label}
+                </label>
+              ))}
+              <p className="text-[10px] leading-snug text-[var(--ink-muted)]">
+                {tr('mediaFileSnapshotHint')}
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+
       {kind === 'icon' && (
         <section className="space-y-2.5">
           <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
@@ -1035,6 +1381,75 @@ export function MediaPanel({
               onChange={(e) => applyIcon({ ...icon, size: e.target.value })}
             />
           </label>
+          <div className="space-y-2 rounded-lg border border-[var(--line)] bg-[var(--panel)]/40 p-2.5">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+              {tr('mediaIconAlign')}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="w-14 text-[10px] text-[var(--ink-muted)]">{tr('mediaIconAlignH')}</span>
+              <div className="flex gap-1">
+                {(
+                  [
+                    ['left', AlignLeft],
+                    ['center', AlignCenter],
+                    ['right', AlignRight],
+                  ] as const
+                ).map(([align, Icon]) => (
+                  <button
+                    key={align}
+                    type="button"
+                    title={align}
+                    onClick={() => {
+                      if (!el) return;
+                      const next = { ...iconLayout, hAlign: align };
+                      applyIconLayout(el, next);
+                      setIconLayout(next);
+                      markDirty();
+                    }}
+                    className={`inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border ${
+                      iconLayout.hAlign === align
+                        ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                        : 'border-[var(--line)] text-[var(--ink-muted)] hover:bg-black/5'
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="w-14 text-[10px] text-[var(--ink-muted)]">{tr('mediaIconAlignV')}</span>
+              <div className="flex gap-1">
+                {(
+                  [
+                    ['top', AlignVerticalJustifyStart],
+                    ['middle', AlignVerticalJustifyCenter],
+                    ['bottom', AlignVerticalJustifyEnd],
+                  ] as const
+                ).map(([align, Icon]) => (
+                  <button
+                    key={align}
+                    type="button"
+                    title={align}
+                    onClick={() => {
+                      if (!el) return;
+                      const next = { ...iconLayout, vAlign: align };
+                      applyIconLayout(el, next);
+                      setIconLayout(next);
+                      markDirty();
+                    }}
+                    className={`inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border ${
+                      iconLayout.vAlign === align
+                        ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                        : 'border-[var(--line)] text-[var(--ink-muted)] hover:bg-black/5'
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </section>
       )}
 

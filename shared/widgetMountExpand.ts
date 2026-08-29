@@ -1300,6 +1300,25 @@ export function expandMermaidGraph(): string {
   return `\n<pre data-chart>${escapeHtml(chart)}</pre>\n`;
 }
 
+export function expandHcChart(): string {
+  const items = [
+    { label: 'Alpha', value: '40', color: '#3b82f6' },
+    { label: 'Beta', value: '28', color: '#10b981' },
+    { label: 'Gamma', value: '18', color: '#f59e0b' },
+    { label: 'Delta', value: '14', color: '#ef4444' },
+  ];
+  return itemsHtml(
+    items.map(
+      (item) =>
+        `${itemOpen({
+          'data-label': item.label,
+          'data-value': item.value,
+          'data-color': item.color,
+        })}${itemClose()}`,
+    ),
+  );
+}
+
 export function expandImageCarousel(): string {
   const slides = [
     {
@@ -1435,6 +1454,8 @@ export function expandMountInner(
       return { inner: expandDemoChart(preset) };
     case 'mermaid-graph':
       return { inner: expandMermaidGraph() };
+    case 'hc-chart':
+      return { inner: expandHcChart() };
     case 'image-carousel':
       return { inner: expandImageCarousel() };
     case 'marquee-carousel':

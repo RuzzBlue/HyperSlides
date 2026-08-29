@@ -22,6 +22,38 @@ export function nearestSection(el: HTMLElement, root: HTMLElement): HTMLElement 
   return null;
 }
 
+function isLessonRootHost(el: HTMLElement): boolean {
+  return el.hasAttribute('data-hc-lesson-root') || el.hasAttribute('data-hc-lesson-root');
+}
+
+/**
+ * Host for inserting media (icon/image/video).
+ * Never append to the lesson root wrapper — that parks nodes outside `<section>`
+ * where they render as orphans and become hard/impossible to reselect.
+ */
+export function mediaInsertHost(root: HTMLElement, selected: HTMLElement | null): HTMLElement {
+  const sections = topLevelSections(root);
+  const fallbackSection =
+    sections.at(-1) ?? (root.querySelector('section') as HTMLElement | null) ?? null;
+
+  if (selected && root.contains(selected)) {
+    const section = nearestSection(selected, root) ?? fallbackSection;
+    if (
+      (selected.tagName === 'SECTION' ||
+        selected.tagName === 'DIV' ||
+        selected.tagName === 'ARTICLE') &&
+      !isLessonRootHost(selected) &&
+      selected !== root &&
+      (!section || section === selected || section.contains(selected))
+    ) {
+      return selected;
+    }
+    if (section) return section;
+  }
+
+  return fallbackSection ?? findArticle(root);
+}
+
 export type CatalogInsertResult =
   | { ok: true; node: HTMLElement }
   | { ok: false; reason: 'template-locked' };

@@ -11,6 +11,7 @@ import {
   BarChart3,
   Bold,
   CheckCircle2,
+  ChevronRight,
   CircleDashed,
   Code2,
   Film,
@@ -53,10 +54,13 @@ import {
 import { ElementEffectsPanel } from './ElementEffectsPanel';
 import { ElementMetaPanel } from './ElementMetaPanel';
 import { LinksPanel } from './LinksPanel';
-import { MediaPanel, createMediaHtml, type MediaKind } from './media/MediaPanel';
+import { MediaPanel, createMediaHtml, detectMediaKind, resolveMediaTarget, type MediaKind } from './media/MediaPanel';
+import { DataPanel, createDataHtml, type DataKind } from './data/DataPanel';
+import { detectDataKind, resolveDataTarget } from '../../lesson-objects/dataHtml';
+import { inspectorToolForElement } from '../../lesson-objects/elementRouting';
 import { ensureObjectId } from '../../lesson-objects/selection';
 import { isInsideLockedTemplate, serializeLessonRoot } from '../../lesson-objects/lessonHtml';
-import { topLevelSections } from '../../lesson-objects/elementInsert';
+import { mediaInsertHost } from '../../lesson-objects/elementInsert';
 import { swatchesFromCourseTheme } from './styleThemeColors';
 import { TemplatePickerButton } from './TemplatePicker';
 import { QuizEditPanel, type QuizEditContext } from './QuizEditPanel';
@@ -82,6 +86,9 @@ export type InspectorTool =
   | 'progress'
   | 'code';
 
+function isDataInspectorTool(tool: InspectorTool): boolean {
+  return tool === 'charts' || tool === 'graphs' || tool === 'tables';
+}
 export type InspectorMode = 'docked' | 'floating';
 
 /** Tools that stay available across lesson / quiz / lab slides. */
@@ -1290,8 +1297,29 @@ function StyledToolPanel({
   sequence?: SequenceItem[];
   currentSlideKey?: string;
 }) {
+  const { tr } = usePrefs();
   const objectMode = useLessonObjectModeOptional();
   const [tab, setTab] = useInspectorElementTab(objectMode?.selected?.objectId);
+  const isPlaceableTool = tool === 'media' || isDataInspectorTool(tool);
+
+  const selected = objectMode?.selected ?? null;
+  const selectedEl = selected?.element ?? null;
+
+  const matchesTool = useMemo(() => {
+    if (!selectedEl?.isConnected) return false;
+    if (tool === 'media') {
+      return Boolean(detectMediaKind(resolveMediaTarget(selectedEl)));
+    }
+    if (isDataInspectorTool(tool)) {
+      if (detectDataKind(resolveDataTarget(selectedEl))) return true;
+      // Fallback: anything that routes to the Data inspector counts as a match
+      // (demo charts / legacy mounts without data-hc-data).
+      const routed = inspectorToolForElement(selectedEl);
+      return routed === 'charts' || routed === 'graphs' || routed === 'tables';
+    }
+    // Links / other style tools: any selection is editable
+    return true;
+  }, [selectedEl, tool]);
 
   useEffect(() => {
     registerSave?.(async () => {
@@ -1309,53 +1337,134 @@ function StyledToolPanel({
     });
   }, [registerSave, objectMode, onHtmlPersist, onDirtyChange, onSavingChange]);
 
-  if (!objectMode?.selected) {
-    if (tool === 'media') {
-      return (
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-          <MediaInsertChooser onOpenTool={onOpenTool} />
-        </div>
-      );
-    }
+  const rootLabel =
+    tool === 'media' ? tr('toolMedia') : isDataInspectorTool(tool) ? tr('toolCharts') : tr(TOOL_META[tool].labelKey);
+
+  // Same as Elements: catalog only when nothing matching is selected.
+  // Breadcrumb root clears selection to return to insert cards.
+  const goCatalog = () => {
+    objectMode?.selectElement(null);
+  };
+
+  const crumbs = isPlaceableTool
+    ? [
+        { id: 'root', label: rootLabel, action: goCatalog },
+        ...(matchesTool && selected
+          ? [
+              {
+                id: selected.objectId,
+                label: selected.label,
+                action: () => undefined,
+              },
+            ]
+          : []),
+      ]
+    : [];
+
+  const catalogView = (
+    <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+      {tool === 'media' ? (
+        <MediaInsertChooser onOpenTool={onOpenTool} />
+      ) : (
+        <DataInsertChooser
+          onOpenTool={onOpenTool}
+          courseId={courseId}
+          onDirtyChange={onDirtyChange}
+        />
+      )}
+    </div>
+  );
+
+  // First level (insert cards) — only when no matching placed element is selected
+  if (isPlaceableTool && !matchesTool) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <InspectorPlaceableCrumbs crumbs={crumbs} />
+        {catalogView}
+      </div>
+    );
+  }
+
+  if (!selected) {
     return <InspectorSelectElementHint />;
   }
 
   return (
-    <InspectorContentStyleTabs
-      tab={tab}
-      onTabChange={setTab}
-      content={
-        <div className="space-y-3">
-          <ElementContentTitle
-            label={objectMode.selected.label}
-            onEditIdentity={() => setTab('element')}
-          />
-          {tool === 'links' ? (
-            <LinksPanel
-              onDirtyChange={onDirtyChange}
-              courseId={courseId}
-              sequence={sequence}
-              currentSlideKey={currentSlideKey}
+    <div className="flex min-h-0 flex-1 flex-col">
+      {isPlaceableTool ? <InspectorPlaceableCrumbs crumbs={crumbs} /> : null}
+      <InspectorContentStyleTabs
+        tab={tab}
+        onTabChange={setTab}
+        content={
+          <div className="space-y-3">
+            <ElementContentTitle
+              label={selected.label}
+              onEditIdentity={() => setTab('element')}
             />
-          ) : tool === 'media' ? (
-            <MediaPanel courseId={courseId} onDirtyChange={onDirtyChange} />
-          ) : (
-            <InspectorBody tool={tool} onOpenTool={onOpenTool} />
-          )}
-        </div>
-      }
-      style={
-        <ElementStylePanel
-          onDirtyChange={onDirtyChange}
-          courseId={courseId}
-          themeSwatches={themeSwatches}
-        />
-      }
-      effects={
-        <ElementEffectsPanel themeSwatches={themeSwatches} onDirtyChange={onDirtyChange} />
-      }
-      element={<ElementMetaPanel onDirtyChange={onDirtyChange} />}
-    />
+            {tool === 'links' ? (
+              <LinksPanel
+                onDirtyChange={onDirtyChange}
+                courseId={courseId}
+                sequence={sequence}
+                currentSlideKey={currentSlideKey}
+              />
+            ) : tool === 'media' ? (
+              <MediaPanel courseId={courseId} onDirtyChange={onDirtyChange} />
+            ) : isDataInspectorTool(tool) ? (
+              <DataPanel courseId={courseId} onDirtyChange={onDirtyChange} />
+            ) : (
+              <InspectorBody tool={tool} onOpenTool={onOpenTool} />
+            )}
+            {isPlaceableTool ? (
+              <button
+                type="button"
+                onClick={goCatalog}
+                className="inline-flex w-full cursor-pointer items-center justify-center rounded-md border border-[var(--line)] px-3 py-1.5 text-[12px] font-semibold text-[var(--ink)] hover:bg-black/5"
+              >
+                {tool === 'media' ? tr('mediaBackToCatalog') : tr('dataBackToCatalog')}
+              </button>
+            ) : null}
+          </div>
+        }
+        style={
+          <ElementStylePanel
+            onDirtyChange={onDirtyChange}
+            courseId={courseId}
+            themeSwatches={themeSwatches}
+          />
+        }
+        effects={
+          <ElementEffectsPanel themeSwatches={themeSwatches} onDirtyChange={onDirtyChange} />
+        }
+        element={<ElementMetaPanel onDirtyChange={onDirtyChange} />}
+      />
+    </div>
+  );
+}
+
+function InspectorPlaceableCrumbs({
+  crumbs,
+}: {
+  crumbs: Array<{ id: string; label: string; action: () => void }>;
+}) {
+  if (!crumbs.length) return null;
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-[var(--line)] px-3 py-2 text-[11px]">
+      {crumbs.map((c, i) => (
+        <span key={c.id} className="inline-flex items-center gap-1">
+          {i > 0 ? <ChevronRight className="h-3 w-3 text-[var(--ink-muted)]" /> : null}
+          <button
+            type="button"
+            onClick={c.action}
+            className={`cursor-pointer rounded px-1 py-0.5 font-medium hover:bg-black/5 ${
+              i === crumbs.length - 1 ? 'text-[var(--accent)]' : 'text-[var(--ink-muted)]'
+            }`}
+          >
+            {c.label}
+          </button>
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -1387,12 +1496,11 @@ function InspectorBody({
   tool: InspectorTool;
   onOpenTool?: (tool: InspectorTool) => void;
 }) {
-  const { tr } = usePrefs();
   switch (tool) {
     case 'graphs':
-      return <GraphsPanel />;
     case 'tables':
-      return <TablesPanel />;
+    case 'charts':
+      return <DataInsertChooser onOpenTool={onOpenTool} />;
     case 'text':
       return null;
     case 'shape':
@@ -1403,17 +1511,6 @@ function InspectorBody({
       return null;
     case 'shapesMedia':
       return <MediaInsertChooser onOpenTool={onOpenTool} />;
-    case 'charts':
-      return (
-        <ChooserPanel
-          title={tr('toolCharts')}
-          options={[
-            { tool: 'graphs', label: tr('toolGraphs'), icon: <BarChart3 className="h-5 w-5" /> },
-            { tool: 'tables', label: tr('toolTables'), icon: <Table2 className="h-5 w-5" /> },
-          ]}
-          onOpenTool={onOpenTool}
-        />
-      );
     case 'elements':
     case 'animations':
       return null;
@@ -1428,6 +1525,56 @@ function InspectorBody({
     case 'code':
       return null;
   }
+}
+
+function DataInsertChooser({
+  onOpenTool,
+  courseId,
+  onDirtyChange,
+}: {
+  onOpenTool?: (tool: InspectorTool) => void;
+  courseId?: string;
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
+  const { tr } = usePrefs();
+  const objectMode = useLessonObjectModeOptional();
+
+  const insertKind = (kind: DataKind) => {
+    const root = objectMode?.root;
+    if (!root) return;
+    const selected = objectMode.selected?.element ?? null;
+    if (selected && isInsideLockedTemplate(selected, root)) {
+      objectMode.showNotice(tr('elementsTemplateLocked'));
+      return;
+    }
+    const wrap = document.createElement('div');
+    wrap.innerHTML = createDataHtml(kind).trim();
+    const node = wrap.firstElementChild as HTMLElement | null;
+    if (!node) return;
+    ensureObjectId(node);
+
+    const host = mediaInsertHost(root, selected);
+    if (selected && isInsideLockedTemplate(host, root)) {
+      objectMode.showNotice(tr('elementsTemplateLocked'));
+      return;
+    }
+    host.appendChild(node);
+    root.setAttribute('data-hc-live-dirty', '1');
+    onDirtyChange?.(true);
+    objectMode.selectElement(node);
+    onOpenTool?.('charts');
+  };
+
+  return (
+    <DataPanel
+      courseId={courseId}
+      onRequestInsert={insertKind}
+      onDirtyChange={(dirty) => {
+        if (dirty) objectMode?.root?.setAttribute('data-hc-live-dirty', '1');
+        onDirtyChange?.(dirty);
+      }}
+    />
+  );
 }
 
 function MediaInsertChooser({
@@ -1452,20 +1599,14 @@ function MediaInsertChooser({
     if (!node) return;
     ensureObjectId(node);
 
-    let host: HTMLElement | null = null;
-    if (selected) {
-      host =
-        selected.tagName === 'SECTION' || selected.tagName === 'DIV'
-          ? selected
-          : (selected.closest('section, div') as HTMLElement | null);
-    }
-    host = host ?? topLevelSections(root).at(-1) ?? (root.querySelector('article') as HTMLElement | null) ?? root;
+    const host = mediaInsertHost(root, selected);
     if (selected && isInsideLockedTemplate(host, root)) {
       objectMode.showNotice(tr('elementsTemplateLocked'));
       return;
     }
     host.appendChild(node);
     root.setAttribute('data-hc-live-dirty', '1');
+    // Select immediately so Content / Style / Effects / Element tabs appear.
     objectMode.selectElement(node);
     onOpenTool?.('media');
   };
@@ -1477,34 +1618,6 @@ function MediaInsertChooser({
         objectMode?.root?.setAttribute('data-hc-live-dirty', '1');
       }}
     />
-  );
-}
-
-function ChooserPanel({
-  title,
-  options,
-  onOpenTool,
-}: {
-  title: string;
-  options: Array<{ tool: InspectorTool; label: string; icon: ReactNode }>;
-  onOpenTool?: (tool: InspectorTool) => void;
-}) {
-  return (
-    <Section title={title}>
-      <div className="grid grid-cols-2 gap-2">
-        {options.map((opt) => (
-          <button
-            key={opt.tool}
-            type="button"
-            onClick={() => onOpenTool?.(opt.tool)}
-            className="flex cursor-pointer flex-col items-start gap-2 rounded-lg border border-[var(--line)] bg-[var(--panel)] px-3 py-3 text-left hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]/40"
-          >
-            <span className="text-[var(--accent)]">{opt.icon}</span>
-            <span className="text-[12px] font-semibold text-[var(--ink)]">{opt.label}</span>
-          </button>
-        ))}
-      </div>
-    </Section>
   );
 }
 
@@ -1552,82 +1665,6 @@ function DemoTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) 
       {...props}
       className={`w-full rounded-md border border-[var(--line)] bg-[var(--panel)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)] ${props.className ?? ''}`}
     />
-  );
-}
-
-function GraphsPanel() {
-  const { tr } = usePrefs();
-  return (
-    <>
-      <Section title={tr('inspectorGraphType')}>
-        <Field label={tr('inspectorChartKind')}>
-          <DemoSelect defaultValue="bar">
-            <option value="bar">Bar</option>
-            <option value="line">Line</option>
-            <option value="pie">Pie</option>
-            <option value="area">Area</option>
-          </DemoSelect>
-        </Field>
-        <Field label={tr('inspectorEditMode')}>
-          <DemoSelect defaultValue="visual">
-            <option value="visual">{tr('inspectorEditVisual')}</option>
-            <option value="mermaid">{tr('inspectorEditMermaid')}</option>
-          </DemoSelect>
-        </Field>
-      </Section>
-      <Section title={tr('inspectorData')}>
-        <Field label={tr('inspectorTitle')}>
-          <DemoInput defaultValue="Market share" />
-        </Field>
-        <Field label="Mermaid">
-          <DemoTextarea
-            rows={5}
-            defaultValue={`pie title Market share\n  "A" : 40\n  "B" : 35\n  "C" : 25`}
-            className="font-mono text-[11px]"
-          />
-        </Field>
-      </Section>
-      <Section title={tr('inspectorStyle')}>
-        <Field label={tr('inspectorAccent')}>
-          <DemoInput type="color" defaultValue="#0e6e6a" className="h-8 p-1" />
-        </Field>
-        <label className="flex items-center gap-2 text-[12px] text-[var(--ink)]">
-          <input type="checkbox" defaultChecked className="accent-[var(--accent)]" />
-          {tr('inspectorShowLegend')}
-        </label>
-      </Section>
-    </>
-  );
-}
-
-function TablesPanel() {
-  const { tr } = usePrefs();
-  return (
-    <>
-      <Section title={tr('inspectorTableLayout')}>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label={tr('inspectorRows')}>
-            <DemoInput type="number" defaultValue={3} min={1} />
-          </Field>
-          <Field label={tr('inspectorCols')}>
-            <DemoInput type="number" defaultValue={3} min={1} />
-          </Field>
-        </div>
-        <label className="flex items-center gap-2 text-[12px] text-[var(--ink)]">
-          <input type="checkbox" defaultChecked className="accent-[var(--accent)]" />
-          {tr('inspectorHeaderRow')}
-        </label>
-      </Section>
-      <Section title={tr('inspectorStyle')}>
-        <Field label={tr('inspectorBorderStyle')}>
-          <DemoSelect defaultValue="grid">
-            <option value="grid">Grid</option>
-            <option value="lines">Horizontal lines</option>
-            <option value="none">None</option>
-          </DemoSelect>
-        </Field>
-      </Section>
-    </>
   );
 }
 

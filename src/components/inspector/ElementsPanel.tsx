@@ -5,6 +5,7 @@ import {
   Code2,
   Columns2,
   Film,
+  FileText,
   Image as ImageIcon,
   LayoutTemplate,
   Link2,
@@ -14,6 +15,9 @@ import {
   Square,
   Table2,
   Type,
+  BarChart3,
+  GitBranch,
+  Box,
 } from 'lucide-react';
 import { usePrefs } from '../../prefs/PrefsProvider';
 import type { StringKey } from '../../i18n/strings';
@@ -26,7 +30,11 @@ import {
   type ElementCatalogItemId,
 } from '../../lesson-objects/elementCatalog';
 import { isStructureElement } from '../../lesson-objects/elementRouting';
-import { nearestSection, topLevelSections } from '../../lesson-objects/elementInsert';
+import {
+  mediaInsertHost,
+  nearestSection,
+  topLevelSections,
+} from '../../lesson-objects/elementInsert';
 import { isInsideLockedTemplate, markTemplateSections, serializeLessonRoot } from '../../lesson-objects/lessonHtml';
 import { ensureObjectId } from '../../lesson-objects/selection';
 import { TemplatePickerButton } from './TemplatePicker';
@@ -58,7 +66,11 @@ const ITEM_ICONS: Record<ElementCatalogItemId, ReactNode> = {
   'media-icon': <Smile className="h-5 w-5" />,
   'media-image': <ImageIcon className="h-5 w-5" />,
   'media-video': <Film className="h-5 w-5" />,
-  'graphs-tables': <Table2 className="h-5 w-5" />,
+  'media-file': <FileText className="h-5 w-5" />,
+  'data-graph': <BarChart3 className="h-5 w-5" />,
+  'data-mermaid': <GitBranch className="h-5 w-5" />,
+  'data-table': <Table2 className="h-5 w-5" />,
+  'data-container': <Box className="h-5 w-5" />,
   section: <LayoutTemplate className="h-5 w-5" />,
   div: <Square className="h-5 w-5" />,
   columns: <Columns2 className="h-5 w-5" />,
@@ -73,7 +85,11 @@ const ITEM_LABEL: Record<ElementCatalogItemId, StringKey> = {
   'media-icon': 'elementsItemMediaIcon',
   'media-image': 'elementsItemMediaImage',
   'media-video': 'elementsItemMediaVideo',
-  'graphs-tables': 'elementsItemGraphsTables',
+  'media-file': 'elementsItemMediaFile',
+  'data-graph': 'elementsItemDataGraph',
+  'data-mermaid': 'elementsItemDataMermaid',
+  'data-table': 'elementsItemDataTable',
+  'data-container': 'elementsItemDataContainer',
   section: 'elementsItemSection',
   div: 'elementsItemDiv',
   columns: 'elementsItemColumns',
@@ -255,16 +271,26 @@ export function ElementsPanel({
         else if (sections.length) sections[sections.length - 1]!.insertAdjacentElement('afterend', node);
         else article.appendChild(node);
       } else {
-        const target = selected?.element;
+        const target = selected?.element ?? null;
         let host: HTMLElement | null = null;
-        if (target) {
-          if (item.dropRule === 'inside-section') host = nearestSection(target, root);
-          else {
-            host =
-              target.tagName === 'SECTION' || target.tagName === 'DIV'
-                ? target
-                : (target.closest('section, div') as HTMLElement | null);
-          }
+        if (item.dropRule === 'inside-section' && target) {
+          host = nearestSection(target, root);
+        } else if (
+          item.id === 'media-icon' ||
+          item.id === 'media-image' ||
+          item.id === 'media-video' ||
+          item.id === 'media-file' ||
+          item.id === 'data-graph' ||
+          item.id === 'data-mermaid' ||
+          item.id === 'data-table' ||
+          item.id === 'data-container'
+        ) {
+          host = mediaInsertHost(root, target);
+        } else if (target) {
+          host =
+            target.tagName === 'SECTION' || target.tagName === 'DIV'
+              ? target
+              : (target.closest('section, div') as HTMLElement | null);
         }
         host = host ?? topLevelSections(root).at(-1) ?? findArticle(root);
         host.appendChild(node);

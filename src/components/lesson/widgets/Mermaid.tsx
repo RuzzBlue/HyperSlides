@@ -58,8 +58,26 @@ export function MermaidWidget({
 }) {
   const baseId = useId().replace(/:/g, '');
   const ref = useRef<HTMLDivElement>(null);
-  const definition = useMemo(() => resolveChart(host, chart), [host, chart]);
+  const [sourceTick, setSourceTick] = useState(0);
+  const definition = useMemo(() => resolveChart(host, chart), [host, chart, sourceTick]);
   const [tick, setTick] = useState(0);
+  const title = host?.getAttribute('data-shell-title') || host?.getAttribute('data-hc-label') || 'Diagram';
+  const allowExpand = host?.getAttribute('data-shell-expand') !== '0';
+  const allowZoom = host?.getAttribute('data-shell-zoom') !== '0';
+  const allowPan = host?.getAttribute('data-shell-pan') !== '0';
+  const allowSnapshot = host?.getAttribute('data-shell-snapshot') === '1';
+
+  useEffect(() => {
+    if (!host) return;
+    const observer = new MutationObserver(() => setSourceTick((value) => value + 1));
+    observer.observe(host, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+    return () => observer.disconnect();
+  }, [host]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,11 +97,19 @@ export function MermaidWidget({
 
   return (
     <ExpandableShell
-      title="Consensus flow diagram"
+      title={title}
+      allowExpand={allowExpand}
+      allowSnapshot={allowSnapshot}
+      snapshotName={title}
       bodyClassName="h-[280px]"
       expandedBodyClassName="min-h-0 flex-1"
     >
-      <PanZoomSurface className="h-full min-h-[280px] bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
+      {allowZoom || allowPan ? (
+      <PanZoomSurface
+        enableZoom={allowZoom}
+        enablePan={allowPan}
+        className="h-full min-h-[280px] bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900"
+      >
         <div
           ref={ref}
           className="[&_svg]:max-w-none"
@@ -91,6 +117,16 @@ export function MermaidWidget({
           title="Double-click to re-render diagram"
         />
       </PanZoomSurface>
+      ) : (
+        <div className="h-full min-h-[280px] overflow-auto bg-gradient-to-b from-slate-50 to-white p-4 dark:from-slate-950 dark:to-slate-900">
+          <div
+            ref={ref}
+            className="[&_svg]:max-w-none"
+            onDoubleClick={() => setTick((t) => t + 1)}
+            title="Double-click to re-render diagram"
+          />
+        </div>
+      )}
     </ExpandableShell>
   );
 }

@@ -21,13 +21,15 @@ import { ProcessStepsWidget } from './ProcessSteps';
 import { StepShowcaseWidget } from './StepShowcase';
 import { FilterTableWidget } from './FilterTable';
 import { MermaidWidget } from './Mermaid';
+import { HcChartWidget } from './HcChart';
+import { HcContainerWidget } from './HcContainer';
 import { PieChartWidget } from './PieChart';
 import { DemoChartWidget } from './DemoCharts';
 import { ImageCompareWidget } from './ImageCompare';
 import { YTVideoWidget } from './YTVideo';
 import { CourseWidgetFrame } from './CourseWidget';
 import { RevealStepsWidget } from './RevealSteps';
-import { AssetDownloadWidget, AssetImageWidget, PdfEmbedWidget } from './AssetEmbeds';
+import { AssetDownloadWidget, AssetImageWidget, PdfEmbedWidget, HcFileWidget } from './AssetEmbeds';
 import { hideMountSourceContent } from './mountData';
 
 type PortalSpec = {
@@ -64,12 +66,16 @@ export function PortalsRenderer({
 
       stage.querySelectorAll('[data-component]').forEach((el) => {
         const host = el as HTMLElement;
+        const type = el.getAttribute('data-component') || '';
         // Keep [data-item] markup for hydration + Code edits, but hide it so it
         // does not show as plain text above the React portal UI.
-        hideMountSourceContent(host);
+        // Containers keep live DOM children (moved into the shell by the widget).
+        if (type !== 'hc-container') {
+          hideMountSourceContent(host);
+        }
         found.push({
           element: host,
-          type: el.getAttribute('data-component') || '',
+          type,
           videoId: el.getAttribute('data-video-id') || undefined,
           widgetId: el.getAttribute('data-widget-id') || undefined,
           chart: el.getAttribute('data-chart') || undefined,
@@ -183,6 +189,12 @@ export function PortalsRenderer({
           case 'mermaid-graph':
             node = <MermaidWidget chart={p.chart} host={host} />;
             break;
+          case 'hc-chart':
+            node = <HcChartWidget host={host} />;
+            break;
+          case 'hc-container':
+            node = <HcContainerWidget host={host} />;
+            break;
           case 'pie-chart':
             node = <PieChartWidget host={host} />;
             break;
@@ -200,8 +212,16 @@ export function PortalsRenderer({
             break;
           case 'pdf-embed':
             node = (
-              <PdfEmbedWidget courseFolder={courseFolder} src={p.src} title={p.title} />
+              <PdfEmbedWidget
+                courseFolder={courseFolder}
+                src={p.src}
+                title={p.title}
+                host={host}
+              />
             );
+            break;
+          case 'hc-file':
+            node = <HcFileWidget courseFolder={courseFolder} host={host} />;
             break;
           case 'asset-image':
             node = (
@@ -215,7 +235,12 @@ export function PortalsRenderer({
             break;
           case 'asset-download':
             node = (
-              <AssetDownloadWidget courseFolder={courseFolder} src={p.src} label={p.label} />
+              <AssetDownloadWidget
+                courseFolder={courseFolder}
+                src={p.src}
+                label={p.label}
+                host={host}
+              />
             );
             break;
           case 'course-widget':

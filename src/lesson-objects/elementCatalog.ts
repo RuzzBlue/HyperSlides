@@ -4,7 +4,14 @@ import {
   createMediaIconHtml,
   createMediaImageHtml,
   createMediaVideoHtml,
+  createMediaFileHtml,
 } from './mediaHtml';
+import {
+  createContainerHtml,
+  createGraphHtml,
+  createMermaidHtml,
+  createTableHtml,
+} from './dataHtml';
 
 export type ElementCatalogCategoryId = 'single' | 'structure' | 'templates';
 
@@ -15,12 +22,17 @@ export type ElementCatalogItemId =
   | 'media-icon'
   | 'media-image'
   | 'media-video'
-  | 'graphs-tables'
+  | 'media-file'
+  | 'data-graph'
+  | 'data-mermaid'
+  | 'data-table'
+  | 'data-container'
   | 'section'
   | 'div'
   | 'columns'
   | 'spacer'
   | 'templates';
+
 
 export type ElementDropRule = 'section-sibling' | 'inside-section' | 'inside-container' | 'anywhere';
 
@@ -90,12 +102,39 @@ export const ELEMENT_CATALOG: ElementCatalogItem[] = [
     createHtml: createMediaVideoHtml,
   },
   {
-    id: 'graphs-tables',
+    id: 'media-file',
+    category: 'single',
+    openTool: 'media',
+    dropRule: 'inside-container',
+    createHtml: createMediaFileHtml,
+  },
+  {
+    id: 'data-graph',
     category: 'single',
     openTool: 'charts',
     dropRule: 'inside-container',
-    createHtml: () =>
-      `<div class="hc-table-wrap" data-hc-label="Table"><table><thead><tr><th>A</th><th>B</th></tr></thead><tbody><tr><td>—</td><td>—</td></tr></tbody></table></div>`,
+    createHtml: createGraphHtml,
+  },
+  {
+    id: 'data-mermaid',
+    category: 'single',
+    openTool: 'charts',
+    dropRule: 'inside-container',
+    createHtml: createMermaidHtml,
+  },
+  {
+    id: 'data-table',
+    category: 'single',
+    openTool: 'charts',
+    dropRule: 'inside-container',
+    createHtml: createTableHtml,
+  },
+  {
+    id: 'data-container',
+    category: 'single',
+    openTool: 'charts',
+    dropRule: 'inside-container',
+    createHtml: createContainerHtml,
   },
   {
     id: 'section',

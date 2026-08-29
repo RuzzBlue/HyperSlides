@@ -56,8 +56,16 @@ export function isSelectableElement(el: Element | null | undefined): boolean {
   // Prefer data-component hosts as whole objects
   if (el.hasAttribute('data-component')) return true;
   if (!SELECTABLE_TAGS.has(el.tagName)) return false;
-  // Skip empty anonymous wrappers with no box
-  if (el.tagName === 'SPAN' && !el.getAttribute(HC_OBJ_ATTR) && !el.children.length) {
+  // Skip empty anonymous wrappers with no box — but keep media icon hosts selectable
+  // even when their glyph child was stripped (empty FA/emoji spans still have a hit box).
+  if (
+    el.tagName === 'SPAN' &&
+    !el.getAttribute(HC_OBJ_ATTR) &&
+    !el.getAttribute('data-hc-media') &&
+    !el.classList.contains('hc-media--icon') &&
+    !el.classList.contains('hc-media--icon') &&
+    !el.children.length
+  ) {
     const t = (el.textContent ?? '').trim();
     if (!t) return false;
   }
@@ -65,6 +73,19 @@ export function isSelectableElement(el: Element | null | undefined): boolean {
 }
 
 export function deepestSelectable(from: Element | null, root: HTMLElement): HTMLElement | null {
+  // Prefer media hosts over inner svg/i/emoji so icon/image/video stay one object.
+  if (from instanceof Element && root.contains(from)) {
+    const mediaHost = from.closest('[data-hc-media], .hc-media');
+    if (
+      mediaHost instanceof HTMLElement &&
+      root.contains(mediaHost) &&
+      mediaHost !== root &&
+      isSelectableElement(mediaHost)
+    ) {
+      return mediaHost;
+    }
+  }
+
   let cur: Element | null = from;
   let fallback: HTMLElement | null = null;
   while (cur && cur !== root) {

@@ -1,11 +1,27 @@
-import type { InspectorTool } from '../components/inspector/Inspector';
-
 /** Map a selected lesson DOM node to the inspector that should edit it. */
+import type { InspectorTool } from '../components/inspector/Inspector';
+import { detectDataKind, resolveDataTarget } from './dataHtml';
+
 export function inspectorToolForElement(el: HTMLElement): InspectorTool {
+  const dataHost = el.closest(
+    '[data-hc-data], [data-component="hc-chart"], [data-component="mermaid-graph"], [data-component="hc-container"], .hc-table-wrap',
+  ) as HTMLElement | null;
+  if (dataHost) {
+    const kind = detectDataKind(resolveDataTarget(dataHost));
+    if (kind === 'container') {
+      // Nested content inside a container keeps its own inspector (text/media/…).
+      if (el === dataHost || el.hasAttribute('data-hc-container-body')) return 'charts';
+    } else if (kind) {
+      return 'charts';
+    }
+  }
+
   if (el.hasAttribute('data-component')) {
     const name = (el.getAttribute('data-component') ?? '').toLowerCase();
-    if (name.includes('chart') || name.includes('graph') || name.includes('pie')) return 'graphs';
-    if (name.includes('table')) return 'tables';
+    if (name === 'hc-file' || name === 'pdf-embed' || name === 'asset-download') return 'media';
+    if (name.includes('chart') || name.includes('graph') || name.includes('pie')) return 'charts';
+    if (name.includes('table')) return 'charts';
+    if (name.includes('mermaid')) return 'charts';
     // Other widgets / custom components → Elements props view
     return 'elements';
   }
@@ -17,7 +33,7 @@ export function inspectorToolForElement(el: HTMLElement): InspectorTool {
   }
   if (
     el.matches(
-      'figure.hc-media, .hc-media, [data-hc-media], [data-hc-label="Media"], [data-hc-label="Image"], [data-hc-label="Video"], [data-hc-label="Icon"], .hc-media--icon, .hc-icon, [data-icon]',
+      'figure.hc-media, .hc-media, [data-hc-media], [data-hc-label="Media"], [data-hc-label="Image"], [data-hc-label="Video"], [data-hc-label="Icon"], [data-hc-label="File"], .hc-media--icon, .hc-icon, [data-icon]',
     )
   ) {
     return 'media';
@@ -26,10 +42,10 @@ export function inspectorToolForElement(el: HTMLElement): InspectorTool {
     return 'media';
   }
   if (tag === 'table' || tag === 'thead' || tag === 'tbody' || tag === 'tr' || tag === 'td' || tag === 'th') {
-    return 'tables';
+    return 'charts';
   }
   if (el.matches('.hc-table-wrap, [data-hc-label="Table"]')) {
-    return 'tables';
+    return 'charts';
   }
   if (tag === 'a' || tag === 'button') return 'links';
   if (el.matches('.hc-btn, [data-hc-button], [role="button"]')) return 'links';
