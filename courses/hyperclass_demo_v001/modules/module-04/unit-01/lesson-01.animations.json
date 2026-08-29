@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "anim_gb3kuiqe",
+      "objectId": "hc_avw8akuhlmb5",
+      "kind": "entrance",
+      "effectId": "slide-in",
+      "order": 1,
+      "start": "on-key",
+      "durationSec": 0.55,
+      "repeat": 1,
+      "params": {
+        "direction": "left",
+        "childScope": "block"
+      }
+    },
+    {
+      "id": "anim_nrlzecfp",
+      "objectId": "hc_a538xmgulmb5",
+      "kind": "action",
+      "effectId": "bounce",
+      "order": 2,
+      "start": "with-previous",
+      "durationSec": 1,
+      "repeat": 3,
+      "params": {
+        "childScope": "block"
+      }
+    }
+  ]
+}

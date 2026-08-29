@@ -11,7 +11,10 @@
     "h1": "2.15rem",
     "h2": "1.55rem",
     "h3": "1.2rem",
-    "body": "16px"
+    "body": "16px",
+    "h4": "1.1rem",
+    "h5": "1rem",
+    "h6": "0.95rem"
   },
   "accent": "#0e6e6a",
   "quiz": "#2f5aa8",
@@ -95,5 +98,14 @@
     "opacity": 0.5,
     "size": "11px"
   },
-  "cssFile": "theme.css"
+  "cssFile": "theme.css",
+  "textWeights": {
+    "h1": "650",
+    "h2": "600",
+    "h3": "600",
+    "h4": "600",
+    "h5": "550",
+    "h6": "550",
+    "body": "400"
+  }
 }

@@ -58,14 +58,34 @@
       },
       "customCss": "background-color: #f9f9f9;\nwidth: auto;\nmin-height: calc(100vh - 15rem);\npadding: 2rem;\nborder-style: none;\nborder-width: 0px;\nborder-color: #e2e8f0;\nborder-radius: 15px;\nbox-shadow: 0px 8px 24px 0px rgba(15, 23, 42, 0.12);"
     },
+    "titleSlide": {
+      "enabled": false,
+      "style": "hero"
+    },
     "indexSlide": {
       "enabled": false,
-      "placement": "first",
-      "style": "default"
+      "style": "flat",
+      "showPageNumbers": true,
+      "hyperlink": true
+    },
+    "summarySlide": {
+      "enabled": false,
+      "style": "columns"
     },
     "endSlide": {
       "enabled": false,
-      "style": "default"
+      "style": "mirror-title",
+      "showProgress": true,
+      "showQuizScore": true,
+      "showLabProgress": true
+    },
+    "introOrder": "title-first",
+    "outroOrder": "summary-first",
+    "authorContact": {
+      "fullName": "",
+      "email": "",
+      "phone": "",
+      "url": ""
     }
   }
 }
