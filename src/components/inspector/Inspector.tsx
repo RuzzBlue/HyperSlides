@@ -67,6 +67,8 @@ import { QuizEditPanel, type QuizEditContext } from './QuizEditPanel';
 import { QuestionTemplatePickerButton } from './QuestionTemplatePicker';
 import { LabEditPanel, type LabEditContext } from './LabEditPanel';
 import { LabSectionTemplatePickerButton } from './LabSectionTemplatePicker';
+import { QuizActivityPanel } from './activity/QuizActivityPanel';
+import { LabActivityPanel } from './activity/LabActivityPanel';
 import { ProgressPanel, type ProgressContext } from './ProgressPanel';
 import { useLessonObjectModeOptional } from '../../lesson-objects/LessonObjectMode';
 export type InspectorTool =
@@ -251,6 +253,7 @@ export function Inspector({
   const meta = TOOL_META[tool];
   const isNotes = tool === 'notes';
   const isCode = tool === 'code';
+  const isActivities = tool === 'activities';
   const isProgress = tool === 'progress';
   const isAnimations = tool === 'animations';
   const isElements = tool === 'elements';
@@ -271,12 +274,24 @@ export function Inspector({
         : codeContext
           ? 'lesson'
           : null;
+  const activityKind: 'quiz' | 'lab' | null = !isActivities
+    ? null
+    : quizEditContext
+      ? 'quiz'
+      : labEditContext
+        ? 'lab'
+        : null;
+  const activityPersists = activityKind !== null;
   const title = tr(
-    editKind === 'quiz'
-      ? 'toolCodeQuiz'
-      : editKind === 'lab'
-        ? 'toolCodeLab'
-        : meta.labelKey,
+    isActivities && activityKind === 'quiz'
+      ? 'activityInspectorQuiz'
+      : isActivities && activityKind === 'lab'
+        ? 'activityInspectorLab'
+        : editKind === 'quiz'
+          ? 'toolCodeQuiz'
+          : editKind === 'lab'
+            ? 'toolCodeLab'
+            : meta.labelKey,
   );
   const [codeExpanded, setCodeExpanded] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -289,16 +304,19 @@ export function Inspector({
     if (!isAnimations) {
       setAnimDetail(false);
     }
-    if (!isAnimations && !isText && !isNotes && !isCode) {
+    if (!isAnimations && !isText && !isNotes && !isCode && !isActivities) {
       setPanelDirty(false);
     }
-  }, [isCode, isAnimations, isText, isNotes, tool]);
+    if (isActivities && !activityPersists) {
+      setPanelDirty(false);
+    }
+  }, [isCode, isActivities, activityPersists, isAnimations, isText, isNotes, tool]);
 
   const [panelDirty, setPanelDirty] = useState(false);
   const [panelSaving, setPanelSaving] = useState(false);
   const [animDetail, setAnimDetail] = useState(false);
   const [fileLabel, setFileLabel] = useState<string | null>(
-    isCode
+    isCode || activityPersists
       ? (codeContext?.file ?? quizEditContext?.quizId ?? labEditContext?.labId ?? null)
       : (notesContext?.notesFile ?? null),
   );
@@ -329,14 +347,16 @@ export function Inspector({
   }, []);
 
   useEffect(() => {
-    if (isCode) {
+    if (isCode || activityPersists) {
       setFileLabel(
         codeContext?.file ?? quizEditContext?.quizId ?? labEditContext?.labId ?? null,
       );
     } else if (isNotes) setFileLabel(notesContext?.notesFile ?? null);
   }, [
     isCode,
+    activityPersists,
     isNotes,
+    isActivities,
     codeContext?.file,
     codeContext?.slideKey,
     quizEditContext?.quizId,
@@ -518,6 +538,24 @@ export function Inspector({
           <div className="flex flex-1 items-center justify-center px-4 text-center text-[12px] text-[var(--ink-muted)]">
             {tr('inspectorCodeUnavailable')}
           </div>
+        ) : activityKind === 'quiz' && quizEditContext ? (
+          <QuizActivityPanel
+            context={quizEditContext}
+            onDirtyChange={setPanelDirty}
+            onSavingChange={setPanelSaving}
+            onFileLabel={setFileLabel}
+            registerSave={registerSave}
+            onSaved={onQuizSaved}
+          />
+        ) : activityKind === 'lab' && labEditContext ? (
+          <LabActivityPanel
+            context={labEditContext}
+            onDirtyChange={setPanelDirty}
+            onSavingChange={setPanelSaving}
+            onFileLabel={setFileLabel}
+            registerSave={registerSave}
+            onSaved={onLabSaved}
+          />
         ) : isProgress ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-3">
             <ProgressPanel context={progressContext ?? null} />
@@ -592,14 +630,14 @@ export function Inspector({
 
       {!(isAnimations && !animDetail) && (
       <footer className="flex shrink-0 items-center gap-2 border-t border-[var(--line)] bg-[var(--panel)] px-3 py-2">
-        {isNotes || isCode ? (
+        {isNotes || isCode || activityPersists ? (
           <>
             <span className="w-[5.5rem] shrink-0 text-[10px] text-[var(--ink-muted)]">
               {panelDirty
-                ? isCode
+                ? isCode || activityPersists
                   ? tr('inspectorCodeUnsaved')
                   : tr('inspectorNotesUnsaved')
-                : isCode
+                : isCode || activityPersists
                   ? tr('inspectorCodeSaved')
                   : tr('inspectorNotesSaved')}
             </span>
@@ -610,7 +648,7 @@ export function Inspector({
               {fileLabel || '—'}
             </span>
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              {isCode && (
+              {(isCode || activityPersists) && (
                 <button
                   type="button"
                   title={tr('inspectorCodeCancel')}
@@ -627,10 +665,10 @@ export function Inspector({
                 className="cursor-pointer rounded-md bg-[var(--accent)] px-3 py-1.5 text-[11px] font-semibold text-white enabled:hover:brightness-110 disabled:cursor-default disabled:opacity-40"
               >
                 {panelSaving
-                  ? isCode
+                  ? isCode || activityPersists
                     ? tr('inspectorCodeSaving')
                     : tr('inspectorNotesSaving')
-                  : isCode
+                  : isCode || activityPersists
                     ? tr('inspectorCodeSave')
                     : tr('inspectorNotesSave')}
               </button>
@@ -1711,28 +1749,14 @@ function ComingSoonBanner({ children }: { children: ReactNode }) {
 function ActivitiesPanel() {
   const { tr } = usePrefs();
   return (
-    <>
-      <ComingSoonBanner>{tr('inspectorActivitiesComingSoon')}</ComingSoonBanner>
-      <Section title={tr('inspectorActivitiesQuizzes')}>
-        <Field label={tr('inspectorActivitiesDefaultPassing')}>
-          <DemoInput type="number" defaultValue={70} min={0} max={100} disabled />
-        </Field>
-        <label className="flex items-center gap-2 text-[12px] text-[var(--ink-muted)]">
-          <input type="checkbox" disabled className="accent-[var(--accent)]" />
-          {tr('inspectorActivitiesShowScores')}
-        </label>
-      </Section>
-      <Section title={tr('inspectorActivitiesLabs')}>
-        <label className="flex items-center gap-2 text-[12px] text-[var(--ink-muted)]">
-          <input type="checkbox" disabled defaultChecked className="accent-[var(--accent)]" />
-          {tr('inspectorActivitiesRequireEvidence')}
-        </label>
-        <label className="flex items-center gap-2 text-[12px] text-[var(--ink-muted)]">
-          <input type="checkbox" disabled className="accent-[var(--accent)]" />
-          {tr('inspectorActivitiesLockUntilPass')}
-        </label>
-      </Section>
-    </>
+    <div className="flex h-full flex-col items-center justify-center gap-3 px-4 py-8 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
+        <LibraryBig className="h-6 w-6" />
+      </div>
+      <p className="max-w-[16rem] text-[12px] leading-relaxed text-[var(--ink-muted)]">
+        {tr('inspectorActivitiesComingSoon')}
+      </p>
+    </div>
   );
 }
 
