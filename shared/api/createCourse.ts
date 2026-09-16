@@ -18,6 +18,10 @@ import {
 import { getCoursesRoot, listCourses, loadCourse } from './courses.ts';
 import { WELCOME_SLIDE_HTML } from './slideTemplate.ts';
 import { DEMO_COURSE_ID, isDemoCourseId } from '../demoCourse.ts';
+import {
+  applyPublicLocksToPackage,
+  writeCourseSecurity,
+} from './courseSecurity.ts';
 
 export type ThemeTemplateInfo = {
   id: string;
@@ -77,9 +81,13 @@ export type CreateCourseInput = {
   toggleLanguage?: boolean;
   security?: {
     accessEnabled?: boolean;
+    accessPassword?: string;
     accessHint?: string;
+    accessAllowReset?: boolean;
     authorEnabled?: boolean;
+    authorPassword?: string;
     authorHint?: string;
+    authorAllowReset?: boolean;
   };
   /** Presentation extras (content shell, title/index/summary/end slides). */
   extras?: import('../types.ts').CourseExtras;
@@ -799,34 +807,11 @@ export function createCourse(appRoot: string, input: CreateCourseInput): CourseS
     permissions: ['local-progress'],
     integrity: { algorithm: 'sha256', hash: null },
     updates: { channel: 'stable' },
-    passwordLock: {
-      enabled: Boolean(input.security?.accessEnabled),
-      hint: input.security?.accessHint?.trim() || undefined,
-    },
-    authorLock: {
-      enabled: Boolean(input.security?.authorEnabled),
-      hint: input.security?.authorHint?.trim() || undefined,
-    },
     ...(input.extras ? { extras: input.extras } : {}),
   };
+  const locks = writeCourseSecurity(appRoot, rootPath, input.security);
+  applyPublicLocksToPackage(packageManifest, locks);
   writeJson(path.join(rootPath, 'manifest.json'), packageManifest);
-
-  // Future: real password hashing. MVP stores intent flags only in manifest.
-  if (input.security?.accessEnabled || input.security?.authorEnabled) {
-    writeJson(path.join(rootPath, 'security.json'), {
-      accessLock: {
-        enabled: Boolean(input.security?.accessEnabled),
-        hint: input.security?.accessHint?.trim() || null,
-        configured: true,
-      },
-      authorLock: {
-        enabled: Boolean(input.security?.authorEnabled),
-        hint: input.security?.authorHint?.trim() || null,
-        configured: true,
-      },
-      note: 'Passwords are not persisted yet — UI stub for a future lock implementation.',
-    });
-  }
 
   const summaries = listCourses(appRoot);
   const created = summaries.find((c) => c.folder === folder || c.id === courseId);
@@ -884,19 +869,13 @@ export function updateCourse(
     if (input.toggleLanguage !== undefined) {
       pkg.toggleLanguage = Boolean(input.toggleLanguage);
     }
-    pkg.passwordLock = {
-      enabled: Boolean(input.security?.accessEnabled),
-      hint: input.security?.accessHint?.trim() || undefined,
-    };
-    pkg.authorLock = {
-      enabled: Boolean(input.security?.authorEnabled),
-      hint: input.security?.authorHint?.trim() || undefined,
-    };
     if (input.extras !== undefined) {
       pkg.extras = input.extras;
     } else {
       // Keep any existing extras when older clients omit the field.
     }
+    const locks = writeCourseSecurity(appRoot, rootPath, input.security);
+    applyPublicLocksToPackage(pkg, locks);
     writeJson(packagePath, pkg);
   }
 
@@ -934,22 +913,6 @@ export function updateCourse(
       input.typeScale,
       input.textWeights,
     );
-  }
-
-  if (input.security?.accessEnabled || input.security?.authorEnabled) {
-    writeJson(path.join(rootPath, 'security.json'), {
-      accessLock: {
-        enabled: Boolean(input.security?.accessEnabled),
-        hint: input.security?.accessHint?.trim() || null,
-        configured: true,
-      },
-      authorLock: {
-        enabled: Boolean(input.security?.authorEnabled),
-        hint: input.security?.authorHint?.trim() || null,
-        configured: true,
-      },
-      note: 'Passwords are not persisted yet — UI stub for a future lock implementation.',
-    });
   }
 
   if (newFolder !== oldFolder) {

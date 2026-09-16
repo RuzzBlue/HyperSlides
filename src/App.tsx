@@ -43,6 +43,7 @@ import { StatusBar } from './components/StatusBar';
 import { TitleBar } from './components/TitleBar';
 import { Toolbar } from './components/Toolbar';
 import { CourseSettingsModal } from './components/CourseSettingsModal';
+import { CourseLockModal } from './components/CourseLockModal';
 import type { InsertKind } from './components/AddContentButton';
 import { StageZoomFrame } from './components/ZoomControl';
 import { usePrefs } from './prefs/PrefsProvider';
@@ -81,6 +82,16 @@ export default function App() {
   const [inspectorTool, setInspectorTool] = useState<InspectorTool | null>(null);
   const [inspectorMode, setInspectorMode] = useState<InspectorMode>('docked');
   const [editMode, setEditMode] = useState(false);
+  const [accessUnlockedIds, setAccessUnlockedIds] = useState<Set<string>>(() => new Set());
+  const [authorUnlockedIds, setAuthorUnlockedIds] = useState<Set<string>>(() => new Set());
+  const [pendingAccess, setPendingAccess] = useState<{
+    courseId: string;
+    hint?: string;
+    allowReset: boolean;
+    payload: Omit<LoadedCourse, 'rootPath'>;
+    progress: ProgressState | null;
+  } | null>(null);
+  const [authorUnlockOpen, setAuthorUnlockOpen] = useState(false);
   const [lastInspectorTool, setLastInspectorTool] = useState<InspectorTool>('notes');
   const [floatResetToken, setFloatResetToken] = useState(0);
   const [zoomBeforeInspector, setZoomBeforeInspector] = useState<ContentZoomPreset | null>(null);
@@ -209,6 +220,22 @@ export default function App() {
     clearCourseSettings,
   ]);
 
+  const finishOpenCourse = useCallback(
+    (
+      data: Omit<LoadedCourse, 'rootPath'>,
+      prog: ProgressState | null,
+    ) => {
+      setCourse(data);
+      setProgress(prog);
+      setIndex(settings.rememberLastCourse ? (prog?.currentIndex ?? 0) : 0);
+      applyCourseSettings(data.packageManifest, data.theme);
+      setEditMode(false);
+      setView('present');
+      setLoading(false);
+    },
+    [applyCourseSettings, settings.rememberLastCourse],
+  );
+
   const openCourse = async (id: string) => {
     setLoading(true);
     setError(null);
@@ -225,12 +252,20 @@ export default function App() {
       method: 'GET',
       path: `/api/courses/${id}/progress`,
     });
-    setCourse(res.data);
-    setProgress(prog.data ?? null);
-    setIndex(settings.rememberLastCourse ? (prog.data?.currentIndex ?? 0) : 0);
-    applyCourseSettings(res.data.packageManifest, res.data.theme);
-    setView('present');
-    setLoading(false);
+    const progressData = prog.data ?? null;
+    const accessLock = res.data.packageManifest?.passwordLock;
+    if (accessLock?.enabled && !accessUnlockedIds.has(id)) {
+      setPendingAccess({
+        courseId: id,
+        hint: accessLock.hint,
+        allowReset: accessLock.allowReset !== false,
+        payload: res.data,
+        progress: progressData,
+      });
+      setLoading(false);
+      return;
+    }
+    finishOpenCourse(res.data, progressData);
   };
 
   const persistIndex = useCallback(
@@ -450,6 +485,17 @@ export default function App() {
 
   const handleEditModeChange = useCallback(
     (next: boolean) => {
+      const courseId = course?.summary.id;
+      const authorLock = course?.packageManifest?.authorLock;
+      if (
+        next &&
+        authorLock?.enabled &&
+        courseId &&
+        !authorUnlockedIds.has(courseId)
+      ) {
+        setAuthorUnlockOpen(true);
+        return;
+      }
       setEditMode(next);
       if (next) {
         if (settings.editInspectorOnOpen && !inspectorTool) {
@@ -462,7 +508,10 @@ export default function App() {
       }
     },
     [
+      authorUnlockedIds,
       closeInspector,
+      course?.packageManifest?.authorLock,
+      course?.summary.id,
       handleInspectorTool,
       inspectorTool,
       lastInspectorTool,
@@ -470,6 +519,24 @@ export default function App() {
       settings.editInspectorOnOpen,
     ],
   );
+
+  const authorLocked = Boolean(
+    course?.packageManifest?.authorLock?.enabled &&
+      course?.summary.id &&
+      !authorUnlockedIds.has(course.summary.id),
+  );
+
+  useEffect(() => {
+    if (!authorLocked) return;
+    setEditMode(false);
+    if (
+      inspectorTool &&
+      inspectorTool !== 'progress' &&
+      inspectorTool !== 'connect'
+    ) {
+      closeInspector();
+    }
+  }, [authorLocked, closeInspector, inspectorTool]);
 
   const toggleInspectorPin = useCallback(() => {
     handleInspectorMode(inspectorMode === 'floating' ? 'docked' : 'floating');
@@ -933,6 +1000,7 @@ export default function App() {
           onEditModeChange={handleEditModeChange}
           onInsert={(kind) => void handleInsert(kind)}
           onOpenCourseSettings={() => setCourseSettingsOpen(true)}
+          authorLocked={authorLocked}
         />
       )}
 
@@ -968,7 +1036,7 @@ export default function App() {
             onWidthChange={setSidebarWidth}
             onWidthCommit={commitSidebarWidth}
             courseId={course.summary.id}
-            onStructureChange={handleStructureChange}
+            onStructureChange={authorLocked ? undefined : handleStructureChange}
             onStructureError={(msg) => setError(msg)}
             treeApiRef={sidebarTreeApiRef}
           />
@@ -1313,6 +1381,11 @@ export default function App() {
         open={courseSettingsOpen && Boolean(course)}
         onClose={() => setCourseSettingsOpen(false)}
         course={course}
+        onOpenGeneralSettings={() => {
+          setCourseSettingsOpen(false);
+          setSettingsTab('settings');
+          setSettingsOpen(true);
+        }}
         onSaved={(next) => {
           setCourse(next);
           applyCourseSettings(next.packageManifest, next.theme);
@@ -1320,6 +1393,91 @@ export default function App() {
           void loadCourses();
         }}
       />
+
+      <CourseLockModal
+        open={Boolean(pendingAccess)}
+        courseId={pendingAccess?.courseId ?? ''}
+        kind="access"
+        title={tr('courseLockAccessTitle')}
+        hint={pendingAccess?.hint}
+        allowReset={pendingAccess?.allowReset !== false}
+        onClose={() => setPendingAccess(null)}
+        onUnlocked={() => {
+          if (!pendingAccess) return;
+          const { courseId, payload, progress } = pendingAccess;
+          setAccessUnlockedIds((prev) => new Set(prev).add(courseId));
+          setPendingAccess(null);
+          finishOpenCourse(payload, progress);
+        }}
+        onReset={() => {
+          if (!pendingAccess) return;
+          const { courseId, payload, progress } = pendingAccess;
+          setAccessUnlockedIds((prev) => new Set(prev).add(courseId));
+          const nextPayload = {
+            ...payload,
+            packageManifest: payload.packageManifest
+              ? {
+                  ...payload.packageManifest,
+                  passwordLock: {
+                    ...(payload.packageManifest.passwordLock ?? { enabled: false }),
+                    enabled: false,
+                    configured: false,
+                  },
+                }
+              : null,
+          };
+          setPendingAccess(null);
+          finishOpenCourse(nextPayload, progress);
+        }}
+      />
+
+      <CourseLockModal
+        open={authorUnlockOpen && Boolean(course)}
+        courseId={course?.summary.id ?? ''}
+        kind="author"
+        title={tr('courseLockAuthorTitle')}
+        hint={course?.packageManifest?.authorLock?.hint}
+        allowReset={course?.packageManifest?.authorLock?.allowReset !== false}
+        onClose={() => setAuthorUnlockOpen(false)}
+        onUnlocked={() => {
+          const id = course?.summary.id;
+          if (!id) return;
+          setAuthorUnlockedIds((prev) => new Set(prev).add(id));
+          setAuthorUnlockOpen(false);
+          setEditMode(true);
+          if (settings.editInspectorOnOpen && !inspectorTool) {
+            handleInspectorTool(lastInspectorTool);
+          }
+        }}
+        onReset={() => {
+          const id = course?.summary.id;
+          if (!id) return;
+          setAuthorUnlockedIds((prev) => new Set(prev).add(id));
+          setAuthorUnlockOpen(false);
+          setCourse((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  packageManifest: prev.packageManifest
+                    ? {
+                        ...prev.packageManifest,
+                        authorLock: {
+                          ...(prev.packageManifest.authorLock ?? { enabled: false }),
+                          enabled: false,
+                          configured: false,
+                        },
+                      }
+                    : null,
+                }
+              : prev,
+          );
+          setEditMode(true);
+          if (settings.editInspectorOnOpen && !inspectorTool) {
+            handleInspectorTool(lastInspectorTool);
+          }
+        }}
+      />
+
       {inAppLinkUrl && (
         <InAppLinkWindow url={inAppLinkUrl} onClose={() => setInAppLinkUrl(null)} />
       )}

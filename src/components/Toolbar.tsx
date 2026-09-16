@@ -191,6 +191,7 @@ export function Toolbar({
   onOpenCourseSettings,
   editMode,
   onEditModeChange,
+  authorLocked = false,
 }: {
   index: number;
   total: number;
@@ -209,6 +210,8 @@ export function Toolbar({
   onOpenCourseSettings?: () => void;
   editMode: boolean;
   onEditModeChange: (open: boolean) => void;
+  /** When true, authoring tools are hidden/disabled until author password unlock. */
+  authorLocked?: boolean;
 }) {
   const { tr } = usePrefs();
   const insertEnabled = current?.type === 'lesson';
@@ -257,7 +260,7 @@ export function Toolbar({
           <ZoomControl value={zoom} onChange={onZoomChange} menuPlacement="down" />
 
           <AddContentButton
-            disabled={!current || !onInsert}
+            disabled={authorLocked || !current || !onInsert}
             onAdd={(kind) => onInsert?.(kind)}
           />
 
@@ -266,7 +269,7 @@ export function Toolbar({
           <button
             type="button"
             title={tr('courseSettingsToolbar')}
-            disabled={!onOpenCourseSettings}
+            disabled={authorLocked || !onOpenCourseSettings}
             onClick={() => onOpenCourseSettings?.()}
             className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -275,8 +278,14 @@ export function Toolbar({
 
           <button
             type="button"
-            title={codeEnabled ? codeTitle : tr('inspectorCodeUnavailable')}
-            disabled={!codeEnabled}
+            title={
+              authorLocked
+                ? tr('courseLockAuthorTitle')
+                : codeEnabled
+                  ? codeTitle
+                  : tr('inspectorCodeUnavailable')
+            }
+            disabled={authorLocked || !codeEnabled}
             onClick={() => onInspectorTool(inspectorTool === 'code' ? null : 'code')}
             className={`inline-flex cursor-pointer items-center justify-center rounded-md p-1.5 transition disabled:cursor-not-allowed disabled:opacity-40 ${
               inspectorTool === 'code'
@@ -316,28 +325,32 @@ export function Toolbar({
         </div>
 
         <div className="flex items-center justify-center gap-1.5 justify-self-center">
-          <div
-            className="flex items-center gap-0.5 rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 px-1 py-0.5 shadow-sm backdrop-blur-sm"
-            title={insertEnabled ? undefined : tr('inspectorToolsDisabled')}
-          >
-            <InsertToolButtons
-              inspectorTool={inspectorTool}
-              insertEnabled={insertEnabled}
-              onInspectorTool={onInspectorTool}
-              tr={tr}
-              showLabels
-            />
-          </div>
+          {!authorLocked && (
+            <div
+              className="flex items-center gap-0.5 rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 px-1 py-0.5 shadow-sm backdrop-blur-sm"
+              title={insertEnabled ? undefined : tr('inspectorToolsDisabled')}
+            >
+              <InsertToolButtons
+                inspectorTool={inspectorTool}
+                insertEnabled={insertEnabled}
+                onInspectorTool={onInspectorTool}
+                tr={tr}
+                showLabels
+              />
+            </div>
+          )}
 
-          <div className="flex items-center gap-0.5 rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 px-1 py-0.5 shadow-sm backdrop-blur-sm">
-            <ActivityToolButtons
-              inspectorTool={inspectorTool}
-              insertEnabled={insertEnabled}
-              onInspectorTool={onInspectorTool}
-              tr={tr}
-              showLabels
-            />
-          </div>
+          {!authorLocked && (
+            <div className="flex items-center gap-0.5 rounded-lg border border-[var(--line)] bg-[var(--stage)]/95 px-1 py-0.5 shadow-sm backdrop-blur-sm">
+              <ActivityToolButtons
+                inspectorTool={inspectorTool}
+                insertEnabled={insertEnabled}
+                onInspectorTool={onInspectorTool}
+                tr={tr}
+                showLabels
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-1.5 justify-self-end sm:gap-2">

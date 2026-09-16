@@ -5,7 +5,7 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Info, Lock, Palette, Settings2, ToggleRight, Type, Upload, X } from 'lucide-react';
+import { Eye, EyeOff, Info, Lock, Palette, Settings, Settings2, ToggleRight, Type, Upload, X } from 'lucide-react';
 import type {
   AppLocale,
   CourseExtras,
@@ -174,6 +174,123 @@ function Field({
 const inputShell =
   'rounded-md border border-[var(--line)] bg-[var(--panel)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] outline-none focus:border-[var(--accent)]';
 const inputClass = `w-full ${inputShell}`;
+const inputDisabledClass =
+  'w-full rounded-md border border-[var(--line)] bg-[var(--stage)] px-2.5 py-1.5 text-[12px] text-[var(--ink-muted)] opacity-55 outline-none disabled:cursor-not-allowed';
+
+function PasswordField({
+  value,
+  disabled,
+  placeholder,
+  onChange,
+  showLabel,
+  hideLabel,
+}: {
+  value: string;
+  disabled?: boolean;
+  placeholder?: string;
+  onChange: (value: string) => void;
+  showLabel: string;
+  hideLabel: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={visible ? 'text' : 'password'}
+        className={`${disabled ? inputDisabledClass : inputClass} pr-9`}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete="new-password"
+        placeholder={placeholder}
+      />
+      <button
+        type="button"
+        tabIndex={-1}
+        disabled={disabled}
+        title={visible ? hideLabel : showLabel}
+        onClick={() => setVisible((v) => !v)}
+        className="absolute right-1.5 top-1/2 -translate-y-1/2 cursor-pointer rounded p-1 text-[var(--ink-muted)] hover:text-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+      </button>
+    </div>
+  );
+}
+
+function SecurityConfirmModal({
+  open,
+  title,
+  body,
+  confirmLabel,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  body: string;
+  confirmLabel: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const { tr } = usePrefs();
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            aria-label={tr('cancel')}
+            onClick={onClose}
+          />
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            className="relative w-full max-w-sm rounded-2xl border border-[var(--line)] bg-[var(--stage)] p-5 shadow-[var(--shadow)]"
+          >
+            <h2 className="text-[15px] font-semibold text-[var(--ink)]">{title}</h2>
+            <p className="mt-2 text-[13px] leading-relaxed text-[var(--ink-muted)]">{body}</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="cursor-pointer rounded-md border border-[var(--line)] px-3 py-1.5 text-[12px] font-medium text-[var(--ink)] hover:bg-[var(--panel)]"
+              >
+                {tr('cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={onConfirm}
+                className="cursor-pointer rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-semibold text-white hover:brightness-110"
+              >
+                {confirmLabel}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 function OpacityControl({
   label,
@@ -650,6 +767,7 @@ export function CourseSettingsModal({
   initialTemplateId,
   course,
   onSaved,
+  onOpenGeneralSettings,
 }: {
   mode: 'create' | 'edit';
   open: boolean;
@@ -658,6 +776,8 @@ export function CourseSettingsModal({
   initialTemplateId?: string;
   course?: Omit<LoadedCourse, 'rootPath'> | null;
   onSaved?: (course: Omit<LoadedCourse, 'rootPath'>) => void;
+  /** When set (edit mode from in-course), show a cog to reopen general Settings. */
+  onOpenGeneralSettings?: () => void;
 }) {
   const { tr, profile } = usePrefs();
   const isEdit = mode === 'edit';
@@ -766,15 +886,21 @@ export function CourseSettingsModal({
   const [accessEnabled, setAccessEnabled] = useState(false);
   const [accessPassword, setAccessPassword] = useState('');
   const [accessHint, setAccessHint] = useState('');
+  const [accessAllowReset, setAccessAllowReset] = useState(true);
+  const [accessConfigured, setAccessConfigured] = useState(false);
   const [authorEnabled, setAuthorEnabled] = useState(false);
   const [authorPassword, setAuthorPassword] = useState('');
   const [authorHint, setAuthorHint] = useState('');
+  const [authorAllowReset, setAuthorAllowReset] = useState(true);
+  const [authorConfigured, setAuthorConfigured] = useState(false);
+  const [securityConfirmOpen, setSecurityConfirmOpen] = useState(false);
   const [extras, setExtras] = useState<CourseExtras>(() => normalizeCourseExtras(undefined));
 
   useEffect(() => {
     if (!open) return;
     setTab('info');
     setError(null);
+    setSecurityConfirmOpen(false);
 
     if (isEdit && course) {
       const m = course.manifest;
@@ -856,9 +982,13 @@ export function CourseSettingsModal({
 
       setAccessEnabled(pkg?.passwordLock?.enabled ?? false);
       setAccessHint(pkg?.passwordLock?.hint ?? '');
+      setAccessAllowReset(pkg?.passwordLock?.allowReset !== false);
+      setAccessConfigured(Boolean(pkg?.passwordLock?.configured));
       setAccessPassword('');
       setAuthorEnabled(pkg?.authorLock?.enabled ?? false);
       setAuthorHint(pkg?.authorLock?.hint ?? '');
+      setAuthorAllowReset(pkg?.authorLock?.allowReset !== false);
+      setAuthorConfigured(Boolean(pkg?.authorLock?.configured));
       setAuthorPassword('');
       setExtras(normalizeCourseExtras(pkg?.extras));
     } else {
@@ -906,9 +1036,13 @@ export function CourseSettingsModal({
       setAccessEnabled(false);
       setAccessPassword('');
       setAccessHint('');
+      setAccessAllowReset(true);
+      setAccessConfigured(false);
       setAuthorEnabled(false);
       setAuthorPassword('');
       setAuthorHint('');
+      setAuthorAllowReset(true);
+      setAuthorConfigured(false);
       setExtras(normalizeCourseExtras(undefined));
     }
 
@@ -1169,11 +1303,13 @@ export function CourseSettingsModal({
       toggleLanguage,
       security: {
         accessEnabled,
+        accessPassword: accessPassword.trim() || undefined,
         accessHint,
+        accessAllowReset,
         authorEnabled,
+        authorPassword: authorPassword.trim() || undefined,
         authorHint,
-        accessPasswordConfigured: Boolean(accessPassword),
-        authorPasswordConfigured: Boolean(authorPassword),
+        authorAllowReset,
       },
       extras: normalizeCourseExtras(extras),
       typeScale,
@@ -1181,7 +1317,7 @@ export function CourseSettingsModal({
     };
   };
 
-  const submit = async () => {
+  const performSave = async () => {
     setSubmitting(true);
     setError(null);
     const body = buildPayload();
@@ -1222,6 +1358,24 @@ export function CourseSettingsModal({
     onClose();
   };
 
+  const submit = async () => {
+    if (accessEnabled && !accessPassword.trim() && !accessConfigured) {
+      setError(tr('courseSecurityPasswordRequired'));
+      setTab('security');
+      return;
+    }
+    if (authorEnabled && !authorPassword.trim() && !authorConfigured) {
+      setError(tr('courseSecurityPasswordRequired'));
+      setTab('security');
+      return;
+    }
+    if (accessEnabled || authorEnabled) {
+      setSecurityConfirmOpen(true);
+      return;
+    }
+    await performSave();
+  };
+
   const modalTitle = isEdit ? tr('editCourseTitle') : tr('newCourseTitle');
   const submitLabel = submitting
     ? isEdit
@@ -1256,13 +1410,30 @@ export function CourseSettingsModal({
           >
             <div className="flex shrink-0 items-center justify-between border-b border-[var(--line)] px-5 py-3">
               <h2 className="text-[15px] font-semibold text-[var(--ink)]">{modalTitle}</h2>
-              <button
-                type="button"
-                onClick={() => !submitting && onClose()}
-                className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-0.5">
+                {onOpenGeneralSettings && (
+                  <button
+                    type="button"
+                    title={tr('courseSettingsOpenGeneral')}
+                    disabled={submitting}
+                    onClick={() => {
+                      if (submitting) return;
+                      onClose();
+                      onOpenGeneralSettings();
+                    }}
+                    className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)] disabled:opacity-50"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => !submitting && onClose()}
+                  className="cursor-pointer rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-black/5"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             <div className="flex shrink-0 flex-wrap gap-1 border-b border-[var(--line)] px-4 pt-3">
@@ -2578,70 +2749,175 @@ export function CourseSettingsModal({
 
               {tab === 'security' && (
                 <div className="space-y-4">
-                  <p className="text-[12px] text-[var(--ink-muted)]">{tr('newCourseSecurityHint')}</p>
-                  <div className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-                      {tr('newCourseAccessLock')}
+                  {/* Author lock first — accent card to separate from access password */}
+                  <div
+                    className={`space-y-3 rounded-xl border p-3 ${
+                      authorEnabled
+                        ? 'border-[var(--accent)]/25 bg-[var(--accent-soft)]'
+                        : 'border-[var(--line)] bg-[var(--stage)] opacity-80'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div
+                          className={`text-[12px] font-semibold ${
+                            authorEnabled ? 'text-[var(--ink)]' : 'text-[var(--ink-muted)]'
+                          }`}
+                        >
+                          {tr('newCourseAuthorLock')}
+                        </div>
+                        <p className="mt-1 text-[11px] leading-snug text-[var(--ink-muted)]">
+                          {tr('courseSecurityAuthorDesc')}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={authorEnabled}
+                        title={authorEnabled ? tr('newCourseEnabled') : tr('courseSecurityOff')}
+                        onClick={() => setAuthorEnabled((v) => !v)}
+                        className="inline-flex shrink-0 cursor-pointer items-center"
+                      >
+                        <span
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                            authorEnabled ? 'bg-[var(--accent)]' : 'bg-[var(--line)]'
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                              authorEnabled ? 'left-4' : 'left-0.5'
+                            }`}
+                          />
+                        </span>
+                      </button>
                     </div>
-                    <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[var(--ink)]">
-                      <input
-                        type="checkbox"
-                        className="accent-[var(--accent)]"
-                        checked={accessEnabled}
-                        onChange={(e) => setAccessEnabled(e.target.checked)}
-                      />
-                      {tr('newCourseEnabled')}
-                    </label>
-                    <Field label={tr('newCoursePassword')}>
-                      <input
-                        type="password"
-                        className={inputClass}
-                        value={accessPassword}
-                        disabled={!accessEnabled}
-                        onChange={(e) => setAccessPassword(e.target.value)}
-                        autoComplete="new-password"
-                      />
-                    </Field>
-                    <Field label={tr('newCourseHint')}>
-                      <input
-                        className={inputClass}
-                        value={accessHint}
-                        disabled={!accessEnabled}
-                        onChange={(e) => setAccessHint(e.target.value)}
-                      />
-                    </Field>
+                    <div className={!authorEnabled ? 'pointer-events-none opacity-70' : undefined}>
+                      <Field label={tr('newCoursePassword')}>
+                        <PasswordField
+                          value={authorPassword}
+                          disabled={!authorEnabled}
+                          onChange={setAuthorPassword}
+                          showLabel={tr('courseSecurityShowPassword')}
+                          hideLabel={tr('courseSecurityHidePassword')}
+                          placeholder={
+                            authorConfigured && !authorPassword
+                              ? tr('courseSecurityPasswordKeep')
+                              : undefined
+                          }
+                        />
+                      </Field>
+                      <div className="mt-3">
+                        <Field label={tr('courseSecurityHintOptional')}>
+                          <input
+                            className={authorEnabled ? inputClass : inputDisabledClass}
+                            value={authorHint}
+                            disabled={!authorEnabled}
+                            onChange={(e) => setAuthorHint(e.target.value)}
+                          />
+                        </Field>
+                      </div>
+                      <label
+                        className={`mt-3 flex items-center gap-2 text-[12px] ${
+                          authorEnabled
+                            ? 'cursor-pointer text-[var(--ink)]'
+                            : 'cursor-not-allowed text-[var(--ink-muted)]'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="accent-[var(--accent)] disabled:opacity-50"
+                          checked={authorAllowReset}
+                          disabled={!authorEnabled}
+                          onChange={(e) => setAuthorAllowReset(e.target.checked)}
+                        />
+                        {tr('courseSecurityAllowReset')}
+                      </label>
+                    </div>
                   </div>
-                  <div className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-                      {tr('newCourseAuthorLock')}
+
+                  <div
+                    className={`space-y-3 rounded-xl border p-3 ${
+                      accessEnabled
+                        ? 'border-[var(--line)] bg-[var(--panel)]'
+                        : 'border-[var(--line)] bg-[var(--stage)] opacity-80'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div
+                          className={`text-[12px] font-semibold ${
+                            accessEnabled ? 'text-[var(--ink)]' : 'text-[var(--ink-muted)]'
+                          }`}
+                        >
+                          {tr('newCourseAccessLock')}
+                        </div>
+                        <p className="mt-1 text-[11px] leading-snug text-[var(--ink-muted)]">
+                          {tr('courseSecurityAccessDesc')}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={accessEnabled}
+                        title={accessEnabled ? tr('newCourseEnabled') : tr('courseSecurityOff')}
+                        onClick={() => setAccessEnabled((v) => !v)}
+                        className="inline-flex shrink-0 cursor-pointer items-center"
+                      >
+                        <span
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                            accessEnabled ? 'bg-[var(--accent)]' : 'bg-[var(--line)]'
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                              accessEnabled ? 'left-4' : 'left-0.5'
+                            }`}
+                          />
+                        </span>
+                      </button>
                     </div>
-                    <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[var(--ink)]">
-                      <input
-                        type="checkbox"
-                        className="accent-[var(--accent)]"
-                        checked={authorEnabled}
-                        onChange={(e) => setAuthorEnabled(e.target.checked)}
-                      />
-                      {tr('newCourseEnabled')}
-                    </label>
-                    <Field label={tr('newCoursePassword')}>
-                      <input
-                        type="password"
-                        className={inputClass}
-                        value={authorPassword}
-                        disabled={!authorEnabled}
-                        onChange={(e) => setAuthorPassword(e.target.value)}
-                        autoComplete="new-password"
-                      />
-                    </Field>
-                    <Field label={tr('newCourseHint')}>
-                      <input
-                        className={inputClass}
-                        value={authorHint}
-                        disabled={!authorEnabled}
-                        onChange={(e) => setAuthorHint(e.target.value)}
-                      />
-                    </Field>
+                    <div className={!accessEnabled ? 'pointer-events-none opacity-70' : undefined}>
+                      <Field label={tr('newCoursePassword')}>
+                        <PasswordField
+                          value={accessPassword}
+                          disabled={!accessEnabled}
+                          onChange={setAccessPassword}
+                          showLabel={tr('courseSecurityShowPassword')}
+                          hideLabel={tr('courseSecurityHidePassword')}
+                          placeholder={
+                            accessConfigured && !accessPassword
+                              ? tr('courseSecurityPasswordKeep')
+                              : undefined
+                          }
+                        />
+                      </Field>
+                      <div className="mt-3">
+                        <Field label={tr('courseSecurityHintOptional')}>
+                          <input
+                            className={accessEnabled ? inputClass : inputDisabledClass}
+                            value={accessHint}
+                            disabled={!accessEnabled}
+                            onChange={(e) => setAccessHint(e.target.value)}
+                          />
+                        </Field>
+                      </div>
+                      <label
+                        className={`mt-3 flex items-center gap-2 text-[12px] ${
+                          accessEnabled
+                            ? 'cursor-pointer text-[var(--ink)]'
+                            : 'cursor-not-allowed text-[var(--ink-muted)]'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="accent-[var(--accent)] disabled:opacity-50"
+                          checked={accessAllowReset}
+                          disabled={!accessEnabled}
+                          onChange={(e) => setAccessAllowReset(e.target.checked)}
+                        />
+                        {tr('courseSecurityAllowReset')}
+                      </label>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2669,6 +2945,18 @@ export function CourseSettingsModal({
               </div>
             </div>
           </motion.div>
+
+          <SecurityConfirmModal
+            open={securityConfirmOpen}
+            title={tr('courseSecuritySaveConfirmTitle')}
+            body={tr('courseSecuritySaveConfirm')}
+            confirmLabel={tr('courseSecuritySaveConfirmAction')}
+            onClose={() => setSecurityConfirmOpen(false)}
+            onConfirm={() => {
+              setSecurityConfirmOpen(false);
+              void performSave();
+            }}
+          />
         </motion.div>
       )}
     </AnimatePresence>

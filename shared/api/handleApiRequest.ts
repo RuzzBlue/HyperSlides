@@ -11,6 +11,11 @@ import type {
   StructureTarget,
 } from '../types.ts';
 import {
+  resetCourseLock,
+  verifyCourseLockPassword,
+  type CourseLockKind,
+} from './courseSecurity.ts';
+import {
   gradeQuiz,
   listCourses,
   loadCourse,
@@ -140,6 +145,43 @@ export async function handleApiRequest(
         const status = message === 'Course not found' ? 404 : 400;
         return { ok: false, status, error: message };
       }
+    }
+
+    if (
+      method === 'POST' &&
+      segments[0] === 'courses' &&
+      segments.length === 3 &&
+      (segments[2] === 'unlock-access' || segments[2] === 'unlock-author')
+    ) {
+      const kind: CourseLockKind = segments[2] === 'unlock-access' ? 'access' : 'author';
+      const password =
+        typeof (body as { password?: unknown } | null)?.password === 'string'
+          ? String((body as { password: string }).password)
+          : '';
+      const result = verifyCourseLockPassword(ctx.appRoot, segments[1], kind, password);
+      if (!result.ok) {
+        return { ok: false, status: 401, error: result.error, data: { hint: result.hint } };
+      }
+      return { ok: true, status: 200, data: { unlocked: true, kind } };
+    }
+
+    if (
+      method === 'POST' &&
+      segments[0] === 'courses' &&
+      segments.length === 3 &&
+      segments[2] === 'reset-lock'
+    ) {
+      const kindRaw = (body as { kind?: unknown } | null)?.kind;
+      const userId =
+        typeof (body as { userId?: unknown } | null)?.userId === 'string'
+          ? String((body as { userId: string }).userId)
+          : '';
+      const kind: CourseLockKind = kindRaw === 'author' ? 'author' : 'access';
+      const result = resetCourseLock(ctx.appRoot, segments[1], kind, userId);
+      if (!result.ok) {
+        return { ok: false, status: 403, error: result.error };
+      }
+      return { ok: true, status: 200, data: { reset: true, kind } };
     }
 
     if (

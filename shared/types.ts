@@ -203,10 +203,22 @@ export interface CoursePackageManifest {
   permissions?: string[];
   integrity?: { algorithm: string; hash?: string | null };
   updates?: { channel: string; feedUrl?: string };
-  /** Learner access gate (enforcement TBD). */
-  passwordLock?: { enabled: boolean; hint?: string };
-  /** Author/edit lock (enforcement TBD). */
-  authorLock?: { enabled: boolean; hint?: string };
+  /** Learner access gate — requires password before opening the course. */
+  passwordLock?: {
+    enabled: boolean;
+    hint?: string;
+    /** When true (default), creator user ID can reset/disable the lock. */
+    allowReset?: boolean;
+    /** True when a password hash is stored on disk. */
+    configured?: boolean;
+  };
+  /** Author/edit lock — requires password to enable editing tools. */
+  authorLock?: {
+    enabled: boolean;
+    hint?: string;
+    allowReset?: boolean;
+    configured?: boolean;
+  };
   /** Optional presentation extras (slide shell, title/index/summary/end slides). */
   extras?: CourseExtras;
 }
