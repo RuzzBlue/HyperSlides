@@ -706,8 +706,7 @@ const en = {
   inspectorTrigger: 'Trigger',
   inspectorOn: 'Start',
   inspectorToolsDisabled: 'Insert tools are available on lessons only',
-  inspectorActivitiesComingSoon:
-    'Open a quiz or lab slide to edit it here. Course-wide defaults will arrive later.',
+  inspectorActivitiesComingSoon: 'Open a quiz or lab slide to edit it here.',
   inspectorActivitiesQuizzes: 'Quizzes',
   inspectorActivitiesDefaultPassing: 'Default passing score (%)',
   inspectorActivitiesShowScores: 'Show scores to learners',
@@ -1971,8 +1970,7 @@ const es: Record<keyof typeof en, string> = {
   inspectorTrigger: 'Disparador',
   inspectorOn: 'Inicio',
   inspectorToolsDisabled: 'Las herramientas de inserción solo están en lecciones',
-  inspectorActivitiesComingSoon:
-    'Abre un quiz o lab para editarlo aquí. Los ajustes globales del curso llegarán después.',
+  inspectorActivitiesComingSoon: 'Abre un quiz o lab para editarlo aquí.',
   inspectorActivitiesQuizzes: 'Cuestionarios',
   inspectorActivitiesDefaultPassing: 'Puntaje para aprobar por defecto (%)',
   inspectorActivitiesShowScores: 'Mostrar puntajes a los estudiantes',

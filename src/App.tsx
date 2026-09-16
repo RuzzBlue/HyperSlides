@@ -239,6 +239,7 @@ export default function App() {
   const openCourse = async (id: string) => {
     setLoading(true);
     setError(null);
+    setPendingAccess(null);
     const res = await apiFetch<Omit<LoadedCourse, 'rootPath'>>({
       method: 'GET',
       path: `/api/courses/${id}`,
@@ -906,6 +907,42 @@ export default function App() {
           onTabChange={setSettingsTab}
           onProgressReset={() => void handleProgressReset()}
         />
+        <CourseLockModal
+          open={Boolean(pendingAccess)}
+          courseId={pendingAccess?.courseId ?? ''}
+          kind="access"
+          title={tr('courseLockAccessTitle')}
+          hint={pendingAccess?.hint}
+          allowReset={pendingAccess?.allowReset !== false}
+          onClose={() => setPendingAccess(null)}
+          onUnlocked={() => {
+            if (!pendingAccess) return;
+            const { courseId, payload, progress } = pendingAccess;
+            setAccessUnlockedIds((prev) => new Set(prev).add(courseId));
+            setPendingAccess(null);
+            finishOpenCourse(payload, progress);
+          }}
+          onReset={() => {
+            if (!pendingAccess) return;
+            const { courseId, payload, progress } = pendingAccess;
+            setAccessUnlockedIds((prev) => new Set(prev).add(courseId));
+            const nextPayload = {
+              ...payload,
+              packageManifest: payload.packageManifest
+                ? {
+                    ...payload.packageManifest,
+                    passwordLock: {
+                      ...(payload.packageManifest.passwordLock ?? { enabled: false }),
+                      enabled: false,
+                      configured: false,
+                    },
+                  }
+                : null,
+            };
+            setPendingAccess(null);
+            finishOpenCourse(nextPayload, progress);
+          }}
+        />
       </AppShell>
     );
   }
@@ -957,6 +994,10 @@ export default function App() {
           itemTitle={current?.title}
           onHome={() => {
             clearCourseSettings();
+            setPendingAccess(null);
+            setAccessUnlockedIds(new Set());
+            setAuthorUnlockedIds(new Set());
+            setAuthorUnlockOpen(false);
             setView('home');
             setCourse(null);
           }}

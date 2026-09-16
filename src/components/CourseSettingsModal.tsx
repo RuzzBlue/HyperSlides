@@ -991,6 +991,35 @@ export function CourseSettingsModal({
       setAuthorConfigured(Boolean(pkg?.authorLock?.configured));
       setAuthorPassword('');
       setExtras(normalizeCourseExtras(pkg?.extras));
+
+      const courseId = course.summary.id ?? course.manifest.id;
+      if (courseId) {
+        void apiFetch<{
+          accessPassword: string;
+          authorPassword: string;
+          accessHint?: string;
+          authorHint?: string;
+          accessAllowReset: boolean;
+          authorAllowReset: boolean;
+          accessEnabled: boolean;
+          authorEnabled: boolean;
+        }>({
+          method: 'GET',
+          path: `/api/courses/${courseId}/security`,
+        }).then((res) => {
+          if (!res.ok || !res.data) return;
+          setAccessEnabled(res.data.accessEnabled);
+          setAuthorEnabled(res.data.authorEnabled);
+          setAccessPassword(res.data.accessPassword || '');
+          setAuthorPassword(res.data.authorPassword || '');
+          if (res.data.accessHint !== undefined) setAccessHint(res.data.accessHint ?? '');
+          if (res.data.authorHint !== undefined) setAuthorHint(res.data.authorHint ?? '');
+          setAccessAllowReset(res.data.accessAllowReset !== false);
+          setAuthorAllowReset(res.data.authorAllowReset !== false);
+          setAccessConfigured(Boolean(res.data.accessPassword) || Boolean(pkg?.passwordLock?.configured));
+          setAuthorConfigured(Boolean(res.data.authorPassword) || Boolean(pkg?.authorLock?.configured));
+        });
+      }
     } else {
       setTitle(DEMO_DEFAULTS.title);
       setSubtitle(DEMO_DEFAULTS.subtitle);

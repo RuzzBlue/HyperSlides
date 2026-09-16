@@ -12,6 +12,7 @@ import type {
 } from '../types.ts';
 import {
   resetCourseLock,
+  readCourseSecuritySecrets,
   verifyCourseLockPassword,
   type CourseLockKind,
 } from './courseSecurity.ts';
@@ -163,6 +164,19 @@ export async function handleApiRequest(
         return { ok: false, status: 401, error: result.error, data: { hint: result.hint } };
       }
       return { ok: true, status: 200, data: { unlocked: true, kind } };
+    }
+
+    if (
+      method === 'GET' &&
+      segments[0] === 'courses' &&
+      segments.length === 3 &&
+      segments[2] === 'security'
+    ) {
+      const secrets = readCourseSecuritySecrets(ctx.appRoot, segments[1]);
+      if (!secrets) {
+        return { ok: false, status: 404, error: 'Course not found' };
+      }
+      return { ok: true, status: 200, data: secrets };
     }
 
     if (

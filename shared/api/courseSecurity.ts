@@ -32,6 +32,8 @@ type LockSecret = {
   allowReset: boolean;
   salt: string;
   hash: string;
+  /** Reversible copy so authors can view/edit the password in Course Settings. */
+  passwordEnc?: EncryptedBlob;
 };
 
 type EncryptedBlob = {
@@ -51,6 +53,7 @@ export type CourseSecurityFile = {
 };
 
 const CREATOR_KEY_SALT = 'hyperclass-course-creator-v1';
+const PASSWORD_KEY_SALT = 'hyperclass-course-password-v1';
 const HASH_KEYLEN = 64;
 
 function securityPath(courseRoot: string): string {
@@ -64,6 +67,10 @@ function writeJson(filePath: string, data: unknown) {
 
 function deriveCreatorKey(): Buffer {
   return crypto.createHash('sha256').update(CREATOR_KEY_SALT).digest();
+}
+
+function derivePasswordKey(): Buffer {
+  return crypto.createHash('sha256').update(PASSWORD_KEY_SALT).digest();
 }
 
 export function encryptCreatorId(userId: string): EncryptedBlob {
@@ -85,6 +92,37 @@ export function decryptCreatorId(blob: EncryptedBlob): string {
     throw new Error('Unsupported creator id format');
   }
   const key = deriveCreatorKey();
+  const decipher = crypto.createDecipheriv(
+    'aes-256-gcm',
+    key,
+    Buffer.from(blob.iv, 'base64'),
+  );
+  decipher.setAuthTag(Buffer.from(blob.tag, 'base64'));
+  return Buffer.concat([
+    decipher.update(Buffer.from(blob.data, 'base64')),
+    decipher.final(),
+  ]).toString('utf8');
+}
+
+function encryptPassword(password: string): EncryptedBlob {
+  const key = derivePasswordKey();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(password, 'utf8'), cipher.final()]);
+  return {
+    v: 1,
+    alg: 'aes-256-gcm',
+    iv: iv.toString('base64'),
+    tag: cipher.getAuthTag().toString('base64'),
+    data: encrypted.toString('base64'),
+  };
+}
+
+function decryptPassword(blob: EncryptedBlob): string {
+  if (blob.v !== 1 || blob.alg !== 'aes-256-gcm') {
+    throw new Error('Unsupported password format');
+  }
+  const key = derivePasswordKey();
   const decipher = crypto.createDecipheriv(
     'aes-256-gcm',
     key,
@@ -164,6 +202,7 @@ function buildLockSecret(
       allowReset,
       salt,
       hash,
+      passwordEnc: encryptPassword(trimmed),
     };
   }
   if (previous?.hash && previous?.salt) {
@@ -173,6 +212,7 @@ function buildLockSecret(
       allowReset,
       salt: previous.salt,
       hash: previous.hash,
+      passwordEnc: previous.passwordEnc,
     };
   }
   throw new Error('Password is required when enabling a security lock');
@@ -227,6 +267,53 @@ export function writeCourseSecurity(
   };
   writeJson(securityPath(courseRoot), next);
   return publicLocksFromSecurity(next);
+}
+
+/** Decrypt stored passwords for Course Settings display/edit. */
+export function readCourseSecuritySecrets(
+  appRoot: string,
+  courseId: string,
+): {
+  accessPassword: string;
+  authorPassword: string;
+  accessHint?: string;
+  authorHint?: string;
+  accessAllowReset: boolean;
+  authorAllowReset: boolean;
+  accessEnabled: boolean;
+  authorEnabled: boolean;
+} | null {
+  const loaded = loadCourse(appRoot, courseId);
+  if (!loaded) return null;
+  const sec = readCourseSecurity(loaded.rootPath);
+  if (!sec) {
+    return {
+      accessPassword: '',
+      authorPassword: '',
+      accessAllowReset: true,
+      authorAllowReset: true,
+      accessEnabled: false,
+      authorEnabled: false,
+    };
+  }
+  const decryptSafe = (lock: LockSecret | null | undefined): string => {
+    if (!lock?.passwordEnc) return '';
+    try {
+      return decryptPassword(lock.passwordEnc);
+    } catch {
+      return '';
+    }
+  };
+  return {
+    accessEnabled: Boolean(sec.access?.enabled),
+    authorEnabled: Boolean(sec.author?.enabled),
+    accessPassword: decryptSafe(sec.access),
+    authorPassword: decryptSafe(sec.author),
+    accessHint: sec.access?.hint,
+    authorHint: sec.author?.hint,
+    accessAllowReset: sec.access?.allowReset !== false,
+    authorAllowReset: sec.author?.allowReset !== false,
+  };
 }
 
 export function verifyCourseLockPassword(
