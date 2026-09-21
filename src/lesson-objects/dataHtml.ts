@@ -64,6 +64,8 @@ export function detectDataKind(el: HTMLElement): DataKind | null {
     return explicit;
   }
   const component = (host.getAttribute('data-component') || '').toLowerCase();
+  // Mermaid before generic "graph" — "mermaid-graph" includes the substring "graph".
+  if (component === 'mermaid-graph' || component.includes('mermaid')) return 'mermaid';
   if (
     component === 'hc-chart' ||
     component === 'pie-chart' ||
@@ -75,7 +77,6 @@ export function detectDataKind(el: HTMLElement): DataKind | null {
     return 'graph';
   }
   if (component === 'hc-container') return 'container';
-  if (component === 'mermaid-graph' || component.includes('mermaid')) return 'mermaid';
   if (component === 'filter-table' || component.includes('table')) return 'table';
   if (host.matches('table, .hc-table-wrap') || host.querySelector(':scope > table, :scope > .hc-table')) {
     return 'table';

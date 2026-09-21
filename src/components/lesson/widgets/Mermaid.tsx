@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 import { ExpandableShell, PanZoomSurface } from '../ExpandableShell';
-import { attr, text } from './mountData';
+import { attr } from './mountData';
 
 mermaid.initialize({
   startOnLoad: false,
@@ -33,10 +33,11 @@ function resolveChart(host: HTMLElement | null | undefined, chart?: string): str
   if (host) {
     const chartEl = host.querySelector('[data-chart]');
     if (chartEl) {
+      // Prefer element body (inspector writes textContent). Attribute is often just a marker.
+      const fromText = (chartEl.textContent || '').trim();
+      if (fromText) return fromText;
       const fromAttr = attr(chartEl, 'data-chart');
-      const fromText = text(chartEl);
       if (fromAttr) return fromAttr;
-      if (fromText) return (chartEl.textContent || '').trim();
     }
     const hostAttr = attr(host, 'data-chart');
     if (hostAttr) return hostAttr;
@@ -47,6 +48,21 @@ function resolveChart(host: HTMLElement | null | undefined, chart?: string): str
     }
   }
   return BIG_MERMAID;
+}
+
+function isMermaidSourceTarget(host: HTMLElement, target: Node): boolean {
+  const el =
+    target.nodeType === Node.TEXT_NODE
+      ? target.parentElement
+      : target instanceof HTMLElement
+        ? target
+        : null;
+  if (!el) return false;
+  if (el === host) return true;
+  if (el.hasAttribute('data-chart') || el.closest('[data-chart]')) return true;
+  if (el.matches('pre, code') || el.closest('pre, code')) return true;
+  if (el.hasAttribute('data-hc-source-root') || el.closest('[data-hc-source-root]')) return true;
+  return false;
 }
 
 export function MermaidWidget({
@@ -69,7 +85,26 @@ export function MermaidWidget({
 
   useEffect(() => {
     if (!host) return;
-    const observer = new MutationObserver(() => setSourceTick((value) => value + 1));
+    const observer = new MutationObserver((records) => {
+      const sourceChanged = records.some((record) => {
+        if (record.type === 'attributes') {
+          if (record.target === host && record.attributeName?.startsWith('data-')) return true;
+          if (
+            record.target instanceof HTMLElement &&
+            (record.attributeName === 'data-chart' || record.target.hasAttribute('data-chart'))
+          ) {
+            return true;
+          }
+          return false;
+        }
+        if (record.type === 'characterData') {
+          return isMermaidSourceTarget(host, record.target);
+        }
+        const changed = [...Array.from(record.addedNodes), ...Array.from(record.removedNodes)];
+        return changed.some((node) => isMermaidSourceTarget(host, node));
+      });
+      if (sourceChanged) setSourceTick((value) => value + 1);
+    });
     observer.observe(host, {
       attributes: true,
       childList: true,
@@ -81,19 +116,29 @@ export function MermaidWidget({
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let timer = 0;
+    const gen = `${baseId}-${tick}-${sourceTick}`;
+    const run = async () => {
       try {
-        const renderId = `mmd-${baseId}-${tick}-${Math.random().toString(36).slice(2, 8)}`;
+        // Mermaid requires unique ids; strip chars that break SVG/CSS selectors.
+        const renderId = `mmd-${gen.replace(/[^a-zA-Z0-9_-]/g, '')}-${Math.random().toString(36).slice(2, 7)}`;
         const { svg } = await mermaid.render(renderId, definition);
         if (!cancelled && ref.current) ref.current.innerHTML = svg;
-      } catch {
+      } catch (err) {
+        if (cancelled) return;
+        console.error('[mermaid] render failed', err, definition);
         if (ref.current) ref.current.textContent = 'Diagram failed to render.';
       }
-    })();
+    };
+    // Debounce so mid-edit / portal mutations don't race a good SVG with a failed one.
+    timer = window.setTimeout(() => {
+      void run();
+    }, 120);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
-  }, [definition, baseId, tick]);
+  }, [definition, baseId, tick, sourceTick]);
 
   return (
     <ExpandableShell
@@ -105,18 +150,18 @@ export function MermaidWidget({
       expandedBodyClassName="min-h-0 flex-1"
     >
       {allowZoom || allowPan ? (
-      <PanZoomSurface
-        enableZoom={allowZoom}
-        enablePan={allowPan}
-        className="h-full min-h-[280px] bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900"
-      >
-        <div
-          ref={ref}
-          className="[&_svg]:max-w-none"
-          onDoubleClick={() => setTick((t) => t + 1)}
-          title="Double-click to re-render diagram"
-        />
-      </PanZoomSurface>
+        <PanZoomSurface
+          enableZoom={allowZoom}
+          enablePan={allowPan}
+          className="h-full min-h-[280px] bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900"
+        >
+          <div
+            ref={ref}
+            className="[&_svg]:max-w-none"
+            onDoubleClick={() => setTick((t) => t + 1)}
+            title="Double-click to re-render diagram"
+          />
+        </PanZoomSurface>
       ) : (
         <div className="h-full min-h-[280px] overflow-auto bg-gradient-to-b from-slate-50 to-white p-4 dark:from-slate-950 dark:to-slate-900">
           <div

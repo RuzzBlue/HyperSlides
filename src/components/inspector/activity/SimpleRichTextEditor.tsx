@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../../../api/client';
 import { usePrefs } from '../../../prefs/PrefsProvider';
+import { parseYoutubeVideoId } from '../../../lib/youtubeEmbed';
 import { AssetLibraryModal, type LibraryAsset } from '../media/AssetLibraryModal';
 import { courseAssetUrl } from '../styleThemeColors';
 
@@ -103,11 +104,18 @@ export function SimpleRichTextEditor({
     if (!clean) return;
     if (kind === 'image') {
       insertHtml(`<img src="${escapeAttr(clean)}" alt="" style="max-width:100%;height:auto;" />`);
-    } else {
-      insertHtml(
-        `<video src="${escapeAttr(clean)}" controls style="max-width:100%;height:auto;"></video>`,
-      );
+      return;
     }
+    const ytId = parseYoutubeVideoId(clean);
+    if (ytId) {
+      insertHtml(
+        `<div data-component="yt-video" data-video-id="${escapeAttr(ytId)}" style="aspect-ratio:16/9;width:100%;max-width:100%;"></div>`,
+      );
+      return;
+    }
+    insertHtml(
+      `<video src="${escapeAttr(clean)}" controls style="max-width:100%;height:auto;"></video>`,
+    );
   };
 
   const uploadFiles = async (files: FileList | null, kind: 'image' | 'video') => {

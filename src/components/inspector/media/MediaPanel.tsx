@@ -38,6 +38,7 @@ import {
   detectIconLibrary,
   getLucideIconComponent,
 } from './iconLibraries';
+import { parseYoutubeVideoId, youtubeWatchUrl } from '../../../lib/youtubeEmbed';
 
 export type { MediaKind };
 export function createMediaHtml(kind: MediaKind): string {
@@ -144,6 +145,7 @@ export function detectMediaKind(el: HTMLElement): MediaKind | null {
   }
 
   const component = (el.getAttribute('data-component') || '').toLowerCase();
+  if (component === 'yt-video') return 'video';
   if (component === 'hc-file' || component === 'pdf-embed' || component === 'asset-download') {
     return 'file';
   }
@@ -165,7 +167,7 @@ export function detectMediaKind(el: HTMLElement): MediaKind | null {
     if (el.getAttribute('data-hc-media') === 'file' || el.getAttribute('data-component') === 'hc-file') {
       return 'file';
     }
-    if (el.querySelector('video, audio')) return 'video';
+    if (el.querySelector('video, audio, [data-component="yt-video"]')) return 'video';
     if (el.querySelector('img, picture')) return 'image';
     if (el.querySelector('svg, i[class*="fa-"], i[class*="bi-"], .hc-emoji, [data-icon]')) {
       return 'icon';
@@ -174,7 +176,7 @@ export function detectMediaKind(el: HTMLElement): MediaKind | null {
   }
 
   const nested = el.querySelector(
-    '[data-hc-media="file"], [data-component="hc-file"], [data-component="pdf-embed"], [data-component="asset-download"], img, video, audio, svg, picture',
+    '[data-hc-media="file"], [data-component="hc-file"], [data-component="pdf-embed"], [data-component="asset-download"], [data-component="yt-video"], img, video, audio, svg, picture',
   );
   if (nested instanceof HTMLElement) return detectMediaKind(nested);
 
@@ -387,7 +389,29 @@ function readImageDraft(el: HTMLElement): ImageDraft {
   };
 }
 
+function findYtMount(el: HTMLElement): HTMLElement | null {
+  if ((el.getAttribute('data-component') || '').toLowerCase() === 'yt-video') return el;
+  return el.querySelector('[data-component="yt-video"]') as HTMLElement | null;
+}
+
 function readVideoDraft(el: HTMLElement): VideoDraft {
+  const yt = findYtMount(el);
+  if (yt) {
+    const id = yt.getAttribute('data-video-id') || '';
+    return {
+      src: id ? youtubeWatchUrl(id) : '',
+      poster: '',
+      controls: true,
+      autoplay: false,
+      loop: false,
+      muted: false,
+      playsInline: true,
+      objectFit: 'cover',
+      objectPosition: 'center center',
+      width: yt.style.width || '100%',
+      height: yt.style.height || 'auto',
+    };
+  }
   const video =
     el.tagName === 'VIDEO'
       ? (el as HTMLVideoElement)
@@ -529,21 +553,6 @@ export function MediaPanel({
     return img as HTMLImageElement;
   }, [el]);
 
-  const ensureVideoNode = useCallback((): HTMLVideoElement | null => {
-    if (!el) return null;
-    if (el.tagName === 'VIDEO') return el as HTMLVideoElement;
-    let videoEl = el.querySelector('video');
-    if (!videoEl) {
-      videoEl = document.createElement('video');
-      videoEl.setAttribute('controls', '');
-      videoEl.setAttribute('playsinline', '');
-      videoEl.style.maxWidth = '100%';
-      videoEl.style.height = 'auto';
-      el.replaceChildren(videoEl);
-    }
-    return videoEl as HTMLVideoElement;
-  }, [el]);
-
   const applyImage = (next: ImageDraft) => {
     const img = ensureImageNode();
     if (!img || !el) return;
@@ -586,11 +595,89 @@ export function MediaPanel({
     markDirty();
   };
 
-  const applyVideo = (next: VideoDraft) => {
-    const videoEl = ensureVideoNode();
-    if (!videoEl || !el) return;
+  const ensureVideoNode = useCallback((): HTMLVideoElement | null => {
+    if (!el) return null;
+    if (el.tagName === 'VIDEO') return el as HTMLVideoElement;
+    // Drop YouTube mount when switching back to a native file/URL video.
+    el.querySelectorAll('[data-component="yt-video"]').forEach((n) => n.remove());
+    if ((el.getAttribute('data-component') || '').toLowerCase() === 'yt-video') {
+      el.removeAttribute('data-component');
+      el.removeAttribute('data-video-id');
+    }
+    let videoEl = el.querySelector('video');
+    if (!videoEl) {
+      videoEl = document.createElement('video');
+      videoEl.setAttribute('controls', '');
+      videoEl.setAttribute('playsinline', '');
+      videoEl.style.maxWidth = '100%';
+      videoEl.style.height = 'auto';
+      el.replaceChildren(videoEl);
+    }
+    return videoEl as HTMLVideoElement;
+  }, [el]);
+
+  const applyYoutubeMount = (videoId: string, next: VideoDraft) => {
+    if (!el) return;
     const pos = normalizeObjectPosition(next.objectPosition);
-    if (next.src.trim()) videoEl.setAttribute('src', next.src.trim());
+
+    const styleMount = (mount: HTMLElement) => {
+      mount.setAttribute('data-component', 'yt-video');
+      mount.setAttribute('data-video-id', videoId);
+      mount.style.aspectRatio = '16 / 9';
+      mount.style.width = next.width.trim() || '100%';
+      mount.style.maxWidth = '100%';
+      if (next.height.trim() && next.height.trim() !== 'auto') {
+        mount.style.height = next.height.trim();
+      } else {
+        mount.style.removeProperty('height');
+      }
+    };
+
+    if (el.tagName === 'VIDEO') {
+      const mount = document.createElement('div');
+      styleMount(mount);
+      el.replaceWith(mount);
+      setVideo({ ...next, src: youtubeWatchUrl(videoId), objectPosition: pos });
+      markDirty();
+      return;
+    }
+
+    let mount = findYtMount(el);
+    if (!mount) {
+      mount = document.createElement('div');
+      el.replaceChildren(mount);
+    } else if (mount !== el && (el.getAttribute('data-component') || '').toLowerCase() !== 'yt-video') {
+      // keep existing child mount
+    } else if ((el.getAttribute('data-component') || '').toLowerCase() === 'yt-video') {
+      mount = el;
+    }
+    styleMount(mount);
+    el.setAttribute('data-hc-media', 'video');
+    el.setAttribute('data-hc-label', 'Video');
+    el.classList.add('hc-media', 'hc-media--video');
+    el.querySelectorAll('video').forEach((n) => {
+      if (n !== el) n.remove();
+    });
+    setVideo({
+      ...next,
+      src: youtubeWatchUrl(videoId),
+      objectPosition: pos,
+    });
+    markDirty();
+  };
+
+  const applyVideo = (next: VideoDraft) => {
+    if (!el) return;
+    const trimmed = next.src.trim();
+    const ytId = parseYoutubeVideoId(trimmed);
+    if (ytId) {
+      applyYoutubeMount(ytId, next);
+      return;
+    }
+    const videoEl = ensureVideoNode();
+    if (!videoEl) return;
+    const pos = normalizeObjectPosition(next.objectPosition);
+    if (trimmed) videoEl.setAttribute('src', trimmed);
     else videoEl.removeAttribute('src');
     if (next.poster.trim()) videoEl.setAttribute('poster', next.poster.trim());
     else videoEl.removeAttribute('poster');
@@ -611,6 +698,24 @@ export function MediaPanel({
     setVideo({ ...next, objectPosition: pos });
     markDirty();
   };
+
+  // One-shot: convert legacy <video src="youtube…"> into yt-video embeds when selected.
+  useEffect(() => {
+    if (!el) return;
+    if (detectMediaKind(el) !== 'video') return;
+    if (findYtMount(el)) return;
+    const videoNode =
+      el.tagName === 'VIDEO'
+        ? (el as HTMLVideoElement)
+        : (el.querySelector('video') as HTMLVideoElement | null);
+    const rawSrc = videoNode?.getAttribute('src') || '';
+    const migrateId = parseYoutubeVideoId(rawSrc);
+    if (!migrateId || !videoNode) return;
+    applyYoutubeMount(migrateId, {
+      ...readVideoDraft(el),
+      src: youtubeWatchUrl(migrateId),
+    });
+  }, [el, selected?.objectId]);
 
   const applyIcon = (next: IconDraft) => {
     if (!el) return;
@@ -1096,10 +1201,13 @@ export function MediaPanel({
             <input
               className={fieldClass}
               value={video.src}
-              placeholder="assets/videos/… or https://"
+              placeholder="YouTube URL, assets/videos/…, or https://"
               onChange={(e) => applyVideo({ ...video, src: e.target.value })}
             />
           </label>
+          {parseYoutubeVideoId(video.src) ? (
+            <p className="text-[10px] text-[var(--ink-muted)]">{tr('mediaYoutubeEmbedHint')}</p>
+          ) : null}
           <div className="grid grid-cols-2 gap-2">
             <label className="block">
               <span className="mb-1 block text-[11px] font-medium text-[var(--ink)]">

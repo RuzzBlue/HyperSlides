@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ExternalLink, Maximize2, Square, X } from 'lucide-react';
+import { parseYoutubeVideoId, youtubeEmbedUrl } from '../lib/youtubeEmbed';
 
 type WinState = 'normal' | 'maximized' | 'minimized';
 
@@ -12,26 +13,16 @@ export function normalizeExternalUrl(raw: string): string {
   return `https://${t}`;
 }
 
-function youtubeVideoId(u: URL): string {
-  const host = u.hostname.replace(/^www\./, '').toLowerCase();
-  if (host === 'youtu.be') return u.pathname.split('/').filter(Boolean)[0] || '';
-  if (!host.endsWith('youtube.com') && !host.endsWith('youtube-nocookie.com')) return '';
-  if (u.pathname.startsWith('/embed/')) return u.pathname.split('/')[2] || '';
-  if (u.pathname.startsWith('/shorts/')) return u.pathname.split('/')[2] || '';
-  if (u.pathname.startsWith('/live/')) return u.pathname.split('/')[2] || '';
-  return u.searchParams.get('v') || '';
-}
-
 function toEmbeddableUrl(raw: string): { src: string; note?: string; framed: boolean } {
   const href = normalizeExternalUrl(raw);
   try {
     const u = new URL(href);
     const host = u.hostname.replace(/^www\./, '').toLowerCase();
     if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtu.be' || host === 'music.youtube.com') {
-      const id = youtubeVideoId(u);
+      const id = parseYoutubeVideoId(href);
       if (id) {
         return {
-          src: `https://www.youtube-nocookie.com/embed/${id}`,
+          src: youtubeEmbedUrl(id),
           note: 'Playing this YouTube video in the in-app window.',
           framed: true,
         };

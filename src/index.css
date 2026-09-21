@@ -409,6 +409,12 @@ html[data-theme='dark'] .lesson-stage .hc-icon-block__badge {
   max-width: 100%;
   height: auto;
 }
+.lesson-stage .hc-media--video [data-component='yt-video'] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+}
 
 .lesson-stage .hc-media--icon,
 .lesson-stage .hc-media--icon {

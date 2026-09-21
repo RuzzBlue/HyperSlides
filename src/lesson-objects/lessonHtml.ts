@@ -125,6 +125,17 @@ function serializeNode(node: Node, depth: number): string {
     return `${pad}<!--${node.textContent ?? ''}-->\n`;
   }
   if (node.nodeType === Node.TEXT_NODE) {
+    const parent = node.parentElement;
+    // Preserve Mermaid / code whitespace — collapsing breaks diagram syntax.
+    const preserveWs =
+      parent &&
+      (parent.matches('pre, code, [data-chart]') ||
+        parent.closest('pre, code, [data-chart]'));
+    if (preserveWs) {
+      const raw = node.textContent ?? '';
+      if (!raw) return '';
+      return raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
     const t = (node.textContent ?? '').replace(/\s+/g, ' ').trim();
     return t ? `${pad}${t}\n` : '';
   }
@@ -132,6 +143,23 @@ function serializeNode(node: Node, depth: number): string {
   const tag = node.tagName.toLowerCase();
   const open = `<${tag}${attrString(node)}>`;
   if (VOID_TAGS.has(tag)) return `${pad}${open}\n`;
+
+  // Keep <pre data-chart> (and similar) as a single block with raw inner text.
+  if (tag === 'pre' || tag === 'code' || node.hasAttribute('data-chart')) {
+    const inner = Array.from(node.childNodes)
+      .map((c) => {
+        if (c.nodeType === Node.TEXT_NODE) {
+          return (c.textContent ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        }
+        if (c instanceof Element) return serializeNode(c, 0).trim();
+        return '';
+      })
+      .join('');
+    return `${pad}${open}${inner}</${tag}>\n`;
+  }
 
   if (isInlineish(node)) {
     return `${pad}${open}${node.innerHTML.trim()}</${tag}>\n`;

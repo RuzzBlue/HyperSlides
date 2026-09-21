@@ -19,6 +19,7 @@ export function inspectorToolForElement(el: HTMLElement): InspectorTool {
   if (el.hasAttribute('data-component')) {
     const name = (el.getAttribute('data-component') ?? '').toLowerCase();
     if (name === 'hc-file' || name === 'pdf-embed' || name === 'asset-download') return 'media';
+    if (name === 'yt-video') return 'media';
     if (name.includes('chart') || name.includes('graph') || name.includes('pie')) return 'charts';
     if (name.includes('table')) return 'charts';
     if (name.includes('mermaid')) return 'charts';
