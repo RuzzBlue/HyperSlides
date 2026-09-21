@@ -24,6 +24,11 @@ import { LabView } from './components/LabView';
 import { LessonView } from './components/LessonView';
 import { InAppLinkWindow } from './components/InAppLinkWindow';
 import { PresenterChrome } from './components/PresenterChrome';
+import {
+  PresenterAnnotationLayer,
+  PresenterToolsPalette,
+  PresenterToolsProvider,
+} from './components/presenter';
 import { QuizView } from './components/QuizView';
 import { sanitizeLessonHtml } from './lesson-objects/lessonHtml';
 import { SettingsModal } from './components/SettingsModal';
@@ -948,6 +953,7 @@ export default function App() {
   }
 
   return (
+    <PresenterToolsProvider active={fullscreenStage} slideKey={current?.key}>
     <AppShell>
       <LessonObjectModeProvider
         active={
@@ -1184,6 +1190,8 @@ export default function App() {
                   </motion.div>
                 </AnimatePresence>
               </StageZoomFrame>
+
+              {fullscreenStage && <PresenterAnnotationLayer />}
 
               {fullscreenStage && current?.type === 'lesson' && (
                 <div className="group/exit absolute right-0 top-0 z-40 h-20 w-36">
@@ -1522,7 +1530,9 @@ export default function App() {
       {inAppLinkUrl && (
         <InAppLinkWindow url={inAppLinkUrl} onClose={() => setInAppLinkUrl(null)} />
       )}
+      {fullscreenStage && <PresenterToolsPalette />}
       </LessonObjectModeProvider>
     </AppShell>
+    </PresenterToolsProvider>
   );
 }

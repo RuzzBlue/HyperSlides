@@ -98,6 +98,24 @@ button:disabled,
   cursor: not-allowed;
 }
 
+/* Presenter laser: force OS cursor off so only the red dot is visible. */
+.presenter-laser-surface,
+.presenter-laser-surface * {
+  cursor: url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7") 0 0, none !important;
+}
+html.presenter-laser-hide-cursor,
+html.presenter-laser-hide-cursor * {
+  cursor: url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7") 0 0, none !important;
+}
+html.presenter-laser-hide-cursor [data-presenter-tools],
+html.presenter-laser-hide-cursor [data-presenter-tools] * {
+  cursor: auto !important;
+}
+html.presenter-laser-hide-cursor [data-presenter-tools] button,
+html.presenter-laser-hide-cursor [data-presenter-tools] .cursor-pointer {
+  cursor: pointer !important;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

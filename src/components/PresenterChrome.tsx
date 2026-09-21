@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, StickyNote, PanelLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, StickyNote, PanelLeft, Pencil } from 'lucide-react';
 import type { ContentZoomPreset, PresenterMenuMode, SequenceItem } from '@shared/types';
 import { usePrefs } from '../prefs/PrefsProvider';
 import { ZoomControl } from './ZoomControl';
+import { usePresenterToolsOptional } from './presenter';
 
 export function PresenterChrome({
   mode,
@@ -34,6 +35,7 @@ export function PresenterChrome({
   onToggleNotes?: () => void;
 }) {
   const { tr } = usePrefs();
+  const tools = usePresenterToolsOptional();
   const isHeader = mode === 'fixed-header' || mode === 'floating-header';
   const isFloating = mode === 'floating-header' || mode === 'floating-footer';
   const [revealed, setRevealed] = useState(!isFloating);
@@ -134,6 +136,25 @@ export function PresenterChrome({
       </div>
 
       <div className={`flex flex-1 items-center justify-end gap-3 ${isHeader ? 'pr-28' : ''}`}>
+        {tools && (
+          <button
+            type="button"
+            title={tr('presenterToolsTitle')}
+            onClick={() => {
+              const next = !tools.open;
+              tools.setOpen(next);
+              if (next) tools.setExpanded(true);
+            }}
+            className={`inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold ${
+              tools.open
+                ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+                : 'text-[var(--ink-muted)] hover:bg-black/5 dark:hover:bg-white/10'
+            }`}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{tr('presenterToolsShort')}</span>
+          </button>
+        )}
         <button
           type="button"
           title={tr('toolNotes')}
