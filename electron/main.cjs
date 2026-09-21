@@ -66,8 +66,36 @@ function createMainWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+  mainWindow.webContents.setWindowOpenHandler(({ url, frameName }) => {
+    // Detached inspector popouts (about:blank + named window) — real OS windows.
+    const isInspectorPopout =
+      (!url || url === 'about:blank') &&
+      typeof frameName === 'string' &&
+      frameName.startsWith('hc-inspector');
+    if (isInspectorPopout) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 420,
+          height: 720,
+          minWidth: 320,
+          minHeight: 360,
+          autoHideMenuBar: true,
+          title: 'HyperClass Inspector',
+          backgroundColor: '#e8eaed',
+          // No `parent` — allows dragging onto another monitor freely.
+          webPreferences: {
+            preload: path.join(__dirname, 'preload.cjs'),
+            contextIsolation: true,
+            nodeIntegration: false,
+            sandbox: false,
+          },
+        },
+      };
+    }
+    if (url && /^https?:\/\//i.test(url)) {
+      shell.openExternal(url);
+    }
     return { action: 'deny' };
   });
 

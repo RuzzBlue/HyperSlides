@@ -36,8 +36,9 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { apiFetch } from '../../api/client';
+import { apiFetch, isElectronRuntime } from '../../api/client';
 import { usePrefs } from '../../prefs/PrefsProvider';
+import { ElectronPopoutShell } from './ElectronPopoutShell';
 import type { StringKey } from '../../i18n/strings';
 import type { CourseTheme, SequenceItem } from '@shared/types';
 import { CodePanel, type CodeContext } from './CodePanel';
@@ -765,6 +766,8 @@ export function Inspector({
         size={floatSizeForTool(tool)}
         expanded={isCode ? codeExpanded : false}
         insets={floatInsets}
+        windowName={`hc-inspector-${tool}`}
+        onClose={onClose}
       >
         {panel}
       </FloatingShell>
@@ -796,6 +799,70 @@ function expandedRect(insets?: FloatInsets) {
 }
 
 function FloatingShell({
+  title,
+  resetToken,
+  size,
+  expanded = false,
+  insets,
+  windowName = 'hc-inspector',
+  onClose,
+  children,
+}: {
+  title: string;
+  resetToken: number;
+  size: FloatSize;
+  expanded?: boolean;
+  insets?: FloatInsets;
+  windowName?: string;
+  onClose?: () => void;
+  children: ReactNode;
+}) {
+  const electron = isElectronRuntime();
+  const [forceInApp, setForceInApp] = useState(false);
+
+  // Desktop (Electron): real OS window that can leave the main frame / span monitors.
+  if (electron && !forceInApp) {
+    const w = expanded ? Math.min(1200, Math.max(size.width, 900)) : size.width;
+    const h = expanded ? Math.min(900, Math.max(size.height, 640)) : size.height;
+    return (
+      <ElectronPopoutShell
+        title={title}
+        name={windowName}
+        width={w}
+        height={h}
+        onClose={() => onClose?.()}
+        onBlocked={() => setForceInApp(true)}
+      >
+        <div
+          data-inspector-panel
+          className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[var(--stage)] text-[var(--ink)]"
+          role="dialog"
+          aria-label={title}
+        >
+          <div className="flex h-8 shrink-0 items-center border-b border-[var(--line)] bg-[var(--panel)] px-3">
+            <div className="truncate text-[11px] font-semibold text-[var(--ink-muted)]">{title}</div>
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+        </div>
+      </ElectronPopoutShell>
+    );
+  }
+
+  return (
+    <InAppFloatingShell
+      title={title}
+      resetToken={resetToken}
+      size={size}
+      expanded={expanded}
+      insets={insets}
+    >
+      {children}
+    </InAppFloatingShell>
+  );
+}
+
+/** Browser / in-app floating panel (constrained to the main window). */
+function InAppFloatingShell({
   title,
   resetToken,
   size,
